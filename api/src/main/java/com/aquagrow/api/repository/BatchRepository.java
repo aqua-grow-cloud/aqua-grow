@@ -1,0 +1,11 @@
+package com.aquagrow.api.repository;
+
+import com.aquagrow.api.model.Batch;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+
+@Repository
+public interface BatchRepository extends JpaRepository<Batch, String> {
+    List<Batch> findByPondId(String pondId);
+}

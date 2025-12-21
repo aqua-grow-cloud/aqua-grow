@@ -1,0 +1,128 @@
+{
+    "info": {
+        "name": "Aqua Grow API",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Ponds",
+            "item": [
+                {
+                    "name": "Get All Ponds",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/ponds",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "ponds"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Pond",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"North Pond\",\n  \"area\": 5000,\n  \"depth\": 1.5,\n  \"type\": \"Earthen\",\n  \"status\": \"Active\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/ponds",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "ponds"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Batches",
+            "item": [
+                {
+                    "name": "Get All Batches",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/batches",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "batches"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Employees",
+            "item": [
+                {
+                    "name": "Get All Employees",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/employees",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "employees"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Expenditures",
+            "item": [
+                {
+                    "name": "Get All Expenditures",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{base_url}}/api/expenditures",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "expenditures"
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:8080"
+        }
+    ]
+}
