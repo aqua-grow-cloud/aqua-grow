@@ -17,21 +17,21 @@ export default createVuetify({
         },
     },
     theme: {
-        defaultTheme: 'aquaTheme',
+        defaultTheme: 'professionalTheme',
         themes: {
-            aquaTheme: {
+            professionalTheme: {
                 dark: false,
                 colors: {
-                    background: '#F0F4F8',
+                    background: '#F1F5F9', // Slate 100
                     surface: '#FFFFFF',
-                    primary: '#00695C', // Deep Teal
-                    'primary-darken-1': '#004D40',
-                    secondary: '#0097A7', // Cyan
-                    text: '#263238',
-                    error: '#D32F2F',
-                    info: '#0288D1',
-                    success: '#388E3C',
-                    warning: '#FBC02D',
+                    primary: '#0891B2', // Cyan 600 (Pro Teal/Blue)
+                    'primary-darken-1': '#0E7490',
+                    secondary: '#334155', // Slate 700
+                    text: '#0F172A', // Slate 900
+                    error: '#EF4444',
+                    info: '#3B82F6',
+                    success: '#10B981',
+                    warning: '#F59E0B',
                 },
             },
         },

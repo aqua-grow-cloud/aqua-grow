@@ -1,5 +1,5 @@
 <template>
-  <v-card class="mx-auto" elevation="2">
+  <v-card class="mx-auto border-opacity-75" variant="outlined">
     <v-card-item>
       <div class="d-flex justify-space-between align-center">
         <v-card-title>{{ pond.name }}</v-card-title>
@@ -27,7 +27,17 @@
 
     <v-divider></v-divider>
 
-    <v-card-actions>
+    <v-card-actions v-if="canManage">
+      <v-btn 
+        v-if="pond.status === 'Active'"
+        variant="tonal" 
+        color="success" 
+        prepend-icon="mdi-fish"
+        @click="$emit('stock', pond.id)"
+      >
+        Stock
+      </v-btn>
+      <v-spacer></v-spacer>
       <v-btn variant="text" color="primary" @click="$emit('edit', pond)">
         Edit
       </v-btn>
@@ -44,12 +54,14 @@ import { computed } from 'vue';
 import type { Pond } from '../types';
 
 const props = defineProps<{
-  pond: Pond
+  pond: Pond;
+  canManage?: boolean;
 }>();
 
 defineEmits<{
   (e: 'edit', pond: Pond): void
   (e: 'delete', id: string): void
+  (e: 'stock', id: string): void
 }>();
 
 const statusColor = computed(() => {

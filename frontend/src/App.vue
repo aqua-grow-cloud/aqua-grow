@@ -3,60 +3,76 @@
     <v-navigation-drawer
       v-model="drawer"
       app
-      class="bg-gradient-primary"
+      color="#0F172A"
       theme="dark" 
       :mobile-breakpoint="960"
+      width="260"
     >
-      <!-- Gradient Background Overlay -->
-      <template v-slot:image>
-         <div class="fill-height gradient-bg"></div>
-      </template>
-
-      <v-list-item class="py-4">
+      <v-list-item class="py-4 px-4">
         <template v-slot:prepend>
-           <v-avatar color="white" size="40">
-             <v-icon color="primary" icon="mdi-water"></v-icon>
+           <v-avatar color="primary" size="32" class="mr-2">
+             <span class="text-white font-weight-bold">AG</span>
            </v-avatar>
         </template>
-        <v-list-item-title class="text-h6 font-weight-bold ml-2">Aqua Grow</v-list-item-title>
-        <v-list-item-subtitle class="ml-2">Farm Manager</v-list-item-subtitle>
+        <v-list-item-title class="text-subtitle-1 font-weight-bold text-white">Aqua Grow</v-list-item-title>
       </v-list-item>
 
-      <v-divider class="border-opacity-25"></v-divider>
+      <v-divider class="border-opacity-10 mb-4"></v-divider>
 
-      <v-list density="comfortable" nav class="mt-2">
-        <v-list-item rounded="xl" prepend-icon="mdi-view-dashboard" title="Dashboard" to="/" active-class="bg-white text-primary"></v-list-item>
-        <v-list-item rounded="xl" prepend-icon="mdi-water" title="Ponds" to="/ponds" active-class="bg-white text-primary"></v-list-item>
-        <v-list-item rounded="xl" prepend-icon="mdi-fishbowl" title="Batches" to="/batches" active-class="bg-white text-primary"></v-list-item>
-        <v-list-item rounded="xl" prepend-icon="mdi-clipboard-list" title="Operations" to="/operations" active-class="bg-white text-primary"></v-list-item>
-        <v-list-item rounded="xl" prepend-icon="mdi-Scale-balance" title="Harvest" to="/harvest" active-class="bg-white text-primary"></v-list-item>
-        <v-list-item rounded="xl" prepend-icon="mdi-cog" title="Settings" to="/settings" active-class="bg-white text-primary"></v-list-item>
+      <v-list density="compact" nav class="px-2">
+        <v-list-item rounded="lg" prepend-icon="mdi-view-dashboard-outline" title="Dashboard" to="/" active-class="bg-primary text-white"></v-list-item>
+        <v-list-item v-if="store.isManager" rounded="lg" prepend-icon="mdi-water-outline" title="Ponds" to="/ponds" active-class="bg-primary text-white"></v-list-item>
+        <v-list-item v-if="store.isManager" rounded="lg" prepend-icon="mdi-fishbowl-outline" title="Batches" to="/batches" active-class="bg-primary text-white"></v-list-item>
+        <v-list-item v-if="store.isOperator" rounded="lg" prepend-icon="mdi-clipboard-list-outline" title="Operations" to="/operations" active-class="bg-primary text-white"></v-list-item>
+        <v-list-item v-if="store.isManager" rounded="lg" prepend-icon="mdi-scale-balance" title="Harvest" to="/harvest" active-class="bg-primary text-white"></v-list-item>
+        <v-list-item v-if="store.isManager" rounded="lg" prepend-icon="mdi-cash-multiple" title="Payroll" to="/payroll" active-class="bg-primary text-white"></v-list-item>
+        <v-list-item v-if="store.isManager" rounded="lg" prepend-icon="mdi-finance" title="Finances" to="/finance" active-class="bg-primary text-white"></v-list-item>
+        <div v-if="store.isAdmin" class="mt-4 mb-2 text-caption text-grey-lighten-1 px-4 font-weight-bold">SETTINGS</div>
+        <v-list-item v-if="store.isAdmin" rounded="lg" prepend-icon="mdi-cog-outline" title="Users & Roles" to="/settings" active-class="bg-primary text-white"></v-list-item>
       </v-list>
 
       <template v-slot:append>
+        <v-divider class="border-opacity-10"></v-divider>
         <div class="pa-4">
-          <v-btn block color="white" variant="outlined" @click="logout" class="text-none">
-            Logout
-          </v-btn>
+          <v-select
+            v-model="store.currentUser.role"
+            :items="['Admin', 'Manager', 'Operator']"
+            label="Simulate Role"
+            density="compact"
+            variant="outlined"
+            hide-details
+            class="mb-4 text-white"
+            theme="dark"
+          ></v-select>
+          <v-list-item class="pa-0">
+            <template v-slot:prepend>
+               <v-avatar color="primary" size="32">{{ store.currentUser.role[0] }}</v-avatar>
+            </template>
+            <v-list-item-title class="text-body-2 text-white">{{ store.currentUser.role }}</v-list-item-title>
+             <template v-slot:append>
+               <v-btn icon="mdi-logout" variant="text" size="small" color="grey" @click="logout"></v-btn>
+             </template>
+          </v-list-item>
         </div>
       </template>
     </v-navigation-drawer>
 
-    <v-app-bar color="primary" density="compact">
-      <v-app-bar-nav-icon @click="drawer = !drawer"></v-app-bar-nav-icon>
-      <v-app-bar-title>Aqua Grow</v-app-bar-title>
+    <v-app-bar color="surface" elevation="0" class="border-b">
+      <v-app-bar-nav-icon @click="drawer = !drawer" color="grey-darken-1"></v-app-bar-nav-icon>
+      <v-spacer></v-spacer>
     </v-app-bar>
 
     <v-main>
-      <v-container fluid class="pa-3">
-        <router-view></router-view>
-      </v-container>
+      <router-view></router-view>
     </v-main>
   </v-app>
 </template>
 
 <script setup lang="ts">
 import { inject, ref } from 'vue'
+import { useAquaStore } from './stores/useAquaStore'
+
+const store = useAquaStore()
 // import Keycloak from 'keycloak-js' // Type only
 
 const keycloak = inject('keycloak') as any
@@ -67,9 +83,4 @@ const logout = () => {
 }
 </script>
 
-<style scoped>
-.gradient-bg {
-  background: linear-gradient(180deg, #00695C 0%, #004D40 100%);
-  opacity: 0.95;
-}
-</style>
+

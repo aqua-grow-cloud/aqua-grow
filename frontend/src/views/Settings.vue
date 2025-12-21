@@ -2,7 +2,15 @@
   <v-container fluid>
     <PageHeader title="Users & Roles" />
 
-    <v-card>
+    <v-row v-if="!store.isAdmin">
+      <v-col cols="12">
+        <v-alert type="error" variant="tonal" title="Access Denied">
+          Only Administrators can manage users and roles.
+        </v-alert>
+      </v-col>
+    </v-row>
+
+    <v-card v-else>
       <v-card-title>
         User Management
         <v-chip size="small" color="warning" class="ml-2">Mock Data</v-chip>
@@ -47,6 +55,8 @@
 </template>
 
 <script setup lang="ts">
+import { useAquaStore } from '../stores/useAquaStore';
 import PageHeader from '../components/PageHeader.vue';
+const store = useAquaStore();
 // Static mock for now
 </script>

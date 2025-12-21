@@ -32,28 +32,39 @@
         <div class="text-subtitle-2 mb-2">Biometrics</div>
         
         <v-row>
-          <v-col cols="6" sm="4">
+          <v-col cols="6" sm="3">
             <v-text-field
-              v-model.number="form.averageWeight"
+              v-model.number="form.sampleCount"
+              label="Pieces (Count)"
+              type="number"
+              variant="outlined"
+              density="compact"
+            ></v-text-field>
+          </v-col>
+          <v-col cols="6" sm="3">
+            <v-text-field
+              v-model.number="form.totalSampleWeight"
+              label="Total Weight (g)"
+              type="number"
+              variant="outlined"
+              density="compact"
+            ></v-text-field>
+          </v-col>
+           <v-col cols="6" sm="3">
+            <v-text-field
+              v-model.number="calculatedABW"
               label="Avg Weight (g)"
               type="number"
               variant="outlined"
               density="compact"
+              readonly
+              bg-color="grey-lighten-4"
             ></v-text-field>
           </v-col>
-          <v-col cols="6" sm="4">
+          <v-col cols="6" sm="3">
             <v-text-field
               v-model.number="form.averageLength"
               label="Avg Length (cm)"
-              type="number"
-              variant="outlined"
-              density="compact"
-            ></v-text-field>
-          </v-col>
-          <v-col cols="6" sm="4">
-             <v-text-field
-              v-model.number="form.survivalEstimate"
-              label="Est. Survival (%)"
               type="number"
               variant="outlined"
               density="compact"
@@ -110,31 +121,44 @@
               density="compact"
             ></v-text-field>
           </v-col>
+           <v-col cols="6" sm="3">
+             <v-text-field
+              v-model.number="form.survivalEstimate"
+              label="Est. Survival (%)"
+              type="number"
+              variant="outlined"
+              density="compact"
+            ></v-text-field>
+          </v-col>
         </v-row>
 
-        <v-btn color="primary" type="submit" :disabled="!isValid" class="mt-2">Log Sample</v-btn>
+        <v-btn color="primary" type="submit" :disabled="!isValid" class="mt-2 text-capitalize">Log Sample</v-btn>
       </v-form>
 
       <v-divider class="my-4"></v-divider>
       
-      <h3 class="text-subtitle-1 mb-2">Recent Samples</h3>
-       <v-table density="compact">
+      <h3 class="text-subtitle-1 mb-2 font-weight-bold">Recent Samples</h3>
+       <v-table density="compact" class="border rounded">
         <thead>
-          <tr>
+          <tr class="bg-grey-lighten-4">
             <th>Date</th>
-            <th>Batch</th>
-            <th>ABW (g)</th>
-            <th>DO</th>
-            <th>pH</th>
+            <th>Pond</th>
+            <th>Fish</th>
+            <th>Pieces</th>
+            <th>Total Weight</th>
+            <th>Weight/Unit</th>
+            <th>BATCH</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="log in recentLogs" :key="log.id">
             <td>{{ log.date }}</td>
-            <td>{{ getBatchLabel(log.batchId) }}</td>
-            <td>{{ log.averageWeight }}</td>
-            <td>{{ log.waterQuality.do }}</td>
-            <td>{{ log.waterQuality.ph }}</td>
+            <td>{{ getPondName(log.batchId) }}</td>
+            <td>{{ getSpecies(log.batchId) }}</td>
+            <td>{{ log.sampleCount }}</td>
+            <td>{{ log.totalSampleWeight }} g</td>
+            <td class="font-weight-bold">{{ log.averageWeight.toFixed(1) }} g</td>
+            <td class="text-caption text-grey">{{ getBatchDate(log.batchId) }}</td>
           </tr>
         </tbody>
       </v-table>
@@ -144,7 +168,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useAquaStore } from '../stores/useAquaStore';
 
 const store = useAquaStore();
@@ -162,6 +186,8 @@ const activeBatches = computed(() => {
 const defaultForm = {
   batchId: '',
   date: new Date().toISOString().substr(0, 10),
+  sampleCount: 0,
+  totalSampleWeight: 0,
   averageWeight: 0,
   averageLength: 0,
   survivalEstimate: 100,
@@ -177,17 +203,44 @@ const defaultForm = {
 
 const form = ref(JSON.parse(JSON.stringify(defaultForm))); // Deep copy for nested obj
 
-const isValid = computed(() => form.value.batchId);
+// Auto-calculate ABW
+const calculatedABW = computed(() => {
+    if (form.value.sampleCount > 0 && form.value.totalSampleWeight > 0) {
+        return parseFloat((form.value.totalSampleWeight / form.value.sampleCount).toFixed(2));
+    }
+    return 0;
+});
+
+// Update the actual form value when calculation changes
+watch(calculatedABW, (newVal) => {
+    form.value.averageWeight = newVal;
+});
+
+const isValid = computed(() => form.value.batchId && form.value.sampleCount > 0);
 
 const recentLogs = computed(() => {
     return [...store.sampleLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 });
 
-function getBatchLabel(batchId: string) {
-     const batch = store.getBatchById(batchId);
-    if (!batch) return batchId;
+function getBatchById(batchId: string) {
+    return store.getBatchById(batchId);
+}
+
+function getPondName(batchId: string) {
+    const batch = getBatchById(batchId);
+    if (!batch) return '-';
     const pond = store.getPondById(batch.pondId);
-    return `${pond ? pond.name : 'Unknown'}`;
+    return pond ? pond.name : '-';
+}
+
+function getSpecies(batchId: string) {
+    const batch = getBatchById(batchId);
+    return batch ? batch.species : '-';
+}
+
+function getBatchDate(batchId: string) {
+    const batch = getBatchById(batchId);
+    return batch ? batch.stockingDate : '-';
 }
 
 function save() {

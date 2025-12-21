@@ -29,6 +29,16 @@ const router = createRouter({
             component: () => import('../views/Harvest.vue')
         },
         {
+            path: '/payroll',
+            name: 'payroll',
+            component: () => import('../views/Payroll.vue')
+        },
+        {
+            path: '/finance',
+            name: 'finance',
+            component: () => import('../views/Finance.vue')
+        },
+        {
             path: '/settings',
             name: 'settings',
             component: () => import('../views/Settings.vue')
