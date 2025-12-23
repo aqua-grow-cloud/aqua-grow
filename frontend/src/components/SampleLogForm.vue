@@ -157,7 +157,7 @@
             <td>{{ getSpecies(log.batchId) }}</td>
             <td>{{ log.sampleCount }}</td>
             <td>{{ log.totalSampleWeight }} g</td>
-            <td class="font-weight-bold">{{ log.averageWeight.toFixed(1) }} g</td>
+            <td class="font-weight-bold">{{ (log.averageWeight || 0).toFixed(1) }} g</td>
             <td class="text-caption text-grey">{{ getBatchDate(log.batchId) }}</td>
           </tr>
         </tbody>
@@ -170,17 +170,26 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useAquaStore } from '../stores/useAquaStore';
+import { useBatches } from '../composables/useBatches';
+import { usePonds } from '../composables/usePonds';
+import { sampleLogService } from '../services/api';
+import type { Batch, SampleLog } from '../api/generated/model';
 
 const store = useAquaStore();
 
+// Use composables
+const { batches, getBatchById } = useBatches();
+const { getPondById } = usePonds();
+const { data: sampleLogs } = sampleLogService.useGetAll();
+
 const activeBatches = computed(() => {
-  return store.batches.filter(b => b.status === 'Active').map(b => {
-    const pond = store.getPondById(b.pondId);
+  return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
+    const pond = getPondById(b.pondId);
     return {
       id: b.id,
       label: `${pond ? pond.name : 'Unknown'} - ${b.species}`
     };
-  });
+  }) || [];
 });
 
 const defaultForm = {
@@ -219,28 +228,29 @@ watch(calculatedABW, (newVal) => {
 const isValid = computed(() => form.value.batchId && form.value.sampleCount > 0);
 
 const recentLogs = computed(() => {
-    return [...store.sampleLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+    return [...(sampleLogs.value || [])].sort((a: SampleLog, b: SampleLog) => 
+      new Date(b.date || '').getTime() - new Date(a.date || '').getTime()
+    ).slice(0, 5);
 });
 
-function getBatchById(batchId: string) {
-    return store.getBatchById(batchId);
-}
-
-function getPondName(batchId: string) {
+function getPondName(batchId?: string) {
+    if (!batchId) return '-';
     const batch = getBatchById(batchId);
     if (!batch) return '-';
-    const pond = store.getPondById(batch.pondId);
+    const pond = getPondById(batch.pondId);
     return pond ? pond.name : '-';
 }
 
-function getSpecies(batchId: string) {
+function getSpecies(batchId?: string) {
+    if (!batchId) return '-';
     const batch = getBatchById(batchId);
-    return batch ? batch.species : '-';
+    return batch?.species || '-';
 }
 
-function getBatchDate(batchId: string) {
+function getBatchDate(batchId?: string) {
+    if (!batchId) return '-';
     const batch = getBatchById(batchId);
-    return batch ? batch.stockingDate : '-';
+    return batch?.stockingDate || '-';
 }
 
 function save() {

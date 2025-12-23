@@ -87,15 +87,15 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="log in store.harvestLogs" :key="log.id">
+                <tr v-for="log in harvestLogs" :key="log.id">
                   <td>{{ formatDate(log.date) }}</td>
                   <td class="font-weight-medium">{{ log.buyer || 'Direct Sale' }}</td>
                   <td class="text-grey-darken-1">
-                      {{ log.biomassWeight }}kg (Est. {{ log.count.toLocaleString() }} pcs)
+                      {{ log.biomassWeight }}kg (Est. {{ log.count?.toLocaleString() || 0 }} pcs)
                       <div class="text-caption">Batch: {{ getBatchName(log.batchId) }}</div>
                   </td>
                   <td class="text-right font-weight-bold text-success text-h6">
-                      ₹{{ log.revenue.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                      ₹{{ (log.revenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                   </td>
                 </tr>
               </tbody>
@@ -106,7 +106,7 @@
                   </tr>
               </tfoot>
             </v-table>
-            <v-card-text v-if="store.harvestLogs.length === 0" class="text-center py-12 text-grey">
+            <v-card-text v-if="!harvestLogs || harvestLogs.length === 0" class="text-center py-12 text-grey">
               <v-icon icon="mdi-cash-off" size="48" class="mb-2 opacity-20"></v-icon>
               <div>No incoming payments recorded.</div>
             </v-card-text>
@@ -141,11 +141,20 @@ import { ref, computed } from 'vue';
 import { useAquaStore } from '../stores/useAquaStore';
 import PageHeader from '../components/PageHeader.vue';
 import ExpenditureDialog from '../components/ExpenditureDialog.vue';
+import { useExpenditures } from '../composables/useExpenditures';
+import { useHarvestLogs } from '../composables/useHarvestLogs';
+import { useBatches } from '../composables/useBatches';
 import type { Expenditure } from '../types';
+import type { Expenditure as ApiExpenditure, HarvestLog } from '../api/generated/model';
 
 const store = useAquaStore();
 const dialog = ref(false);
 const tab = ref('expenditure');
+
+// Use composables
+const { expenditures } = useExpenditures();
+const { harvestLogs } = useHarvestLogs();
+const { getBatchById } = useBatches();
 
 function handleSaveExpenditure(payload: Omit<Expenditure, 'id'>) {
     store.logExpenditure(payload);
@@ -164,11 +173,11 @@ const flattenedRows = computed(() => {
   const rows: PivotRow[] = [];
   const groups: Record<string, Record<string, Record<string, number>>> = {};
 
-  store.expenditures.forEach(exp => {
+  expenditures.value?.forEach((exp: ApiExpenditure) => {
     let batchDisplay = 'General / Unallocated';
     if (exp.batchId) {
-      const batch = store.getBatchById(exp.batchId);
-      batchDisplay = batch ? (batch.stockingDate) : 'Unknown Batch';
+      const batch = getBatchById(exp.batchId);
+      batchDisplay = batch?.stockingDate || 'Unknown Batch';
     }
 
     const macro = exp.macroInvestment || 'Unallocated';
@@ -179,7 +188,7 @@ const flattenedRows = computed(() => {
     if (!bGroup[macro]) bGroup[macro] = {};
     const mGroup = bGroup[macro]!;
     if (!mGroup[subType]) mGroup[subType] = 0;
-    mGroup[subType] += exp.amount;
+    mGroup[subType] += exp.amount || 0;
   });
 
   Object.keys(groups).forEach(batchName => {
@@ -207,16 +216,18 @@ const flattenedRows = computed(() => {
   return rows;
 });
 
-const grandTotalExp = computed(() => store.expenditures.reduce((sum, exp) => sum + exp.amount, 0));
-const grandTotalInc = computed(() => store.harvestLogs.reduce((sum, log) => sum + log.revenue, 0));
+const grandTotalExp = computed(() => expenditures.value?.reduce((sum: number, exp: ApiExpenditure) => sum + (exp.amount || 0), 0) || 0);
+const grandTotalInc = computed(() => harvestLogs.value?.reduce((sum: number, log: HarvestLog) => sum + (log.revenue || 0), 0) || 0);
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr?: string) {
+    if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-function getBatchName(batchId: string) {
-    const batch = store.getBatchById(batchId);
-    return batch ? (batch.name || batch.stockingDate) : 'Unknown';
+function getBatchName(batchId?: string) {
+    if (!batchId) return 'Unknown';
+    const batch = getBatchById(batchId);
+    return batch?.name || batch?.stockingDate || 'Unknown';
 }
 </script>
 

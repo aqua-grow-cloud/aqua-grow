@@ -89,17 +89,26 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useAquaStore } from '../stores/useAquaStore';
+import { useBatches } from '../composables/useBatches';
+import { usePonds } from '../composables/usePonds';
+import { feedLogService } from '../services/api';
+import type { Batch, FeedLog } from '../api/generated/model';
 
 const store = useAquaStore();
 
+// Use composables
+const { batches, getBatchById } = useBatches();
+const { getPondById } = usePonds();
+const { data: feedLogs } = feedLogService.useGetAll();
+
 const activeBatches = computed(() => {
-  return store.batches.filter(b => b.status === 'Active').map(b => {
-    const pond = store.getPondById(b.pondId);
+  return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
+    const pond = getPondById(b.pondId);
     return {
       id: b.id,
       label: `${pond ? pond.name : 'Unknown'} - ${b.species}`
     };
-  });
+  }) || [];
 });
 
 const defaultForm = {
@@ -115,13 +124,16 @@ const form = ref({ ...defaultForm });
 const isValid = computed(() => form.value.batchId && form.value.amount > 0);
 
 const recentLogs = computed(() => {
-  return [...store.feedLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+  return [...(feedLogs.value || [])].sort((a: FeedLog, b: FeedLog) => 
+    new Date(b.date || '').getTime() - new Date(a.date || '').getTime()
+  ).slice(0, 5);
 });
 
-function getBatchLabel(batchId: string) {
-    const batch = store.getBatchById(batchId);
+function getBatchLabel(batchId?: string) {
+    if (!batchId) return 'Unknown';
+    const batch = getBatchById(batchId);
     if (!batch) return batchId;
-    const pond = store.getPondById(batch.pondId);
+    const pond = getPondById(batch.pondId);
     return `${pond ? pond.name : 'Unknown'} (${batch.species})`;
 }
 

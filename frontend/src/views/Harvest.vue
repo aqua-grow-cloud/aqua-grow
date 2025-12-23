@@ -165,14 +165,14 @@
               <tr v-for="log in harvestHistory" :key="log.id" :class="{'bg-green-lighten-5': log.isFinal}">
                 <td class="text-no-wrap">{{ formatDateShort(log.date) }}</td>
                 <td>{{ getFishType(log.batchId) }}</td>
-                <td>{{ log.count.toLocaleString() }}</td>
-                <td class="text-error">{{ log.discountWeight.toFixed(1) }}</td>
-                <td class="font-weight-medium">{{ log.biomassWeight.toLocaleString() }}</td>
-                <td class="font-weight-medium">{{ log.actualWeight.toLocaleString() }}</td>
+                <td>{{ log.count?.toLocaleString() || 0 }}</td>
+                <td class="text-error">{{ (log.discountWeight || 0).toFixed(1) }}</td>
+                <td class="font-weight-medium">{{ (log.biomassWeight || 0).toLocaleString() }}</td>
+                <td class="font-weight-medium">{{ (log.actualWeight || 0).toLocaleString() }}</td>
                 <td class="text-error text-caption">₹{{ (log.commission || 0).toLocaleString('en-IN', {maximumFractionDigits: 0}) }}</td>
-                <td class="text-success font-weight-bold text-no-wrap">₹{{ log.revenue.toLocaleString('en-IN', {maximumFractionDigits: 0}) }}</td>
-                <td class="text-caption">{{ log.finalRate.toFixed(2) }}</td>
-                <td class="text-caption">{{ (log.avgWeightGrams/1000).toFixed(3) }}</td>
+                <td class="text-success font-weight-bold text-no-wrap">₹{{ (log.revenue || 0).toLocaleString('en-IN', {maximumFractionDigits: 0}) }}</td>
+                <td class="text-caption">{{ (log.finalRate || 0).toFixed(2) }}</td>
+                <td class="text-caption">{{ ((log.avgWeightGrams || 0)/1000).toFixed(3) }}</td>
                 <td class="text-no-wrap text-caption">{{ getBatchName(log.batchId) }}</td>
               </tr>
             </tbody>
@@ -187,24 +187,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { useAquaStore } from '../stores/useAquaStore';
 import { useRouter } from 'vue-router';
 import PageHeader from '../components/PageHeader.vue';
+import { useBatches } from '../composables/useBatches';
+import { useHarvestLogs } from '../composables/useHarvestLogs';
+import { usePonds } from '../composables/usePonds';
+import type { Batch, HarvestLog } from '../api/generated/model';
 
 const store = useAquaStore();
 const router = useRouter();
 
+// Use composables
+const { batches, getBatchById } = useBatches();
+const { harvestLogs } = useHarvestLogs();
+const { getPondById } = usePonds();
+
 const isFinal = ref(false);
 
 const activeBatches = computed(() => {
-  return store.batches.filter(b => b.status === 'Active').map(b => {
-    const pond = store.getPondById(b.pondId);
+  return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
+    const pond = getPondById(b.pondId);
     return {
       id: b.id,
       label: `${b.name || b.stockingDate} - ${pond ? pond.name : 'Unknown'} (${b.species})`
     };
-  });
+  }) || [];
 });
 
 const defaultForm = {
@@ -226,18 +235,18 @@ const calculated = computed(() => {
 
     const avgWeight = count > 0 ? biomass / count : 0;
     const avgWeightGrams = avgWeight * 1000;
-    
+
     const discountWeight = biomass * 0.05;
     const actualWeight = biomass - discountWeight;
-    
+
     // Logic: applicableSalePrice(basicPrice, forWeight) { return (basicPrice-(1000-forWeight)*0.02) }
-    // Applicable if biomass is above KG? "108 is the rate if the fish biomass is above KG" 
+    // Applicable if biomass is above KG? "108 is the rate if the fish biomass is above KG"
     // Usually means average weight above 1KG.
     let finalRate = basicRate;
     if (avgWeightGrams > 0 && avgWeightGrams < 1000) {
         finalRate = basicRate - (1000 - avgWeightGrams) * 0.02;
     }
-    
+
     const commission = (actualWeight * finalRate) * (form.value.commissionRate / 100);
     const revenue = (actualWeight * finalRate) - commission;
 
@@ -254,20 +263,25 @@ const calculated = computed(() => {
 const isValid = computed(() => form.value.batchId && form.value.biomassWeight > 0 && form.value.count > 0);
 
 const harvestHistory = computed(() => {
-    return [...store.harvestLogs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return [...(harvestLogs.value || [])].sort((a: HarvestLog, b: HarvestLog) =>
+        new Date(b.date || '').getTime() - new Date(a.date || '').getTime()
+    );
 });
 
-function getFishType(batchId: string) {
-    const batch = store.getBatchById(batchId);
-    return batch ? batch.species : '-';
+function getFishType(batchId?: string) {
+    if (!batchId) return '-';
+    const batch = getBatchById(batchId);
+    return batch?.species || '-';
 }
 
-function getBatchName(batchId: string) {
-    const batch = store.getBatchById(batchId);
-    return batch ? (batch.name || batch.stockingDate) : '-';
+function getBatchName(batchId?: string) {
+    if (!batchId) return '-';
+    const batch = getBatchById(batchId);
+    return batch?.name || batch?.stockingDate || '-';
 }
 
-function formatDateShort(dateStr: string) {
+function formatDateShort(dateStr?: string) {
+    if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: '20' === dateStr.slice(0,2) ? '2-digit' : 'numeric' });
 }
 
@@ -284,10 +298,10 @@ function save() {
   };
 
   store.recordHarvest(payload, isFinal.value);
-  
+
   if (isFinal.value) {
       alert('Final Harvest recorded and batch closed.');
-      router.push('/finance'); 
+      router.push('/finance');
   } else {
       alert('Daily harvest record added.');
       form.value = { ...defaultForm, batchId: form.value.batchId, date: form.value.date, basicRate: form.value.basicRate };

@@ -29,10 +29,17 @@ import { ref, computed } from 'vue';
 import { useAquaStore } from '../stores/useAquaStore';
 import BatchFormDialog from '../components/BatchFormDialog.vue';
 import PageHeader from '../components/PageHeader.vue';
+import { useBatches } from '../composables/useBatches';
+import { usePonds } from '../composables/usePonds';
 import type { Batch, FishSeed } from '../types';
+import type { Batch as ApiBatch } from '../api/generated/model';
 
 const store = useAquaStore();
 const dialog = ref(false);
+
+// Use composables
+const { batches, create: createBatch } = useBatches();
+const { ponds, getPondById } = usePonds();
 
 const headers = [
   { title: 'Date', key: 'date' },
@@ -46,13 +53,12 @@ const headers = [
 
 const fishSeedList = computed(() => {
   const list: any[] = [];
-  store.batches.forEach(batch => {
-    const pond = store.getPondById(batch.pondId);
-    const date = batch.stockingDate; // Batch date
+  batches.value?.forEach((batch: ApiBatch) => {
+    const pond = getPondById(batch.pondId);// Batch date
     const batchName = batch.stockingDate; // Using Date as Batch Name per example "2024-07-11"
 
     if (batch.fishSeeds && batch.fishSeeds.length > 0) {
-        batch.fishSeeds.forEach(seed => {
+        batch.fishSeeds.forEach((seed: any) => {
             list.push({
                 id: seed.id,
                 date: seed.date,
@@ -81,11 +87,13 @@ const fishSeedList = computed(() => {
   return list;
 });
 
-function saveBatch(batchData: Omit<Batch, 'id'>) {
-  store.addBatch(batchData);
+async function saveBatch(batchData: Omit<Batch, 'id'>) {
+  await createBatch(batchData);
+  dialog.value = false;
 }
 
 function handleAddSeed(payload: { batchId: string; seed: FishSeed }) {
+    // TODO: Implement with real API if needed, or handle within Batch creation
     store.addFishSeed(payload.batchId, payload.seed);
 }
 </script>

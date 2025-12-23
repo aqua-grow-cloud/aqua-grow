@@ -12,7 +12,7 @@
           </v-card-item>
         </v-card>
       </v-col>
-      
+
       <v-col cols="12" sm="6" md="3">
          <v-card color="success" variant="tonal" class="rounded-lg">
           <v-card-item>
@@ -30,7 +30,7 @@
           </v-card-item>
         </v-card>
       </v-col>
-      
+
        <v-col cols="12" sm="6" md="3">
          <v-card color="error" variant="tonal" class="rounded-lg">
           <v-card-item>
@@ -85,9 +85,9 @@
                   </v-chip>
                 </td>
                 <td>
-                  <v-chip 
-                    :color="getBatchStatusColor(batch.stockingDate)" 
-                    size="x-small" 
+                  <v-chip
+                    :color="getBatchStatusColor(batch.stockingDate)"
+                    size="x-small"
                     variant="flat"
                     class="text-uppercase"
                   >
@@ -117,7 +117,7 @@
           </v-list>
         </v-card>
       </v-col>
-      
+
       <!-- Quick Stats / Forecast -->
       <v-col cols="12" md="6">
         <v-card variant="outlined" class="rounded-lg">
@@ -138,54 +138,71 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useAquaStore } from '../stores/useAquaStore';
+import {computed, ref} from 'vue';
+import {useAquaStore} from '../stores/useAquaStore';
 import PageHeader from '../components/PageHeader.vue';
+import {usePonds} from '../composables/usePonds';
+import {useBatches} from '../composables/useBatches';
+import {feedLogService} from '../services/api';
+import type {Batch, FeedLog, Pond} from '../api/generated/model';
 
 const store = useAquaStore();
 
+// Use composables
+const { ponds } = usePonds();
+const { batches } = useBatches();
+const { data: feedLogs } = feedLogService.useGetAll();
+
 const referenceDate = ref(new Date().toISOString().substr(0, 10));
 
-const activePondsCount = computed(() => store.activePonds.length);
+const activePondsCount = computed(() => {
+  return ponds.value?.filter((p: Pond) => p.status === 'Active').length || 0;
+});
 
-const activeBatches = computed(() => store.batches.filter(b => b.status === 'Active'));
+const activeBatches = computed(() => {
+  return batches.value?.filter((b: Batch) => b.status === 'Active') || [];
+});
 
 // Sort batches to show the ones coming up
 const activeBatchesWithHistory = computed(() => {
-    return [...activeBatches.value].sort((a, b) => new Date(a.stockingDate).getTime() - new Date(b.stockingDate).getTime());
+    return [...activeBatches.value].sort((a, b) =>
+      new Date(a.stockingDate || '').getTime() - new Date(b.stockingDate || '').getTime()
+    );
 });
 
 const feedToday = computed(() => {
   const today = new Date().toISOString().substr(0, 10);
-  return store.feedLogs
-    .filter(l => l.date === today)
-    .reduce((sum, l) => sum + l.amount, 0);
+  return feedLogs.value
+    ?.filter((l: FeedLog) => l.date === today)
+    .reduce((sum: number, l: FeedLog) => sum + (l.amount || 0), 0) || 0;
 });
 
 const totalBiomassEst = computed(() => 1250);
 
-function getPondName(pondId: string) {
-  const pond = store.getPondById(pondId);
-  return pond ? pond.name : pondId;
+function getPondName(pondId?: string) {
+  if (!pondId || !ponds.value) return pondId || 'Unknown';
+  const pond = ponds.value.find((p: Pond) => p.id === pondId);
+  return pond?.name || pondId;
 }
 
-function formatDate(dateStr: string) {
+function formatDate(dateStr?: string) {
+  if (!dateStr) return '-';
   const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
   return new Date(dateStr).toLocaleDateString(undefined, options);
 }
 
-function calculateAge(stockingDate: string) {
+function calculateAge(stockingDate?: string) {
+  if (!stockingDate) return 0;
   const start = new Date(stockingDate).setHours(0,0,0,0);
   const refDate = new Date(referenceDate.value).setHours(0,0,0,0);
-  
+
   if (refDate < start) return 0; // Hasn't started yet relative to selection
-  
+
   const diff = refDate - start;
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  return days;
+	return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
-function getAgeColor(stockingDate: string) {
+function getAgeColor(stockingDate?: string) {
     const age = calculateAge(stockingDate);
     if (age === 0) return 'grey';
     if (age < 30) return 'cyan';
@@ -193,14 +210,16 @@ function getAgeColor(stockingDate: string) {
     return 'indigo';
 }
 
-function getBatchStatusLabel(stockingDate: string) {
+function getBatchStatusLabel(stockingDate?: string) {
+    if (!stockingDate) return 'Unknown';
     const start = new Date(stockingDate).getTime();
     const refDate = new Date(referenceDate.value).getTime();
     if (start > refDate) return 'Scheduled';
     return 'Running';
 }
 
-function getBatchStatusColor(stockingDate: string) {
+function getBatchStatusColor(stockingDate?: string) {
+    if (!stockingDate) return 'grey';
     const start = new Date(stockingDate).getTime();
     const refDate = new Date(referenceDate.value).getTime();
     if (start > refDate) return 'info';

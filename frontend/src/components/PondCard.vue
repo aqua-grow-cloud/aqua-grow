@@ -51,7 +51,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { Pond } from '../types';
+import type { Pond } from '../api/generated/model';
 
 const props = defineProps<{
   pond: Pond;
@@ -60,8 +60,8 @@ const props = defineProps<{
 
 defineEmits<{
   (e: 'edit', pond: Pond): void
-  (e: 'delete', id: string): void
-  (e: 'stock', id: string): void
+  (e: 'delete', id?: string): void
+  (e: 'stock', id?: string): void
 }>();
 
 const statusColor = computed(() => {

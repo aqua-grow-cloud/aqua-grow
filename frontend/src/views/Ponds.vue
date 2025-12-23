@@ -6,27 +6,33 @@
       @action="openCreateDialog" 
     />
 
-    <v-row>
-      <v-col v-for="pond in store.ponds" :key="pond.id" cols="12" sm="6" md="4" lg="3">
-        <PondCard 
-          :pond="pond" 
-          :can-manage="store.isManager"
-          @edit="openEditDialog" 
-          @delete="deletePond"
-          @stock="openStockDialog"
-        />
-      </v-col>
-    </v-row>
+    <div v-if="isLoading" class="d-flex justify-center align-center py-12">
+      <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+    </div>
 
-    <!-- Empty State -->
-    <v-alert
-      v-if="store.ponds.length === 0"
-      type="info"
-      variant="tonal"
-      class="mt-4"
-    >
-      No ponds found. Create one to get started.
-    </v-alert>
+    <template v-else>
+      <v-row>
+        <v-col v-for="pond in ponds" :key="pond.id" cols="12" sm="6" md="4" lg="3">
+          <PondCard 
+            :pond="pond" 
+            :can-manage="store.isManager"
+            @edit="openEditDialog" 
+            @delete="removePond"
+            @stock="openStockDialog"
+          />
+        </v-col>
+      </v-row>
+
+      <!-- Empty State -->
+      <v-alert
+        v-if="!ponds || ponds.length === 0"
+        type="info"
+        variant="tonal"
+        class="mt-4"
+      >
+        No ponds found. Create one to get started.
+      </v-alert>
+    </template>
 
     <PondFormDialog
       v-model="dialog"
@@ -46,17 +52,25 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useAquaStore } from '../stores/useAquaStore';
-import type { Pond, Batch, FishSeed } from '../types';
+import { usePonds } from '../composables/usePonds';
+import { useBatches } from '../composables/useBatches';
+import type { FishSeed } from '../types';
+import type { Pond } from '../api/generated/model';
 import PondCard from '../components/PondCard.vue';
 import PondFormDialog from '../components/PondFormDialog.vue';
 import BatchFormDialog from '../components/BatchFormDialog.vue';
 import PageHeader from '../components/PageHeader.vue';
 
 const store = useAquaStore();
+
+// Use composables
+const { ponds, isLoading, create: createPond, update: updatePond, remove: deletePond } = usePonds();
+const { create: createBatch } = useBatches();
+
 const dialog = ref(false);
 const stockDialog = ref(false);
 const editedItem = ref<Pond | undefined>(undefined);
-const stockPondId = ref('');
+const stockPondId = ref<string | undefined>(undefined);
 
 function openCreateDialog() {
   editedItem.value = undefined;
@@ -68,32 +82,36 @@ function openEditDialog(pond: Pond) {
   dialog.value = true;
 }
 
-function openStockDialog(pondId: string) {
+function openStockDialog(pondId?: string) {
     stockPondId.value = pondId;
     stockDialog.value = true;
 }
 
-function deletePond(id: string) {
+async function removePond(id?: string) {
+  if (!id) return;
   if (confirm('Are you sure you want to delete this pond?')) {
-    store.deletePond(id);
+    await deletePond(id);
   }
 }
 
-function savePond(pondData: any) {
-  if (editedItem.value) {
+async function savePond(pondData: any) {
+  if (editedItem.value?.id) {
     // Edit mode
-    store.updatePond(editedItem.value.id, pondData);
+    await updatePond(editedItem.value.id, pondData);
   } else {
     // Create mode
-    store.addPond(pondData);
+    await createPond(pondData);
   }
+  dialog.value = false;
 }
 
-function saveBatch(batchData: Omit<Batch, 'id'>) {
-    store.addBatch(batchData);
+async function saveBatch(batchData: any) {
+    await createBatch(batchData);
+    stockDialog.value = false;
 }
 
 function handleAddSeed(payload: { batchId: string, seed: FishSeed }) {
+    // TODO: Implement with real API if needed, or handle within Batch creation
     store.addFishSeed(payload.batchId, payload.seed);
 }
 </script>

@@ -78,11 +78,16 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useAquaStore } from '../stores/useAquaStore';
 import PageHeader from '../components/PageHeader.vue';
+import { useExpenditures } from '../composables/useExpenditures';
+import { useBatches } from '../composables/useBatches';
+import type { Expenditure } from '../api/generated/model';
 
-const store = useAquaStore();
 const dialog = ref(false);
+
+// Use composables
+const { expenditures } = useExpenditures();
+const { getBatchById } = useBatches();
 
 const openExpenseDialog = () => {
     dialog.value = true;
@@ -102,11 +107,11 @@ const flattenedRows = computed(() => {
   const groups: Record<string, Record<string, Record<string, number>>> = {};
 
   // Grouping
-  store.expenditures.forEach(exp => {
+  expenditures.value?.forEach((exp: Expenditure) => {
     let batchDisplay = 'General / Unallocated';
     if (exp.batchId) {
-      const batch = store.getBatchById(exp.batchId);
-      batchDisplay = batch ? batch.stockingDate : 'Unknown Batch';
+      const batch = getBatchById(exp.batchId);
+      batchDisplay = batch?.stockingDate || 'Unknown Batch';
     }
 
     const macro = exp.macroInvestment || 'Unallocated';
@@ -119,7 +124,7 @@ const flattenedRows = computed(() => {
     const mGroup = bGroup[macro]!;
     
     if (!mGroup[subType]) mGroup[subType] = 0;
-    mGroup[subType] += exp.amount;
+    mGroup[subType] += exp.amount || 0;
   });
 
   // Flattening
@@ -152,7 +157,7 @@ const flattenedRows = computed(() => {
 });
 
 const grandTotal = computed(() => {
-    return store.expenditures.reduce((sum, exp) => sum + exp.amount, 0);
+    return expenditures.value?.reduce((sum: number, exp: Expenditure) => sum + (exp.amount || 0), 0) || 0;
 });
 
 const grandTotalFormatted = computed(() => {

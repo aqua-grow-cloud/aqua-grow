@@ -72,7 +72,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import type { Pond, PondType, PondStatus } from '../types';
+import type { Pond } from '../api/generated/model';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -81,15 +81,15 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void;
-  (e: 'save', pond: Omit<Pond, 'id'> | Pond): void;
+  (e: 'save', pond: Pond): void;
 }>();
 
 const isEdit = computed(() => !!props.item);
 
-const defaultForm = {
+const defaultForm: Pond = {
   name: '',
-  type: 'Earthen' as PondType,
-  status: 'Inactive' as PondStatus,
+  type: 'Earthen',
+  status: 'Inactive',
   area: 0,
   depth: 0,
 };
