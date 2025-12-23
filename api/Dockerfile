@@ -1,5 +1,5 @@
 # Build stage
-FROM openjdk:17-jdk-slim AS build
+FROM gradle:8-jdk21-alpine AS build
 WORKDIR /app
 
 # Copy the gradle wrapper and build files
@@ -9,15 +9,16 @@ COPY build.gradle .
 COPY settings.gradle .
 
 # Download dependencies (this will be cached)
-RUN ./gradlew dependencies --no-daemon
+RUN gradle dependencies --no-daemon
 
 # Copy source code and build the application
 COPY src src
-RUN ./gradlew assemble --no-daemon
+RUN gradle assemble --no-daemon
 
 # Run stage
-FROM openjdk:17-slim
+FROM amazoncorretto:21-alpine-jdk
 WORKDIR /app
+RUN mkdir logs
 
 # Copy the jar from the build stage
 COPY --from=build /app/build/libs/aqua-grow-api-0.0.1-SNAPSHOT.jar app.jar

@@ -1,4 +1,4 @@
-image: openjdk:17-jdk-slim
+image: amazoncorretto:21-alpine-jdk
 
 variables:
   GRADLE_OPTS: "-Dorg.gradle.daemon=false"
