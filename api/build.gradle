@@ -36,6 +36,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.apache.logging.log4j:log4j-spring-boot'
 	implementation 'org.apache.logging.log4j:log4j-jcl'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.1'
 	implementation 'org.liquibase:liquibase-core'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.postgresql:postgresql'
