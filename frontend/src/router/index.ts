@@ -42,6 +42,21 @@ const router = createRouter({
             path: '/settings',
             name: 'settings',
             component: () => import('../views/Settings.vue')
+        },
+        {
+            path: '/suppliers',
+            name: 'suppliers',
+            component: () => import('../views/Suppliers.vue')
+        },
+        {
+            path: '/feed-stock',
+            name: 'feed-stock',
+            component: () => import('../views/FeedStock.vue')
+        },
+        {
+            path: '/feed-orders',
+            name: 'feed-orders',
+            component: () => import('../views/FeedOrders.vue')
         }
     ]
 })

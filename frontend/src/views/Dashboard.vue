@@ -32,10 +32,19 @@
       </v-col>
 
        <v-col cols="12" sm="6" md="3">
-         <v-card color="error" variant="tonal" class="rounded-lg">
+         <v-card 
+            color="error" 
+            variant="tonal" 
+            class="rounded-lg"
+            :to="'/feed-stock'"
+            hover
+         >
           <v-card-item>
-             <div class="text-overline mb-1">Alerts</div>
-             <div class="text-h4 mb-1 font-weight-bold">2</div>
+             <div class="text-overline mb-1">Low Stock Alerts</div>
+             <div class="text-h4 mb-1 font-weight-bold">
+                {{ lowStockCount }}
+                <v-icon size="small" end>mdi-arrow-right</v-icon>
+             </div>
           </v-card-item>
         </v-card>
       </v-col>
@@ -143,7 +152,7 @@ import {useAquaStore} from '../stores/useAquaStore';
 import PageHeader from '../components/PageHeader.vue';
 import {usePonds} from '../composables/usePonds';
 import {useBatches} from '../composables/useBatches';
-import {feedLogService} from '../services/api';
+import {feedLogService, feedStockService} from '../services/api';
 import type {Batch, FeedLog, Pond} from '../api/generated/model';
 
 const store = useAquaStore();
@@ -152,8 +161,13 @@ const store = useAquaStore();
 const { ponds } = usePonds();
 const { batches } = useBatches();
 const { data: feedLogs } = feedLogService.useGetAll();
+const { data: lowStockItems } = feedStockService.useGetLowStock();
 
 const referenceDate = ref(new Date().toISOString().substr(0, 10));
+
+const lowStockCount = computed(() => {
+    return lowStockItems.value?.length || 0;
+});
 
 const activePondsCount = computed(() => {
   return ponds.value?.filter((p: Pond) => p.status === 'Active').length || 0;
