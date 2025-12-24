@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="02-feed-management-schema" author="pan1mu20">
+        <!-- Suppliers Table -->
+        <createTable tableName="suppliers">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="phone" type="VARCHAR(255)"/>
+            <column name="whatsapp_number" type="VARCHAR(255)"/>
+            <column name="email" type="VARCHAR(255)"/>
+            <column name="address" type="VARCHAR(255)"/>
+            <column name="tenant_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+        </createTable>
+
+        <!-- Supplier Feed Types (ElementCollection) -->
+        <createTable tableName="supplier_feed_types">
+            <column name="supplier_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="feed_type" type="VARCHAR(255)"/>
+        </createTable>
+        
+        <addForeignKeyConstraint baseColumnNames="supplier_id"
+                                 baseTableName="supplier_feed_types"
+                                 constraintName="fk_supplier_feed_types_supplier"
+                                 referencedColumnNames="id"
+                                 referencedTableName="suppliers"
+                                 onDelete="CASCADE"/>
+
+        <!-- Feed Stock Table -->
+        <createTable tableName="feed_stock">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="feed_type" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="current_stock" type="DOUBLE">
+                <constraints nullable="false"/>
+            </column>
+             <column name="threshold" type="DOUBLE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="supplier_id" type="VARCHAR(255)"/>
+            <column name="last_updated" type="TIMESTAMP"/>
+            <column name="tenant_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Feed Orders Table -->
+        <createTable tableName="feed_orders">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+             <column name="feed_type" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantity" type="DOUBLE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+             <column name="supplier_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+             <column name="order_date" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="confirmation_date" type="TIMESTAMP"/>
+            <column name="received_date" type="TIMESTAMP"/>
+             <column name="notes" type="VARCHAR(1000)"/>
+            <column name="tenant_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+    </changeSet>
+
+</databaseChangeLog>
