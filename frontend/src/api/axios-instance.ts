@@ -5,6 +5,13 @@ export const AXIOS_INSTANCE = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'https://api.aqua-grow.cloud',
 });
 
+AXIOS_INSTANCE.interceptors.request.use((config) => {
+    if (keycloak.token) {
+        config.headers.Authorization = `Bearer ${keycloak.token}`;
+    }
+    return config;
+});
+
 export const customInstance = <T>(config: AxiosRequestConfig): Promise<T> => {
     const source = axios.CancelToken.source();
 
