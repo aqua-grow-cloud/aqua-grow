@@ -177,7 +177,9 @@ function close() {
 
 function save() {
   const seed: FishSeed = {
-      id: Math.random().toString(36).substr(2, 9),
+      // Don't generate ID here. Backend will auto-generate one.
+      // If we send an ID that doesn't exist, backend throws detached entity exception.
+      id: undefined, 
       batchId: existingBatch.value ? existingBatch.value.id : '', 
       date: form.value.stockingDate,
       type: form.value.type,
@@ -200,7 +202,7 @@ function save() {
           initialQuantity: form.value.quantity,
           seedSize: form.value.sizeGrams || 0,
           status: 'Active',
-          fishSeeds: [seed]
+          fishSeeds: [] // Separated creation: Batch starts empty of specific seed records
       };
       emit('save', batchData);
   }
