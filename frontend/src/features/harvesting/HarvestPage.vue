@@ -244,6 +244,11 @@ import type { Batch, HarvestLog } from '../../api/generated/model';
 const store = useAquaStore();
 const router = useRouter();
 
+// State
+const isFinal = ref(false);
+const batchFilter = ref<string | null>(null);
+const fishTypeFilter = ref<string | null>(null);
+
 // Use composables
 const { batches, getBatchById } = useBatches();
 const { harvestLogs, recordHarvest } = useHarvestLogs(computed(() => ({
@@ -251,10 +256,6 @@ const { harvestLogs, recordHarvest } = useHarvestLogs(computed(() => ({
     fishType: fishTypeFilter.value || undefined
 })));
 const { getPondById } = usePonds();
-
-const isFinal = ref(false);
-const batchFilter = ref<string | null>(null);
-const fishTypeFilter = ref<string | null>(null);
 
 const activeBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
