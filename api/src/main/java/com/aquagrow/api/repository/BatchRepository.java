@@ -7,5 +7,5 @@ import java.util.List;
 
 @Repository
 public interface BatchRepository extends JpaRepository<Batch, String> {
-    List<Batch> findByPondId(String pondId);
+    List<Batch> findDistinctByFishSeedsPondId(String pondId);
 }

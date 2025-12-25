@@ -10,9 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "batches", uniqueConstraints = {
-        @UniqueConstraint(columnNames = { "pondId", "name" })
-})
+@Table(name = "batches")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,9 +19,6 @@ public class Batch {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-
-    @Column(nullable = false)
-    private String pondId;
 
     private String name;
     private LocalDate stockingDate;

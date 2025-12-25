@@ -15,6 +15,7 @@ import java.util.List;
 public class BatchController {
 
     private final BatchRepository batchRepository;
+    private final com.aquagrow.api.repository.PondRepository pondRepository;
 
     @GetMapping
     public List<Batch> getAllBatches() {
@@ -23,7 +24,18 @@ public class BatchController {
 
     @PostMapping
     public Batch createBatch(@RequestBody Batch batch) {
-        return batchRepository.save(batch);
+        Batch savedBatch = batchRepository.save(batch);
+        // Update first pond's currentBatchId if seeds exist
+        if (savedBatch.getFishSeeds() != null && !savedBatch.getFishSeeds().isEmpty()) {
+            String pondId = savedBatch.getFishSeeds().get(0).getPondId();
+            if (pondId != null) {
+                pondRepository.findById(pondId).ifPresent(pond -> {
+                    pond.setCurrentBatchId(savedBatch.getId());
+                    pondRepository.save(pond);
+                });
+            }
+        }
+        return savedBatch;
     }
 
     @GetMapping("/{id}")
@@ -35,7 +47,7 @@ public class BatchController {
 
     @GetMapping("/pond/{pondId}")
     public List<Batch> getBatchesByPond(@PathVariable String pondId) {
-        return batchRepository.findByPondId(pondId);
+        return batchRepository.findDistinctByFishSeedsPondId(pondId);
     }
 
     @PutMapping("/{id}")
@@ -64,7 +76,15 @@ public class BatchController {
                         batch.setFishSeeds(new java.util.ArrayList<>());
                     }
                     batch.getFishSeeds().add(seed);
-                    return ResponseEntity.ok(batchRepository.save(batch));
+                    Batch savedBatch = batchRepository.save(batch);
+                    // Update pond currentBatchId
+                    if (seed.getPondId() != null) {
+                        pondRepository.findById(seed.getPondId()).ifPresent(pond -> {
+                            pond.setCurrentBatchId(savedBatch.getId());
+                            pondRepository.save(pond);
+                        });
+                    }
+                    return ResponseEntity.ok(savedBatch);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

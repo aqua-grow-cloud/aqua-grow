@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="7" author="antigravity">
+        <!-- 1. Add pond_id column to fish_seeds -->
+        <addColumn tableName="fish_seeds">
+            <column name="pond_id" type="VARCHAR(36)"/>
+        </addColumn>
+
+        <!-- 2. Migrate existing data: Copy pond_id from batches to their fish_seeds -->
+        <update tableName="fish_seeds">
+            <column name="pond_id" valueComputed="(SELECT pond_id FROM batches WHERE batches.id = fish_seeds.batch_id)"/>
+        </update>
+
+        <!-- 3. Remove constraints and column from batches -->
+        <!-- First, let's find the constraint name. From 05-add-batch-unique-constraint.xml it was uk_batch_pond_name -->
+        <dropUniqueConstraint tableName="batches" constraintName="uk_batch_pond_name"/>
+        
+        <dropColumn tableName="batches" columnName="pond_id"/>
+    </changeSet>
+
+</databaseChangeLog>

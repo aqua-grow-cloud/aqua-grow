@@ -18,6 +18,8 @@ public class FishSeed {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    private String pondId;
+
     private LocalDate date;
     private String type;
     private Integer quantity;
