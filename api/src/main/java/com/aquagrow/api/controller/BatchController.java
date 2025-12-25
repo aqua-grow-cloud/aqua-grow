@@ -49,6 +49,14 @@ public class BatchController {
                     batch.setInitialQuantity(batchDetails.getInitialQuantity());
                     batch.setSeedSize(batchDetails.getSeedSize());
                     batch.setStatus(batchDetails.getStatus());
+
+                    if (batchDetails.getFishSeeds() != null) {
+                        batch.getFishSeeds().clear();
+                        if (!batchDetails.getFishSeeds().isEmpty()) {
+                            batch.getFishSeeds().addAll(batchDetails.getFishSeeds());
+                        }
+                    }
+
                     return ResponseEntity.ok(batchRepository.save(batch));
                 })
                 .orElse(ResponseEntity.notFound().build());
