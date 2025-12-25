@@ -7,9 +7,11 @@
 
       <v-card-text>
         <v-container>
+           <!-- Alert for Existing Batch Context -->
            <v-alert v-if="existingBatch" type="info" variant="tonal" class="mb-4" density="compact">
-             Adding to active batch in <strong>{{ props.ponds.find(p => p.id === form.pondId)?.name }}</strong>.
-             Current stock: {{ [...new Set(existingBatch?.fishSeeds?.map(s => s.type) || [])].join(', ') }} ({{ existingBatch?.fishSeeds?.reduce((acc, s) => acc + s.quantity, 0) || 0 }})
+             Selected: <strong>{{ existingBatch.name || 'Unnamed Batch' }}</strong> in {{ props.ponds.find(p => p.id === form.pondId)?.name }}.
+             <br>
+             Stock: {{ [...new Set(existingBatch?.fishSeeds?.map(s => s.type) || [])].join(', ') }} ({{ existingBatch?.fishSeeds?.reduce((acc, s) => acc + s.quantity, 0) || 0 }})
            </v-alert>
 
           <v-alert v-if="availablePonds.length === 0" type="warning" class="mb-4">
@@ -17,15 +19,6 @@
           </v-alert>
           
           <v-row v-else>
-            <v-col cols="12" v-if="!existingBatch">
-              <v-text-field
-                v-model="form.name"
-                label="Batch Name (e.g. Batch1)"
-                variant="outlined"
-                density="compact"
-                hide-details
-              ></v-text-field>
-            </v-col>
             <v-col cols="12" sm="6">
               <v-select
                 v-model="form.pondId"
@@ -38,16 +31,42 @@
                 :rules="[v => !!v || 'Pond is required']"
               ></v-select>
             </v-col>
+
+            <!-- Target Batch Selection (Only if pond has active batches) -->
+            <v-col cols="12" sm="6" v-if="pondActiveBatches.length > 0">
+                 <v-select
+                    v-model="targetBatchId"
+                    :items="batchOptions"
+                    item-title="title"
+                    item-value="value"
+                    label="Action"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                 ></v-select>
+            </v-col>
+
+            <!-- Batch Name (Only for New Batch) -->
+            <v-col cols="12" v-if="isNewBatchMode">
+              <v-text-field
+                v-model="form.name"
+                label="Batch Name (e.g. Batch1)"
+                variant="outlined"
+                density="compact"
+                hide-details
+              ></v-text-field>
+            </v-col>
+            
             <v-col cols="12" sm="6">
               <v-text-field
                 v-model="form.stockingDate"
-                :label="existingBatch ? 'Seed Date' : 'Stocking Date'"
+                :label="isNewBatchMode ? 'Stocking Date' : 'Seed Date'"
                 type="date"
                 variant="outlined"
                 density="compact"
               ></v-text-field>
             </v-col>
-            <v-col cols="12" sm="6" v-if="!existingBatch">
+            <v-col cols="12" sm="6" v-if="isNewBatchMode">
               <v-text-field
                 v-model="form.estimatedHarvestDate"
                 label="Est. Harvest Date"
@@ -59,7 +78,7 @@
             <v-col cols="12" sm="6">
               <v-text-field
                 v-model="form.type"
-                :label="existingBatch ? 'Type (Species)' : 'Species'"
+                :label="isNewBatchMode ? 'Species' : 'Type (Species)'"
                 variant="outlined"
                 density="compact"
               ></v-text-field>
@@ -67,7 +86,7 @@
              <v-col cols="12" sm="6">
               <v-text-field
                 v-model="form.quantity"
-                :label="existingBatch ? 'Quantity' : 'Initial Quantity'"
+                :label="isNewBatchMode ? 'Initial Quantity' : 'Quantity'"
                 type="number"
                 variant="outlined"
                 density="compact"
@@ -148,21 +167,60 @@ const defaultForm = {
 };
 
 const form = ref({ ...defaultForm });
+const targetBatchId = ref<string>('NEW');
 
-// Check if the selected pond has an active batch
-const existingBatch = computed(() => {
-    if (!form.value.pondId) return null;
-    // Find batch where pondId matches and status is Active
-    // We can rely on batches prop instead of pond.currentBatchId link from store
-    return props.batches.find(b => b.pondId === form.value.pondId && b.status === 'Active') || null;
+// Existing active batches for the selected pond
+const pondActiveBatches = computed(() => {
+    if (!form.value.pondId) return [];
+    return props.batches.filter(b => b.pondId === form.value.pondId && b.status === 'Active');
 });
 
-const modeLabel = computed(() => existingBatch.value ? 'Add Fish Seed' : 'Start New Batch');
-const btnLabel = computed(() => existingBatch.value ? 'Add Seed' : 'Start Batch');
+// Options for the Action dropdown
+const batchOptions = computed(() => {
+    const options = [
+        { title: 'Start New Batch', value: 'NEW' }
+    ];
+    pondActiveBatches.value.forEach(b => {
+        options.push({ title: `Add to: ${b.name || 'Unnamed'}`, value: b.id || '' });
+    });
+    return options;
+});
+
+// Determine if we are in New Batch Mode
+const isNewBatchMode = computed(() => targetBatchId.value === 'NEW');
+
+// Get the existing batch object if not in new mode
+const existingBatch = computed(() => {
+    if (isNewBatchMode.value) return null;
+    return pondActiveBatches.value.find(b => b.id === targetBatchId.value) || null;
+});
+
+const modeLabel = computed(() => isNewBatchMode.value ? 'Start New Batch' : 'Add Fish Seed');
+const btnLabel = computed(() => isNewBatchMode.value ? 'Start Batch' : 'Add Seed');
+
+// Watch pond selection to reset or set default target logic
+watch(() => form.value.pondId, (newPondId) => {
+    // If there are existing batches, default to the first one for convenience (old behavior),
+    // OR default to NEW? Let's default to the *most recent* active batch to be helpful,
+    // but if the user wants NEW, they can select it.
+    // Given the request "create a second new batch", defaulting to NEW might be annoying if usually you add seeds.
+    // Let's default to first active batch if exists, else NEW.
+    const batches = props.batches.filter(b => b.pondId === newPondId && b.status === 'Active');
+    if (batches.length > 0) {
+        targetBatchId.value = batches[0]?.id || 'NEW';
+    } else {
+        targetBatchId.value = 'NEW';
+    }
+});
 
 watch(() => props.modelValue, (val) => {
-    if (val && props.initialPondId) {
-        form.value.pondId = props.initialPondId;
+    if (val) {
+        if (props.initialPondId) {
+            form.value.pondId = props.initialPondId;
+        }
+    } else {
+        form.value = { ...defaultForm };
+        targetBatchId.value = 'NEW';
     }
 });
 
@@ -173,14 +231,13 @@ const isValid = computed(() => {
 function close() {
   emit('update:modelValue', false);
   form.value = { ...defaultForm };
+  targetBatchId.value = 'NEW';
 }
 
 function save() {
   const seed: FishSeed = {
-      // Don't generate ID here. Backend will auto-generate one.
-      // If we send an ID that doesn't exist, backend throws detached entity exception.
-      id: undefined, 
-      batchId: existingBatch.value ? existingBatch.value.id : '', 
+      id: undefined,
+      batchId: existingBatch.value && existingBatch.value.id ? existingBatch.value.id : '',
       date: form.value.stockingDate,
       type: form.value.type,
       quantity: form.value.quantity,
@@ -188,7 +245,7 @@ function save() {
       sizeGrams: form.value.sizeGrams || undefined
   };
 
-  if (existingBatch.value && existingBatch.value.id) {
+  if (!isNewBatchMode.value && existingBatch.value && existingBatch.value.id) {
       // Add to existing
       emit('add-seed', { batchId: existingBatch.value.id, seed });
   } else {
