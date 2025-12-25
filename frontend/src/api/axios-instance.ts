@@ -12,6 +12,19 @@ AXIOS_INSTANCE.interceptors.request.use((config) => {
     return config;
 });
 
+AXIOS_INSTANCE.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        // Dynamic import to avoid circular dependency if store imports api
+        import('../stores/useAquaStore').then(({ useAquaStore }) => {
+            const store = useAquaStore();
+            const message = error.response?.data?.message || error.message || 'An unknown error occurred';
+            store.notify(message, 'error');
+        });
+        return Promise.reject(error);
+    }
+);
+
 export const customInstance = <T>(config: AxiosRequestConfig): Promise<T> => {
     const source = axios.CancelToken.source();
 

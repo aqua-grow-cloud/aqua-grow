@@ -65,6 +65,19 @@
     <v-main>
       <router-view></router-view>
     </v-main>
+
+    <!-- Global Notification Snackbar -->
+    <v-snackbar
+      v-model="store.isGlobalErrorVisible"
+      :color="store.globalErrorType"
+      location="top right"
+      timeout="5000"
+    >
+      {{ store.globalError }}
+      <template v-slot:actions>
+        <v-btn variant="text" @click="store.clearNotification">Close</v-btn>
+      </template>
+    </v-snackbar>
   </v-app>
 </template>
 
