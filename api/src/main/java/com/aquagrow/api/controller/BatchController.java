@@ -61,4 +61,21 @@ public class BatchController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PostMapping("/{id}/seeds")
+    public ResponseEntity<Batch> addFishSeed(@PathVariable String id,
+            @RequestBody com.aquagrow.api.model.FishSeed seed) {
+        return batchRepository.findById(id)
+                .map(batch -> {
+                    // Ensure the seed is treated as new
+                    seed.setId(null);
+                    // Ensure the collection is initialized
+                    if (batch.getFishSeeds() == null) {
+                        batch.setFishSeeds(new java.util.ArrayList<>());
+                    }
+                    batch.getFishSeeds().add(seed);
+                    return ResponseEntity.ok(batchRepository.save(batch));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
