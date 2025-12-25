@@ -78,3 +78,22 @@ export interface Pond {
     currentBatchId?: string;
     tenantId?: string;
 }
+
+export interface HarvestLog {
+    id?: string;
+    batchId: string;
+    date: string;
+    biomassWeight: number;
+    count: number;
+    basicRate: number;
+    commissionRate?: number;
+    buyer?: string;
+    finalRate?: number;
+    avgWeightGrams?: number;
+    discountWeight?: number;
+    actualWeight?: number;
+    commission?: number;
+    revenue?: number;
+    isFinal?: boolean;
+    tenantId?: string;
+}

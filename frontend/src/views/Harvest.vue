@@ -201,7 +201,7 @@ const router = useRouter();
 
 // Use composables
 const { batches, getBatchById } = useBatches();
-const { harvestLogs } = useHarvestLogs();
+const { harvestLogs, createHarvestLog, refetch } = useHarvestLogs();
 const { getPondById } = usePonds();
 
 const isFinal = ref(false);
@@ -289,6 +289,13 @@ function formatDateShort(dateStr?: string) {
 function save() {
   const payload = {
       ...form.value,
+      batchId: form.value.batchId, // Ensure batchId is explicitly string
+      date: form.value.date,
+      count: form.value.count,
+      biomassWeight: form.value.biomassWeight,
+      basicRate: form.value.basicRate,
+      commissionRate: form.value.commissionRate,
+      buyer: form.value.buyer,
       avgWeightGrams: calculated.value.avgWeightGrams,
       finalRate: calculated.value.finalRate,
       discountWeight: calculated.value.discountWeight,
@@ -298,15 +305,22 @@ function save() {
       isFinal: isFinal.value
   };
 
-  store.recordHarvest(payload, isFinal.value);
-
-  if (isFinal.value) {
-      alert('Final Harvest recorded and batch closed.');
-      router.push('/finance');
-  } else {
-      alert('Daily harvest record added.');
-      form.value = { ...defaultForm, batchId: form.value.batchId, date: form.value.date, basicRate: form.value.basicRate };
-  }
+  createHarvestLog({ data: payload }, {
+      onSuccess: () => {
+          if (isFinal.value) {
+              alert('Final Harvest recorded and batch closed.');
+              router.push('/finance');
+          } else {
+              alert('Daily harvest record added.');
+              form.value = { ...defaultForm, batchId: form.value.batchId, date: form.value.date, basicRate: form.value.basicRate };
+              refetch(); // Refresh list
+          }
+      },
+      onError: (err: any) => {
+          console.error('Failed to record harvest', err);
+          alert('Failed to save harvest record. Please try again.');
+      }
+  });
 }
 </script>
 

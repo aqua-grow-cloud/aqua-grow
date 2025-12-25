@@ -7,6 +7,7 @@ import { harvestLogService } from '../services/api';
 export function useHarvestLogs() {
     // Queries
     const { data: harvestLogs, isLoading, error, refetch } = harvestLogService.useGetAll();
+    const { mutate: createHarvestLog } = harvestLogService.useCreate();
 
     return {
         // Data
@@ -18,5 +19,6 @@ export function useHarvestLogs() {
 
         // Actions
         refetch,
+        createHarvestLog,
     };
 }

@@ -1,5 +1,6 @@
 import {
     useGetAllHarvestLogs,
+    useRecordHarvest,
     type GetAllHarvestLogsQueryResult
 } from '../../api/generated/harvest-log-controller/harvest-log-controller';
 import type { HarvestLog } from '../../api/generated/model';
@@ -15,6 +16,13 @@ export const harvestLogService = {
     useGetAll() {
         return useGetAllHarvestLogs();
     },
+
+    /**
+     * Create harvest log hook
+     */
+    useCreate() {
+        return useRecordHarvest();
+    }
 };
 
 // Type exports for convenience
