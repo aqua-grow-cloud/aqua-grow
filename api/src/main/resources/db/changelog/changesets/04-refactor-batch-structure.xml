@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="4" author="antigravity">
+        <!-- Migrate data from batches to fish_seeds if applicable -->
+        <!-- Note: gen_random_uuid requires pgcrypto or Postgres 13+. Assuming 13+ -->
+        <sql>
+            INSERT INTO fish_seeds (id, batch_id, date, type, quantity, size_grams)
+            SELECT gen_random_uuid(), id, stocking_date, species, initial_quantity, seed_size
+            FROM batches
+            WHERE species IS NOT NULL 
+              AND NOT EXISTS (SELECT 1 FROM fish_seeds WHERE batch_id = batches.id);
+        </sql>
+
+        <!-- Drop columns from batches -->
+        <dropColumn tableName="batches" columnName="species"/>
+        <dropColumn tableName="batches" columnName="initial_quantity"/>
+        <dropColumn tableName="batches" columnName="seed_size"/>
+    </changeSet>
+
+</databaseChangeLog>
