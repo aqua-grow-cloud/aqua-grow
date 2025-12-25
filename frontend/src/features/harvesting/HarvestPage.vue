@@ -209,7 +209,7 @@
             <tbody>
               <tr v-for="log in harvestHistory" :key="log.id" :class="{'bg-green-lighten-5': log.isFinal}">
                 <td class="text-no-wrap">{{ formatDateShort(log.date) }}</td>
-                <td>{{ getFishType(log.batchId) }}</td>
+                <td>{{ log.fishType || '-' }}</td>
                 <td>{{ log.count?.toLocaleString() || 0 }}</td>
                 <td class="text-error">{{ (log.discountWeight || 0).toFixed(1) }}</td>
                 <td class="font-weight-medium">{{ (log.biomassWeight || 0).toLocaleString() }}</td>
@@ -232,7 +232,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useAquaStore } from '../../stores/useAquaStore';
 import { useRouter } from 'vue-router';
 import PageHeader from '../../components/PageHeader.vue';
@@ -280,6 +280,23 @@ const defaultForm = {
 };
 
 const form = ref({ ...defaultForm });
+
+// Auto-select fish type if only one species exists in batch
+watch(() => form.value.batchId, (newBatchId: string) => {
+    if (!newBatchId) {
+        form.value.fishType = '';
+        return;
+    }
+    const batch = getBatchById(newBatchId);
+    if (batch && batch.fishSeeds && batch.fishSeeds.length > 0) {
+        const species = [...new Set(batch.fishSeeds.map(s => s.type).filter(Boolean))] as string[];
+        if (species.length === 1 && species[0]) {
+            form.value.fishType = species[0];
+        } else {
+            form.value.fishType = '';
+        }
+    }
+});
 
 const availableSpecies = computed(() => {
     if (!form.value.batchId) return [];
@@ -345,11 +362,7 @@ const fishTypeFilterItems = computed(() => {
     return types.sort();
 });
 
-function getFishType(batchId?: string) {
-    if (!batchId) return '-';
-    const batch = getBatchById(batchId);
-    return [...new Set(batch?.fishSeeds?.map((s: any) => s.type) || [])].join(', ') || '-';
-}
+// getFishType removed as we now use log.fishType stored in the record
 
 function getBatchName(batchId?: string) {
     if (!batchId) return '-';
