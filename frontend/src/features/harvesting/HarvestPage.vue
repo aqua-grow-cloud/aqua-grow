@@ -1,0 +1,357 @@
+<template>
+  <v-container fluid>
+    <PageHeader title="Harvest & Output Tracking" />
+
+    <v-row>
+      <!-- Harvest Entry Form -->
+      <v-col v-if="store.isManager" cols="12" lg="4">
+        <v-card variant="outlined" class="rounded-lg">
+          <v-card-title class="bg-slate-50 border-b px-6 py-4">
+              <v-icon start icon="mdi-scale-balance" color="primary"></v-icon>
+              Record Daily Harvest
+          </v-card-title>
+          <v-card-text class="pt-6">
+            <v-alert type="info" variant="tonal" class="mb-6" density="compact">
+              Biomass below 1KG/pc uses sliding scale pricing. A 5% discount is applied to total weight.
+            </v-alert>
+
+            <v-form @submit.prevent="save">
+              <v-select
+                v-model="form.batchId"
+                :items="activeBatches"
+                item-title="label"
+                item-value="id"
+                label="Select Batch"
+                variant="outlined"
+                density="compact"
+                required
+              ></v-select>
+
+              <v-select
+                v-if="form.batchId"
+                v-model="form.fishType"
+                :items="availableSpecies"
+                label="Fish Type (Species)"
+                variant="outlined"
+                density="compact"
+                placeholder="Select Species or Mixed"
+                required
+              ></v-select>
+
+              <v-row dense>
+                  <v-col cols="12" sm="6">
+                    <v-text-field
+                        v-model="form.date"
+                        label="Harvest Date"
+                        type="date"
+                        variant="outlined"
+                        density="compact"
+                        required
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="4">
+                    <v-text-field
+                        v-model.number="form.basicRate"
+                        label="Basic Rate (₹/kg)"
+                        type="number"
+                        variant="outlined"
+                        density="compact"
+                        required
+                        prefix="₹"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" sm="4">
+                    <v-text-field
+                        v-model.number="form.commissionRate"
+                        label="Commission Rate (%)"
+                        type="number"
+                        step="0.01"
+                        variant="outlined"
+                        density="compact"
+                        suffix="%"
+                    ></v-text-field>
+                  </v-col>
+              </v-row>
+
+              <div class="bg-grey-lighten-4 pa-4 rounded-lg mb-4">
+                  <v-row dense>
+                    <v-col cols="12" sm="6">
+                        <v-text-field
+                            v-model.number="form.biomassWeight"
+                            label="Tonne (Total KG)"
+                            type="number"
+                            variant="outlined"
+                            density="compact"
+                            bg-color="white"
+                            required
+                        ></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="6">
+                        <v-text-field
+                            v-model.number="form.count"
+                            label="Count (Pieces)"
+                            type="number"
+                            variant="outlined"
+                            density="compact"
+                            bg-color="white"
+                            required
+                        ></v-text-field>
+                    </v-col>
+                  </v-row>
+
+                  <!-- Computed Preview -->
+                  <div class="mt-2 text-caption">
+                      <div class="d-flex justify-space-between mb-1">
+                          <span>Average Weight:</span>
+                          <span class="font-weight-bold">{{ calculated.avgWeightGrams.toFixed(2) }}g ({{ (calculated.avgWeightGrams/1000).toFixed(3) }} KG)</span>
+                      </div>
+                      <div class="d-flex justify-space-between mb-1">
+                          <span>Applicable Rate:</span>
+                          <span class="font-weight-bold text-primary">₹{{ calculated.finalRate.toFixed(2) }} /kg</span>
+                      </div>
+                      <div class="d-flex justify-space-between mb-1">
+                          <span>Discount (5%):</span>
+                          <span class="text-error">-{{ calculated.discountWeight.toFixed(1) }} KG</span>
+                      </div>
+                      <div class="d-flex justify-space-between mb-1">
+                          <span>Commission ({{ form.commissionRate }}%):</span>
+                          <span class="text-error">-₹{{ calculated.commission.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                      </div>
+                      <v-divider class="my-2"></v-divider>
+                      <div class="d-flex justify-space-between text-subtitle-1">
+                          <span class="font-weight-bold">Net Amount:</span>
+                          <span class="font-weight-bold text-success">₹{{ calculated.revenue.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                      </div>
+                  </div>
+              </div>
+
+               <v-text-field
+                v-model="form.buyer"
+                label="Buyer Name"
+                variant="outlined"
+                density="compact"
+                placeholder="e.g. Oceanic Exports"
+              ></v-text-field>
+
+              <v-checkbox
+                v-model="isFinal"
+                label="Mark as Final Harvest (Closes Batch)"
+                hide-details
+                density="compact"
+                color="primary"
+              ></v-checkbox>
+
+              <v-btn color="success" type="submit" block class="mt-6" size="large" :disabled="!isValid">
+                Record {{ isFinal ? 'Final' : 'Daily' }} Harvest
+              </v-btn>
+            </v-form>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <!-- Detailed Harvest Table -->
+      <v-col cols="12" :lg="store.isManager ? 8 : 12">
+        <v-card variant="outlined" class="rounded-lg shadow-sm">
+            <v-card-title class="bg-slate-50 border-b px-6 py-4 d-flex align-center">
+                Detailed Harvest History
+                <v-spacer></v-spacer>
+                <v-chip size="small" color="primary">All values in KG / ₹</v-chip>
+            </v-card-title>
+            <v-table density="compact" hover class="harvest-table">
+            <thead>
+              <tr class="bg-grey-lighten-3">
+                <th class="text-caption font-weight-bold">Date</th>
+                <th class="text-caption font-weight-bold">Fish Type</th>
+                <th class="text-caption font-weight-bold">Count</th>
+                <th class="text-caption font-weight-bold">Discount (5%)</th>
+                <th class="text-caption font-weight-bold">Tonne (KG)</th>
+                <th class="text-caption font-weight-bold">Actual</th>
+                <th class="text-caption font-weight-bold">Comm.</th>
+                <th class="text-caption font-weight-bold">Net Amount</th>
+                <th class="text-caption font-weight-bold">Rate</th>
+                <th class="text-caption font-weight-bold">Average</th>
+                <th class="text-caption font-weight-bold">Batch</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="log in harvestHistory" :key="log.id" :class="{'bg-green-lighten-5': log.isFinal}">
+                <td class="text-no-wrap">{{ formatDateShort(log.date) }}</td>
+                <td>{{ getFishType(log.batchId) }}</td>
+                <td>{{ log.count?.toLocaleString() || 0 }}</td>
+                <td class="text-error">{{ (log.discountWeight || 0).toFixed(1) }}</td>
+                <td class="font-weight-medium">{{ (log.biomassWeight || 0).toLocaleString() }}</td>
+                <td class="font-weight-medium">{{ (log.actualWeight || 0).toLocaleString() }}</td>
+                <td class="text-error text-caption">₹{{ (log.commission || 0).toLocaleString('en-IN', {maximumFractionDigits: 0}) }}</td>
+                <td class="text-success font-weight-bold text-no-wrap">₹{{ (log.revenue || 0).toLocaleString('en-IN', {maximumFractionDigits: 0}) }}</td>
+                <td class="text-caption">{{ (log.finalRate || 0).toFixed(2) }}</td>
+                <td class="text-caption">{{ ((log.avgWeightGrams || 0)/1000).toFixed(3) }}</td>
+                <td class="text-no-wrap text-caption">{{ getBatchName(log.batchId) }}</td>
+              </tr>
+            </tbody>
+          </v-table>
+          <v-card-text v-if="harvestHistory.length === 0" class="text-center py-8 text-grey">
+              No harvest records yet.
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { useAquaStore } from '../../stores/useAquaStore';
+import { useRouter } from 'vue-router';
+import PageHeader from '../../components/PageHeader.vue';
+import { useBatches } from '../batches/composables/useBatches';
+import { useHarvestLogs } from './composables/useHarvestLogs';
+import { usePonds } from '../ponds/composables/usePonds';
+import type { Batch, HarvestLog } from '../../api/generated/model';
+
+const store = useAquaStore();
+const router = useRouter();
+
+// Use composables
+const { batches, getBatchById } = useBatches();
+const { harvestLogs, recordHarvest } = useHarvestLogs();
+const { getPondById } = usePonds();
+
+const isFinal = ref(false);
+
+const activeBatches = computed(() => {
+  return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
+    const pond = getPondById(b.pondId);
+    const speciesList = [...new Set(b.fishSeeds?.map(s => s.type) || [])].join(', ') || 'Unknown';
+    return {
+      id: b.id,
+      label: `${b.name || b.stockingDate} - ${pond ? pond.name : 'Unknown'} (${speciesList})`
+    };
+  }) || [];
+});
+
+const defaultForm = {
+  batchId: '',
+  fishType: '',
+  date: new Date().toISOString().substr(0, 10),
+  biomassWeight: 0,
+  count: 0,
+  basicRate: 108,
+  commissionRate: 0.2,
+  buyer: ''
+};
+
+const form = ref({ ...defaultForm });
+
+const availableSpecies = computed(() => {
+    if (!form.value.batchId) return [];
+    const batch = getBatchById(form.value.batchId);
+    const species = batch?.fishSeeds?.map(s => s.type) || [];
+    return [...new Set(species), 'Mixed/All'];
+});
+
+const calculated = computed(() => {
+    const biomass = form.value.biomassWeight || 0;
+    const count = form.value.count || 0;
+    const basicRate = form.value.basicRate || 0;
+
+    const avgWeight = count > 0 ? biomass / count : 0;
+    const avgWeightGrams = avgWeight * 1000;
+
+    const discountWeight = biomass * 0.05;
+    const actualWeight = biomass - discountWeight;
+
+    // Logic: applicableSalePrice(basicPrice, forWeight) { return (basicPrice-(1000-forWeight)*0.02) }
+    // Applicable if biomass is above KG? "108 is the rate if the fish biomass is above KG"
+    // Usually means average weight above 1KG.
+    let finalRate = basicRate;
+    if (avgWeightGrams > 0 && avgWeightGrams < 1000) {
+        finalRate = basicRate - (1000 - avgWeightGrams) * 0.02;
+    }
+
+    const commission = (actualWeight * finalRate) * (form.value.commissionRate / 100);
+    const revenue = (actualWeight * finalRate) - commission;
+
+    return {
+        avgWeightGrams,
+        discountWeight,
+        actualWeight,
+        finalRate,
+        commission,
+        revenue
+    };
+});
+
+const isValid = computed(() => form.value.batchId && form.value.biomassWeight > 0 && form.value.count > 0);
+
+const harvestHistory = computed(() => {
+    return [...(harvestLogs.value || [])].sort((a: HarvestLog, b: HarvestLog) =>
+        new Date(b.date || '').getTime() - new Date(a.date || '').getTime()
+    );
+});
+
+function getFishType(batchId?: string) {
+    if (!batchId) return '-';
+    const batch = getBatchById(batchId);
+    return [...new Set(batch?.fishSeeds?.map((s: any) => s.type) || [])].join(', ') || '-';
+}
+
+function getBatchName(batchId?: string) {
+    if (!batchId) return '-';
+    const batch = getBatchById(batchId);
+    return batch?.name || batch?.stockingDate || '-';
+}
+
+function formatDateShort(dateStr?: string) {
+	if (!dateStr) return '-';
+	return new Date(dateStr).toLocaleDateString(undefined, {
+		year: '2-digit',
+		month: 'short',
+		day: 'numeric'
+	});
+}
+
+async function save() {
+  const payload = {
+      ...form.value,
+      batchId: form.value.batchId,
+      fishType: form.value.fishType,
+      date: form.value.date,
+      count: form.value.count,
+      biomassWeight: form.value.biomassWeight,
+      basicRate: form.value.basicRate,
+      commissionRate: form.value.commissionRate,
+      buyer: form.value.buyer,
+      avgWeightGrams: calculated.value.avgWeightGrams,
+      finalRate: calculated.value.finalRate,
+      discountWeight: calculated.value.discountWeight,
+      actualWeight: calculated.value.actualWeight,
+      commission: calculated.value.commission,
+      revenue: calculated.value.revenue,
+      isFinal: isFinal.value
+  };
+
+  try {
+      await recordHarvest(payload);
+      if (isFinal.value) {
+          alert('Final Harvest recorded and batch closed.');
+          router.push('/finance');
+      } else {
+          alert('Daily harvest record added.');
+          form.value = { ...defaultForm, batchId: form.value.batchId, date: form.value.date, basicRate: form.value.basicRate };
+      }
+  } catch (err) {
+      console.error('Failed to record harvest', err);
+      alert('Failed to save harvest record. Please try again.');
+  }
+}
+</script>
+
+<style scoped>
+.harvest-table th {
+    font-size: 0.75rem !important;
+    white-space: nowrap;
+}
+.harvest-table td {
+    font-size: 0.85rem !important;
+}
+</style>
