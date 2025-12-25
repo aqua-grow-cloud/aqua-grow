@@ -261,3 +261,16 @@ export const useGetBatchesByPond = (pondId: string) => {
         enabled: !!pondId
     });
 };
+
+export const useAddFishSeed = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (payload: { batchId: string; seed: any }) => {
+            const { data } = await AXIOS_INSTANCE.post<Batch>(`/api/batches/${payload.batchId}/seeds`, payload.seed);
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['batches'] });
+        }
+    });
+};

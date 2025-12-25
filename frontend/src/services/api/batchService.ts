@@ -2,7 +2,8 @@ import {
     useGetAllBatches,
     useCreateBatch,
     useUpdateBatch,
-    useGetBatchesByPond
+    useGetBatchesByPond,
+    useAddFishSeed
 } from '../../api/manual/hooks';
 
 /**
@@ -28,5 +29,10 @@ export const batchService = {
     /**
      * Get batches by pond hook
      */
-    useGetByPond: useGetBatchesByPond
+    useGetByPond: useGetBatchesByPond,
+
+    /**
+     * Add fish seed to batch hook
+     */
+    useAddSeed: useAddFishSeed
 };

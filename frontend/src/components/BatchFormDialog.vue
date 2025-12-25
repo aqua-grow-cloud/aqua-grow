@@ -17,7 +17,7 @@
           </v-alert>
           
           <v-row v-else>
-            <v-col cols="12">
+            <v-col cols="12" v-if="!existingBatch">
               <v-text-field
                 v-model="form.name"
                 label="Batch Name (e.g. Batch1)"
@@ -41,13 +41,13 @@
             <v-col cols="12" sm="6">
               <v-text-field
                 v-model="form.stockingDate"
-                label="Stocking Date"
+                :label="existingBatch ? 'Seed Date' : 'Stocking Date'"
                 type="date"
                 variant="outlined"
                 density="compact"
               ></v-text-field>
             </v-col>
-            <v-col cols="12" sm="6">
+            <v-col cols="12" sm="6" v-if="!existingBatch">
               <v-text-field
                 v-model="form.estimatedHarvestDate"
                 label="Est. Harvest Date"
@@ -59,7 +59,7 @@
             <v-col cols="12" sm="6">
               <v-text-field
                 v-model="form.type"
-                label="Type (Species)"
+                :label="existingBatch ? 'Type (Species)' : 'Species'"
                 variant="outlined"
                 density="compact"
               ></v-text-field>
@@ -67,7 +67,7 @@
              <v-col cols="12" sm="6">
               <v-text-field
                 v-model="form.quantity"
-                label="Quantity"
+                :label="existingBatch ? 'Quantity' : 'Initial Quantity'"
                 type="number"
                 variant="outlined"
                 density="compact"

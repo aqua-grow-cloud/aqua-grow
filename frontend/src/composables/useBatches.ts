@@ -17,6 +17,7 @@ export function useBatches() {
     // Mutations
     const createBatch = batchService.useCreate();
     const updateBatch = batchService.useUpdate();
+    const addSeedMutation = batchService.useAddSeed();
 
     // Computed
     const activeBatches = computed(() =>
@@ -39,6 +40,11 @@ export function useBatches() {
         queryClient.invalidateQueries({ queryKey: ['api', 'batches'] });
     }
 
+    async function addSeed(batchId: string, seed: any) {
+        await addSeedMutation.mutateAsync({ batchId, seed });
+        queryClient.invalidateQueries({ queryKey: ['api', 'batches'] });
+    }
+
     function getBatchById(id?: string) {
         if (!id || !batches.value) return undefined;
         return batches.value.find((b: Batch) => b.id === id);
@@ -57,10 +63,13 @@ export function useBatches() {
         // Mutations
         isCreating: createBatch.isPending,
         isUpdating: updateBatch.isPending,
+        isAddingSeed: addSeedMutation.isPending,
 
+        // Actions
         // Actions
         create,
         update,
+        addSeed,
         refetch,
         getBatchById,
 

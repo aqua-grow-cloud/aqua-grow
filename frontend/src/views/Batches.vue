@@ -2,7 +2,7 @@
   <v-container fluid>
     <PageHeader
       title="Batches"
-      :action-label="store.isManager ? 'Start Batch' : undefined"
+      :action-label="store.isManager ? 'New Batch / Add Seed' : undefined"
       @action="dialog = true"
     />
 
@@ -43,7 +43,7 @@ const store = useAquaStore();
 const dialog = ref(false);
 
 // Use composables
-const { batches, create: createBatch, update: updateBatch } = useBatches();
+const { batches, create: createBatch, update: updateBatch, addSeed: addBatchSeed } = useBatches();
 const { ponds, getPondById } = usePonds();
 
 const headers = [
@@ -98,23 +98,7 @@ async function saveBatch(batchData: Omit<ApiBatch, 'id'>) {
 }
 
 async function handleAddSeed(payload: { batchId: string; seed: ApiFishSeed }) {
-    const batch = batches.value?.find((b: ApiBatch) => b.id === payload.batchId);
-    if (!batch) return;
-
-    // Create a copy of existing seeds or empty array
-    const updatedSeeds = [...(batch.fishSeeds || []), payload.seed];
-
-    // Optimistically update or just call API
-    // We need to send the whole batch object for PUT, usually
-    // Assuming backend accepts full object updates
-    
-    // We construct the updated batch object
-    const updatedBatch = {
-        ...batch,
-        fishSeeds: updatedSeeds
-    };
-
-    await updateBatch(batch.id!, updatedBatch);
+    await addBatchSeed(payload.batchId, payload.seed);
     dialog.value = false;
 }
 </script>
