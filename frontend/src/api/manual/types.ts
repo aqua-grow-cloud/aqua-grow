@@ -67,33 +67,3 @@ export interface Batch {
     fishSeeds?: FishSeed[];
     tenantId?: string;
 }
-
-export interface Pond {
-    id?: string;
-    name?: string;
-    area?: number;
-    depth?: number;
-    type?: string;
-    status?: 'Active' | 'Inactive' | 'Maintenance' | string;
-    currentBatchId?: string;
-    tenantId?: string;
-}
-
-export interface HarvestLog {
-    id?: string;
-    batchId: string;
-    date: string;
-    biomassWeight: number;
-    count: number;
-    basicRate: number;
-    commissionRate?: number;
-    buyer?: string;
-    finalRate?: number;
-    avgWeightGrams?: number;
-    discountWeight?: number;
-    actualWeight?: number;
-    commission?: number;
-    revenue?: number;
-    isFinal?: boolean;
-    tenantId?: string;
-}

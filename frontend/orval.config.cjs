@@ -2,7 +2,7 @@ module.exports = {
     'aqua-grow': {
         output: {
             mode: 'tags-split',
-            target: 'src/api/generated/aqua-grow.ts',
+            target: 'src/api/generated',
             schemas: 'src/api/generated/model',
             client: 'vue-query',
             override: {

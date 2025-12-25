@@ -6,57 +6,57 @@ const router = createRouter({
         {
             path: '/',
             name: 'dashboard',
-            component: () => import('../views/Dashboard.vue')
+            component: () => import('../features/operations/DashboardPage.vue')
         },
         {
             path: '/ponds',
             name: 'ponds',
-            component: () => import('../views/Ponds.vue')
+            component: () => import('../features/ponds/PondsPage.vue')
         },
         {
             path: '/batches',
             name: 'batches',
-            component: () => import('../views/Batches.vue')
+            component: () => import('../features/batches/BatchesPage.vue')
         },
         {
             path: '/operations',
             name: 'operations',
-            component: () => import('../views/Operations.vue')
+            component: () => import('../features/operations/OperationsPage.vue')
         },
         {
             path: '/harvest',
             name: 'harvest',
-            component: () => import('../views/Harvest.vue')
+            component: () => import('../features/harvesting/HarvestPage.vue')
         },
         {
             path: '/payroll',
             name: 'payroll',
-            component: () => import('../views/Payroll.vue')
+            component: () => import('../features/payroll/PayrollPage.vue')
         },
         {
             path: '/finance',
             name: 'finance',
-            component: () => import('../views/Finance.vue')
+            component: () => import('../features/finance/FinancePage.vue')
         },
         {
             path: '/settings',
             name: 'settings',
-            component: () => import('../views/Settings.vue')
+            component: () => import('../features/settings/SettingsPage.vue')
         },
         {
             path: '/suppliers',
             name: 'suppliers',
-            component: () => import('../views/Suppliers.vue')
+            component: () => import('../features/inventory/SuppliersPage.vue')
         },
         {
             path: '/feed-stock',
             name: 'feed-stock',
-            component: () => import('../views/FeedStock.vue')
+            component: () => import('../features/inventory/FeedStockPage.vue')
         },
         {
             path: '/feed-orders',
             name: 'feed-orders',
-            component: () => import('../views/FeedOrders.vue')
+            component: () => import('../features/inventory/FeedOrdersPage.vue')
         }
     ]
 })
