@@ -9,7 +9,7 @@
         <v-container>
            <v-alert v-if="existingBatch" type="info" variant="tonal" class="mb-4" density="compact">
              Adding to active batch in <strong>{{ props.ponds.find(p => p.id === form.pondId)?.name }}</strong>.
-             Current stock: {{ existingBatch.species }} ({{ existingBatch.initialQuantity }})
+             Current stock: {{ [...new Set(existingBatch?.fishSeeds?.map(s => s.type) || [])].join(', ') }} ({{ existingBatch?.fishSeeds?.reduce((acc, s) => acc + s.quantity, 0) || 0 }})
            </v-alert>
 
           <v-alert v-if="availablePonds.length === 0" type="warning" class="mb-4">
@@ -196,13 +196,16 @@ function save() {
       const batchData: Omit<Batch, 'id'> = {
           pondId: form.value.pondId,
           name: form.value.name,
-          species: form.value.type,
           stockingDate: form.value.stockingDate,
           estimatedHarvestDate: form.value.estimatedHarvestDate || undefined,
-          initialQuantity: form.value.quantity,
-          seedSize: form.value.sizeGrams || 0,
           status: 'Active',
-          fishSeeds: [] // Separated creation: Batch starts empty of specific seed records
+          fishSeeds: [{
+              date: form.value.stockingDate,
+              type: form.value.type,
+              quantity: form.value.quantity,
+              sizeInches: form.value.sizeInches || undefined,
+              sizeGrams: form.value.sizeGrams || undefined
+          }]
       };
       emit('save', batchData);
   }

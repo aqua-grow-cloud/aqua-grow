@@ -185,9 +185,10 @@ const { data: sampleLogs } = sampleLogService.useGetAll();
 const activeBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
     const pond = getPondById(b.pondId);
+    const speciesList = [...new Set(b.fishSeeds?.map(s => s.type) || [])].join(', ') || 'Unknown';
     return {
       id: b.id,
-      label: `${pond ? pond.name : 'Unknown'} - ${b.species}`
+      label: `${pond ? pond.name : 'Unknown'} - ${speciesList}`
     };
   }) || [];
 });
@@ -244,7 +245,7 @@ function getPondName(batchId?: string) {
 function getSpecies(batchId?: string) {
     if (!batchId) return '-';
     const batch = getBatchById(batchId);
-    return batch?.species || '-';
+    return [...new Set(batch?.fishSeeds?.map((s: any) => s.type) || [])].join(', ') || '-';
 }
 
 function getBatchDate(batchId?: string) {

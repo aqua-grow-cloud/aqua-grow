@@ -104,9 +104,10 @@ const { data: feedLogs } = feedLogService.useGetAll();
 const activeBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
     const pond = getPondById(b.pondId);
+    const speciesList = [...new Set(b.fishSeeds?.map(s => s.type) || [])].join(', ') || 'Unknown';
     return {
       id: b.id,
-      label: `${pond ? pond.name : 'Unknown'} - ${b.species}`
+      label: `${pond ? pond.name : 'Unknown'} - ${speciesList}`
     };
   }) || [];
 });
@@ -134,7 +135,8 @@ function getBatchLabel(batchId?: string) {
     const batch = getBatchById(batchId);
     if (!batch) return batchId;
     const pond = getPondById(batch.pondId);
-    return `${pond ? pond.name : 'Unknown'} (${batch.species})`;
+    const species = [...new Set(batch.fishSeeds?.map((s: any) => s.type) || [])].join(', ') || 'Unknown';
+    return `${pond ? pond.name : 'Unknown'} (${species})`;
 }
 
 function save() {

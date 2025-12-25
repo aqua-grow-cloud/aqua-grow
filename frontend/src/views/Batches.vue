@@ -76,16 +76,16 @@ const fishSeedList = computed(() => {
             });
         });
     } else {
-        // Fallback for batches without explicit seeds (legacy data)
+        // Fallback for batches without seeds (display simple entry)
         list.push({
             id: batch.id,
             date: batch.stockingDate,
             batchName: batchName,
             pondName: pond ? pond.name : 'Unknown',
-            type: batch.species,
-            quantity: batch.initialQuantity,
+            type: 'No Stock',
+            quantity: 0,
             sizeInches: '-',
-            sizeGrams: batch.seedSize || '-'
+            sizeGrams: '-'
         });
     }
   });

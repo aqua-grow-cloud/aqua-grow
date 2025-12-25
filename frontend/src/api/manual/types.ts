@@ -63,9 +63,6 @@ export interface Batch {
     name?: string;
     stockingDate: string;
     estimatedHarvestDate?: string;
-    species: string;
-    initialQuantity: number;
-    seedSize?: number;
     status: 'Active' | 'Harvested';
     fishSeeds?: FishSeed[];
     tenantId?: string;
