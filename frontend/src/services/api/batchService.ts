@@ -2,43 +2,31 @@ import {
     useGetAllBatches,
     useCreateBatch,
     useUpdateBatch,
-    type GetAllBatchesQueryResult,
-    type CreateBatchMutationResult,
-    type UpdateBatchMutationResult
-} from '../../api/generated/batch-controller/batch-controller';
-import type { Batch } from '../../api/generated/model';
+    useGetBatchesByPond
+} from '../../api/manual/hooks';
 
 /**
  * Batch Service
- * Wraps Orval-generated hooks with business logic and error handling
+ * Wraps manual hooks with business logic and error handling
  */
 export const batchService = {
     /**
      * Get all batches hook
      */
-    useGetAll() {
-        return useGetAllBatches();
-    },
+    useGetAll: useGetAllBatches,
 
     /**
      * Create batch hook
      */
-    useCreate() {
-        return useCreateBatch();
-    },
+    useCreate: useCreateBatch,
 
     /**
      * Update batch hook
      */
-    useUpdate() {
-        return useUpdateBatch();
-    },
-};
+    useUpdate: useUpdateBatch,
 
-// Type exports for convenience
-export type {
-    Batch,
-    GetAllBatchesQueryResult,
-    CreateBatchMutationResult,
-    UpdateBatchMutationResult
+    /**
+     * Get batches by pond hook
+     */
+    useGetByPond: useGetBatchesByPond
 };

@@ -8,7 +8,7 @@
       <v-card-text>
         <v-container>
            <v-alert v-if="existingBatch" type="info" variant="tonal" class="mb-4" density="compact">
-             Adding to active batch in <strong>{{ store.getPondById(form.pondId)?.name }}</strong>.
+             Adding to active batch in <strong>{{ props.ponds.find(p => p.id === form.pondId)?.name }}</strong>.
              Current stock: {{ existingBatch.species }} ({{ existingBatch.initialQuantity }})
            </v-alert>
 
@@ -109,14 +109,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useAquaStore } from '../stores/useAquaStore';
-import type { Batch, FishSeed } from '../types';
+import { ref, computed, watch } from 'vue';
+import type { Batch, FishSeed, Pond } from '../api/manual/types';
 
-const props = defineProps<{
+interface Props {
   modelValue: boolean;
   initialPondId?: string;
-}>();
+  ponds: Pond[];
+  batches: Batch[];
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    ponds: () => [],
+    batches: () => []
+});
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void;
@@ -124,12 +130,10 @@ const emit = defineEmits<{
   (e: 'add-seed', payload: { batchId: string; seed: FishSeed }): void;
 }>();
 
-const store = useAquaStore();
-
 // Filter ponds that don't have an active batch and are active themselves
 // Show all active ponds, so we can add seeds to existing batches too
 const availablePonds = computed(() => {
-  return store.ponds.filter(p => p.status === 'Active');
+  return props.ponds.filter(p => p.status === 'Active');
 });
 
 const defaultForm = {
@@ -148,17 +152,14 @@ const form = ref({ ...defaultForm });
 // Check if the selected pond has an active batch
 const existingBatch = computed(() => {
     if (!form.value.pondId) return null;
-    const pond = store.getPondById(form.value.pondId);
-    if (pond && pond.currentBatchId) {
-        return store.getBatchById(pond.currentBatchId);
-    }
-    return null;
+    // Find batch where pondId matches and status is Active
+    // We can rely on batches prop instead of pond.currentBatchId link from store
+    return props.batches.find(b => b.pondId === form.value.pondId && b.status === 'Active') || null;
 });
 
 const modeLabel = computed(() => existingBatch.value ? 'Add Fish Seed' : 'Start New Batch');
 const btnLabel = computed(() => existingBatch.value ? 'Add Seed' : 'Start Batch');
 
-import { watch } from 'vue';
 watch(() => props.modelValue, (val) => {
     if (val && props.initialPondId) {
         form.value.pondId = props.initialPondId;
@@ -185,7 +186,7 @@ function save() {
       sizeGrams: form.value.sizeGrams || undefined
   };
 
-  if (existingBatch.value) {
+  if (existingBatch.value && existingBatch.value.id) {
       // Add to existing
       emit('add-seed', { batchId: existingBatch.value.id, seed });
   } else {

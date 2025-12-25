@@ -8,4 +8,13 @@ export * from './sampleLogService';
 export * from './supplierService';
 export * from './feedStockService';
 export * from './feedOrderService';
-export * from '../../api/manual/types'; // Export types for convenience
+// Export types from manual that don't conflict with generated types
+export type {
+    Supplier,
+    FeedStock,
+    OrderStatus,
+    FeedOrder,
+    OrderMessageResponse,
+    FishSeed,
+    Batch
+} from '../../api/manual/types';

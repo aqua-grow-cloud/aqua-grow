@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import { AXIOS_INSTANCE } from '../axios-instance';
-import type { Supplier, FeedStock, FeedOrder, OrderMessageResponse } from './types';
+import type { Supplier, FeedStock, FeedOrder, OrderMessageResponse, Batch } from './types';
 import { computed } from 'vue';
 
 // --- Suppliers ---
@@ -209,5 +209,55 @@ export const useCancelOrder = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['feed-orders'] });
         }
+    });
+};
+
+// --- Batches ---
+
+export const useGetAllBatches = () => {
+    return useQuery({
+        queryKey: ['batches'],
+        queryFn: async () => {
+            const { data } = await AXIOS_INSTANCE.get<Batch[]>('/api/batches');
+            return data;
+        }
+    });
+};
+
+export const useCreateBatch = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (payload: { data: Batch }) => {
+            const { data } = await AXIOS_INSTANCE.post<Batch>('/api/batches', payload.data);
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['batches'] });
+        }
+    });
+};
+
+export const useUpdateBatch = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (payload: { id: string; data: Batch }) => {
+            const { data } = await AXIOS_INSTANCE.put<Batch>(`/api/batches/${payload.id}`, payload.data);
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['batches'] });
+        }
+    });
+};
+
+export const useGetBatchesByPond = (pondId: string) => {
+    return useQuery({
+        queryKey: ['batches', 'pond', pondId],
+        queryFn: async () => {
+            if (!pondId) return [];
+            const { data } = await AXIOS_INSTANCE.get<Batch[]>(`/api/batches/pond/${pondId}`);
+            return data;
+        },
+        enabled: !!pondId
     });
 };

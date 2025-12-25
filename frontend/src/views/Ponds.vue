@@ -1,9 +1,9 @@
 <template>
   <v-container fluid>
-    <PageHeader 
-      title="Ponds" 
-      :action-label="store.isManager ? 'Add Pond' : undefined" 
-      @action="openCreateDialog" 
+    <PageHeader
+      title="Ponds"
+      :action-label="store.isManager ? 'Add Pond' : undefined"
+      @action="openCreateDialog"
     />
 
     <div v-if="isLoading" class="d-flex justify-center align-center py-12">
@@ -13,10 +13,10 @@
     <template v-else>
       <v-row>
         <v-col v-for="pond in ponds" :key="pond.id" cols="12" sm="6" md="4" lg="3">
-          <PondCard 
-            :pond="pond" 
+          <PondCard
+            :pond="pond"
             :can-manage="store.isManager"
-            @edit="openEditDialog" 
+            @edit="openEditDialog"
             @delete="removePond"
             @stock="openStockDialog"
           />
@@ -39,10 +39,12 @@
       :item="editedItem"
       @save="savePond"
     />
-    
-    <BatchFormDialog 
-        v-model="stockDialog" 
+
+    <BatchFormDialog
+        v-model="stockDialog"
         :initial-pond-id="stockPondId"
+        :ponds="ponds || []"
+        :batches="batches || []"
         @save="saveBatch"
         @add-seed="handleAddSeed"
     />
@@ -54,7 +56,7 @@ import { ref } from 'vue';
 import { useAquaStore } from '../stores/useAquaStore';
 import { usePonds } from '../composables/usePonds';
 import { useBatches } from '../composables/useBatches';
-import type { FishSeed } from '../types';
+import type { FishSeed } from '../api/manual/types';
 import type { Pond } from '../api/generated/model';
 import PondCard from '../components/PondCard.vue';
 import PondFormDialog from '../components/PondFormDialog.vue';
@@ -65,7 +67,7 @@ const store = useAquaStore();
 
 // Use composables
 const { ponds, isLoading, create: createPond, update: updatePond, remove: deletePond } = usePonds();
-const { create: createBatch } = useBatches();
+const { batches, create: createBatch } = useBatches();
 
 const dialog = ref(false);
 const stockDialog = ref(false);
@@ -112,6 +114,6 @@ async function saveBatch(batchData: any) {
 
 function handleAddSeed(payload: { batchId: string, seed: FishSeed }) {
     // TODO: Implement with real API if needed, or handle within Batch creation
-    store.addFishSeed(payload.batchId, payload.seed);
+    store.addFishSeed(payload.batchId, payload.seed as any); // Cast to any for store compatibility for now
 }
 </script>

@@ -20,7 +20,13 @@
       </v-data-table>
     </v-card>
 
-    <BatchFormDialog v-model="dialog" @save="saveBatch" @add-seed="handleAddSeed" />
+    <BatchFormDialog 
+      v-model="dialog" 
+      :ponds="ponds || []" 
+      :batches="batches || []"
+      @save="saveBatch" 
+      @add-seed="handleAddSeed" 
+    />
   </v-container>
 </template>
 
@@ -31,14 +37,13 @@ import BatchFormDialog from '../components/BatchFormDialog.vue';
 import PageHeader from '../components/PageHeader.vue';
 import { useBatches } from '../composables/useBatches';
 import { usePonds } from '../composables/usePonds';
-import type { Batch, FishSeed } from '../types';
-import type { Batch as ApiBatch } from '../api/generated/model';
+import type { Batch as ApiBatch, FishSeed as ApiFishSeed } from '../api/manual/types';
 
 const store = useAquaStore();
 const dialog = ref(false);
 
 // Use composables
-const { batches, create: createBatch } = useBatches();
+const { batches, create: createBatch, update: updateBatch } = useBatches();
 const { ponds, getPondById } = usePonds();
 
 const headers = [
@@ -87,13 +92,29 @@ const fishSeedList = computed(() => {
   return list;
 });
 
-async function saveBatch(batchData: Omit<Batch, 'id'>) {
+async function saveBatch(batchData: Omit<ApiBatch, 'id'>) {
   await createBatch(batchData);
   dialog.value = false;
 }
 
-function handleAddSeed(payload: { batchId: string; seed: FishSeed }) {
-    // TODO: Implement with real API if needed, or handle within Batch creation
-    store.addFishSeed(payload.batchId, payload.seed);
+async function handleAddSeed(payload: { batchId: string; seed: ApiFishSeed }) {
+    const batch = batches.value?.find((b: ApiBatch) => b.id === payload.batchId);
+    if (!batch) return;
+
+    // Create a copy of existing seeds or empty array
+    const updatedSeeds = [...(batch.fishSeeds || []), payload.seed];
+
+    // Optimistically update or just call API
+    // We need to send the whole batch object for PUT, usually
+    // Assuming backend accepts full object updates
+    
+    // We construct the updated batch object
+    const updatedBatch = {
+        ...batch,
+        fishSeeds: updatedSeeds
+    };
+
+    await updateBatch(batch.id!, updatedBatch);
+    dialog.value = false;
 }
 </script>
