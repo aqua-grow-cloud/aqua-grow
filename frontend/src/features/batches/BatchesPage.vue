@@ -59,15 +59,15 @@ const headers = [
 const fishSeedList = computed(() => {
   const list: any[] = [];
   batches.value?.forEach((batch: ApiBatch) => {
-    const pond = getPondById(batch.pondId || '');// Batch date
-    const batchName = batch.stockingDate || 'Unknown'; // Using Date as Batch Name per example "2024-07-11"
+    const batchDisplayName = batch.name || batch.stockingDate || 'Unknown';
 
     if (batch.fishSeeds && batch.fishSeeds.length > 0) {
         batch.fishSeeds.forEach((seed: ApiFishSeed) => {
+            const pond = getPondById(seed.pondId || '');
             list.push({
                 id: seed.id,
                 date: seed.date || '',
-                batchName: batchName,
+                batchName: batchDisplayName,
                 pondName: pond ? pond.name : 'Unknown',
                 type: seed.type || 'Unknown',
                 quantity: seed.quantity || 0,
@@ -76,12 +76,12 @@ const fishSeedList = computed(() => {
             });
         });
     } else {
-        // Fallback for batches without seeds (display simple entry)
+        // Fallback for batches without seeds
         list.push({
             id: batch.id,
             date: batch.stockingDate || '',
-            batchName: batchName,
-            pondName: pond ? pond.name : 'Unknown',
+            batchName: batchDisplayName,
+            pondName: 'N/A',
             type: 'No Stock',
             quantity: 0,
             sizeInches: '-',

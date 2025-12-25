@@ -172,7 +172,7 @@ const targetBatchId = ref<string>('NEW');
 // Existing active batches for the selected pond
 const pondActiveBatches = computed(() => {
     if (!form.value.pondId) return [];
-    return props.batches.filter(b => b.pondId === form.value.pondId && b.status === 'Active');
+    return props.batches.filter(b => b.status === 'Active' && b.fishSeeds?.some(s => s.pondId === form.value.pondId));
 });
 
 // Options for the Action dropdown
@@ -205,7 +205,7 @@ watch(() => form.value.pondId, (newPondId) => {
     // but if the user wants NEW, they can select it.
     // Given the request "create a second new batch", defaulting to NEW might be annoying if usually you add seeds.
     // Let's default to first active batch if exists, else NEW.
-    const batches = props.batches.filter(b => b.pondId === newPondId && b.status === 'Active');
+    const batches = props.batches.filter(b => b.status === 'Active' && b.fishSeeds?.some(s => s.pondId === newPondId));
     if (batches.length > 0) {
         targetBatchId.value = batches[0]?.id || 'NEW';
     } else {
@@ -237,6 +237,7 @@ function close() {
 function save() {
   const seed: FishSeed = {
       id: undefined,
+      pondId: form.value.pondId,
       date: form.value.stockingDate,
       type: form.value.type,
       quantity: form.value.quantity,
@@ -249,13 +250,13 @@ function save() {
       emit('add-seed', { batchId: existingBatch.value.id, seed });
   } else {
       // New Batch
-      const batchData: Omit<Batch, 'id'> = {
-          pondId: form.value.pondId,
+      const batchData: any = {
           name: form.value.name,
           stockingDate: form.value.stockingDate,
           estimatedHarvestDate: form.value.estimatedHarvestDate || undefined,
           status: 'Active',
           fishSeeds: [{
+              pondId: form.value.pondId,
               date: form.value.stockingDate,
               type: form.value.type,
               quantity: form.value.quantity,

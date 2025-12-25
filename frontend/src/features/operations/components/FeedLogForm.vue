@@ -106,11 +106,11 @@ const logFeedMutation = feedLogService.useLog();
 
 const activeBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
-    const pond = getPondById(b.pondId);
+    const pondNames = [...new Set(b.fishSeeds?.map(s => getPondById(s.pondId || '')?.name).filter(Boolean))].join(', ') || 'Unknown';
     const speciesList = [...new Set(b.fishSeeds?.map(s => s.type) || [])].join(', ') || 'Unknown';
     return {
       id: b.id,
-      label: `${pond ? pond.name : 'Unknown'} - ${speciesList}`
+      label: `${pondNames} - ${speciesList}`
     };
   }) || [];
 });
@@ -137,9 +137,9 @@ function getBatchLabel(batchId?: string) {
     if (!batchId) return 'Unknown';
     const batch = getBatchById(batchId);
     if (!batch) return batchId;
-    const pond = getPondById(batch.pondId);
+    const pondNames = [...new Set(batch.fishSeeds?.map((s: any) => getPondById(s.pondId || '')?.name).filter(Boolean))].join(', ') || 'Unknown';
     const species = [...new Set(batch.fishSeeds?.map((s: any) => s.type) || [])].join(', ') || 'Unknown';
-    return `${pond ? pond.name : 'Unknown'} (${species})`;
+    return `${pondNames} (${species})`;
 }
 
 async function save() {

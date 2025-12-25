@@ -30,7 +30,7 @@
 
         <v-divider class="mb-4"></v-divider>
         <div class="text-subtitle-2 mb-2">Biometrics</div>
-        
+
         <v-row>
           <v-col cols="6" sm="3">
             <v-text-field
@@ -136,7 +136,7 @@
       </v-form>
 
       <v-divider class="my-4"></v-divider>
-      
+
       <h3 class="text-subtitle-1 mb-2 font-weight-bold">Recent Samples</h3>
        <v-table density="compact" class="border rounded">
         <thead>
@@ -168,13 +168,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { useQueryClient } from '@tanstack/vue-query';
-import { useAquaStore } from '../../../stores/useAquaStore';
-import { useBatches } from '../../batches/composables/useBatches';
-import { usePonds } from '../../ponds/composables/usePonds';
-import { sampleLogService } from '../api/sampleLogService';
-import type { Batch, SampleLog } from '../../../api/generated/model';
+import {computed, ref, watch} from 'vue';
+import {useQueryClient} from '@tanstack/vue-query';
+import {useAquaStore} from '../../../stores/useAquaStore';
+import {useBatches} from '../../batches/composables/useBatches';
+import {usePonds} from '../../ponds/composables/usePonds';
+import {sampleLogService} from '../api/sampleLogService';
+import type {Batch, SampleLog} from '../../../api/generated/model';
 
 const store = useAquaStore();
 const queryClient = useQueryClient();
@@ -187,11 +187,11 @@ const logSampleMutation = sampleLogService.useLog();
 
 const activeBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
-    const pond = getPondById(b.pondId);
+    const pondNames = [...new Set(b.fishSeeds?.map(s => getPondById(s.pondId || '')?.name).filter(Boolean))].join(', ') || 'Unknown';
     const speciesList = [...new Set(b.fishSeeds?.map(s => s.type) || [])].join(', ') || 'Unknown';
     return {
       id: b.id,
-      label: `${pond ? pond.name : 'Unknown'} - ${speciesList}`
+      label: `${pondNames} - ${speciesList}`
     };
   }) || [];
 });
@@ -232,7 +232,7 @@ watch(calculatedABW, (newVal) => {
 const isValid = computed(() => form.value.batchId && form.value.sampleCount > 0);
 
 const recentLogs = computed(() => {
-    return [...(sampleLogs.value || [])].sort((a: SampleLog, b: SampleLog) => 
+    return [...(sampleLogs.value || [])].sort((a: SampleLog, b: SampleLog) =>
       new Date(b.date || '').getTime() - new Date(a.date || '').getTime()
     ).slice(0, 5);
 });
@@ -241,8 +241,7 @@ function getPondName(batchId?: string) {
     if (!batchId) return '-';
     const batch = getBatchById(batchId);
     if (!batch) return '-';
-    const pond = getPondById(batch.pondId);
-    return pond ? pond.name : '-';
+	return [...new Set(batch.fishSeeds?.map((s: any) => getPondById(s.pondId || '')?.name).filter(Boolean))].join(', ') || '-';
 }
 
 function getSpecies(batchId?: string) {
@@ -260,7 +259,7 @@ function getBatchDate(batchId?: string) {
 async function save() {
   await logSampleMutation.mutateAsync({ data: form.value } as any);
   queryClient.invalidateQueries({ queryKey: ['api', 'sample-logs'] });
-  
+
   // Reset fields
   form.value = JSON.parse(JSON.stringify(defaultForm));
 }

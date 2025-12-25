@@ -259,11 +259,11 @@ const { getPondById } = usePonds();
 
 const activeBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
-    const pond = getPondById(b.pondId);
+    const pondNames = [...new Set(b.fishSeeds?.map(s => getPondById(s.pondId || '')?.name).filter(Boolean))].join(', ') || 'Unknown';
     const speciesList = [...new Set(b.fishSeeds?.map(s => s.type) || [])].join(', ') || 'Unknown';
     return {
       id: b.id,
-      label: `${b.name || b.stockingDate} - ${pond ? pond.name : 'Unknown'} (${speciesList})`
+      label: `${b.name || b.stockingDate} - ${pondNames} (${speciesList})`
     };
   }) || [];
 });
