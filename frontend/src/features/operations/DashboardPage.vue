@@ -85,7 +85,7 @@
             <tbody>
               <tr v-for="batch in activeBatchesWithHistory" :key="batch.id">
                 <td class="font-weight-medium text-primary">{{ batch.name || 'Unnamed' }}</td>
-                <td>{{ getPondName(batch.pondId) }}</td>
+                <td>{{ getBatchPonds(batch) }}</td>
                 <td>{{ formatDate(batch.stockingDate) }}</td>
                 <td>{{ batch.estimatedHarvestDate ? formatDate(batch.estimatedHarvestDate) : '-' }}</td>
                 <td class="text-center">
@@ -153,8 +153,10 @@ import PageHeader from '../../components/PageHeader.vue';
 import { usePonds } from '../ponds/composables/usePonds';
 import { useBatches } from '../batches/composables/useBatches';
 import { feedLogService } from './api/feedLogService';
+import { sampleLogService } from './api/sampleLogService';
+import { harvestLogService } from '../harvesting/api/harvestLogService';
 import { feedStockService } from '../inventory/api/feedStockService';
-import type { Batch, FeedLog, Pond } from '../../api/generated/model';
+import type { Batch, FeedLog, Pond, HarvestLog, SampleLog } from '../../api/generated/model';
 
 const store = useAquaStore();
 
@@ -163,6 +165,8 @@ const { ponds } = usePonds();
 const { batches } = useBatches();
 const { data: feedLogs } = feedLogService.useGetAll();
 const { data: lowStockItems } = feedStockService.useGetLowStock();
+const { data: harvestLogs } = harvestLogService.useGetAll();
+const { data: sampleLogs } = sampleLogService.useGetAll();
 
 const referenceDate = ref(new Date().toISOString().substr(0, 10));
 
@@ -192,12 +196,58 @@ const feedToday = computed(() => {
     .reduce((sum: number, l: FeedLog) => sum + (l.amount || 0), 0) || 0;
 });
 
-const totalBiomassEst = computed(() => 1250);
+const totalBiomassEst = computed(() => {
+  if (!batches.value) return 0;
 
-function getPondName(pondId?: string) {
-  if (!pondId || !ponds.value) return pondId || 'Unknown';
-  const pond = ponds.value.find((p: Pond) => p.id === pondId);
-  return pond?.name || pondId;
+  let totalBiomass = 0;
+
+  activeBatches.value.forEach((batch: Batch) => {
+    // 1. Base quantity from stocking
+    const totalStocked = batch.fishSeeds?.reduce((sum, s) => sum + (s.quantity || 0), 0) || 0;
+    if (totalStocked === 0) return;
+
+    // 2. Subtract harvests
+    const totalHarvested = harvestLogs.value
+      ?.filter(l => l.batchId === batch.id)
+      .reduce((sum, l) => sum + (l.count || 0), 0) || 0;
+    
+    let currentQuantity = Math.max(0, totalStocked - totalHarvested);
+
+    // 3. Get latest sampling data
+    const batchSamples = [...(sampleLogs.value || [])]
+      .filter(l => l.batchId === batch.id)
+      .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime());
+    
+    const latestSample = batchSamples[0];
+    
+    // Apply survival estimate if available
+    if (latestSample?.survivalEstimate !== undefined) {
+        currentQuantity = currentQuantity * (latestSample.survivalEstimate / 100);
+    }
+
+    // 4. Determine current average weight (ABW)
+    let currentABW = latestSample?.averageWeight;
+    
+    // Fallback: If no sample, use stocking ABW
+    if (!currentABW && batch.fishSeeds && batch.fishSeeds.length > 0) {
+        const totalStockWeight = batch.fishSeeds.reduce((sum, s) => sum + ((s.quantity || 0) * (s.sizeGrams || 0)), 0);
+        currentABW = totalStockWeight / totalStocked;
+    }
+
+    if (currentABW) {
+        totalBiomass += (currentQuantity * currentABW) / 1000;
+    }
+  });
+
+  return Math.round(totalBiomass);
+});
+
+function getBatchPonds(batch: Batch) {
+  if (!batch.fishSeeds || batch.fishSeeds.length === 0) return 'N/A';
+  const pondNames = batch.fishSeeds
+    .map(s => ponds.value?.find(p => p.id === s.pondId)?.name)
+    .filter(Boolean);
+  return [...new Set(pondNames)].join(', ') || 'Unknown';
 }
 
 function formatDate(dateStr?: string) {
