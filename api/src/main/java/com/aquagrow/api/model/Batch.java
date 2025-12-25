@@ -10,7 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "batches")
+@Table(name = "batches", uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "pondId", "name" })
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -26,9 +28,6 @@ public class Batch {
     private String name;
     private LocalDate stockingDate;
     private LocalDate estimatedHarvestDate;
-    private String species;
-    private Integer initialQuantity;
-    private Double seedSize;
     private String status; // Active, Harvested
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)

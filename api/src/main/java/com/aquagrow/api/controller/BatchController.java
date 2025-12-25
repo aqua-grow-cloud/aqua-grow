@@ -45,18 +45,8 @@ public class BatchController {
                     batch.setName(batchDetails.getName());
                     batch.setStockingDate(batchDetails.getStockingDate());
                     batch.setEstimatedHarvestDate(batchDetails.getEstimatedHarvestDate());
-                    batch.setSpecies(batchDetails.getSpecies());
-                    batch.setInitialQuantity(batchDetails.getInitialQuantity());
-                    batch.setSeedSize(batchDetails.getSeedSize());
                     batch.setStatus(batchDetails.getStatus());
-
-                    if (batchDetails.getFishSeeds() != null) {
-                        batch.getFishSeeds().clear();
-                        if (!batchDetails.getFishSeeds().isEmpty()) {
-                            batch.getFishSeeds().addAll(batchDetails.getFishSeeds());
-                        }
-                    }
-
+                    batch.getFishSeeds().addAll(batchDetails.getFishSeeds());
                     return ResponseEntity.ok(batchRepository.save(batch));
                 })
                 .orElse(ResponseEntity.notFound().build());

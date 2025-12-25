@@ -8,5 +8,6 @@
     <include file="db/changelog/changesets/01-initial-schema.xml"/>
     <include file="db/changelog/changesets/02-feed-management.xml"/>
     <include file="db/changelog/changesets/03-supplier-external-id.xml"/>
+    <include file="db/changelog/changesets/04-refactor-batch-structure.xml"/>
 
 </databaseChangeLog>
