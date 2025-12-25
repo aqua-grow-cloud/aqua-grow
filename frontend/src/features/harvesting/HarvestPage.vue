@@ -157,6 +157,39 @@
                 <v-spacer></v-spacer>
                 <v-chip size="small" color="primary">All values in KG / ₹</v-chip>
             </v-card-title>
+            
+            <v-divider></v-divider>
+            
+            <!-- Filters Row -->
+            <v-card-text class="bg-slate-50 border-b py-3 px-6">
+                <v-row dense align="center">
+                    <v-col cols="12" sm="4">
+                        <v-select
+                            v-model="batchFilter"
+                            :items="batchFilterItems"
+                            label="Filter by Batch"
+                            variant="outlined"
+                            density="compact"
+                            hide-details
+                            clearable
+                            placeholder="All Batches"
+                        ></v-select>
+                    </v-col>
+                    <v-col cols="12" sm="4">
+                        <v-select
+                            v-model="fishTypeFilter"
+                            :items="fishTypeFilterItems"
+                            label="Filter by Fish Type"
+                            variant="outlined"
+                            density="compact"
+                            hide-details
+                            clearable
+                            placeholder="All Types"
+                        ></v-select>
+                    </v-col>
+                </v-row>
+            </v-card-text>
+
             <v-table density="compact" hover class="harvest-table">
             <thead>
               <tr class="bg-grey-lighten-3">
@@ -213,10 +246,15 @@ const router = useRouter();
 
 // Use composables
 const { batches, getBatchById } = useBatches();
-const { harvestLogs, recordHarvest } = useHarvestLogs();
+const { harvestLogs, recordHarvest } = useHarvestLogs(computed(() => ({
+    batchId: batchFilter.value || undefined,
+    fishType: fishTypeFilter.value || undefined
+})));
 const { getPondById } = usePonds();
 
 const isFinal = ref(false);
+const batchFilter = ref<string | null>(null);
+const fishTypeFilter = ref<string | null>(null);
 
 const activeBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
@@ -287,6 +325,23 @@ const harvestHistory = computed(() => {
     return [...(harvestLogs.value || [])].sort((a: HarvestLog, b: HarvestLog) =>
         new Date(b.date || '').getTime() - new Date(a.date || '').getTime()
     );
+});
+
+const batchFilterItems = computed(() => {
+    const batchIds = [...new Set((harvestLogs.value || []).map(l => l.batchId))];
+    return batchIds.map(id => {
+        const batch = getBatchById(id);
+        const title = batch ? (batch.name || batch.stockingDate || id) : id;
+        return {
+            title: String(title),
+            value: id as string
+        };
+    }).sort((a, b) => a.title.localeCompare(b.title));
+});
+
+const fishTypeFilterItems = computed(() => {
+    const types = [...new Set((harvestLogs.value || []).map(l => l.fishType).filter(Boolean))];
+    return types.sort();
 });
 
 function getFishType(batchId?: string) {

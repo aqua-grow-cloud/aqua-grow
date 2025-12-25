@@ -4,7 +4,7 @@ import {
     type GetAllHarvestLogsQueryResult,
     type RecordHarvestMutationResult
 } from '../../../api/generated/harvest-log-controller/harvest-log-controller';
-import type { HarvestLog } from '../../../api/generated/model';
+import type { HarvestLog, GetAllHarvestLogsParams } from '../../../api/generated/model';
 
 /**
  * Harvest Log Service
@@ -14,8 +14,8 @@ export const harvestLogService = {
     /**
      * Get all harvest logs hook
      */
-    useGetAll() {
-        return useGetAllHarvestLogs();
+    useGetAll(params?: any) {
+        return useGetAllHarvestLogs(params);
     },
 
     /**
@@ -29,6 +29,7 @@ export const harvestLogService = {
 // Type exports for convenience
 export type {
     HarvestLog,
+    GetAllHarvestLogsParams,
     GetAllHarvestLogsQueryResult,
     RecordHarvestMutationResult
 };

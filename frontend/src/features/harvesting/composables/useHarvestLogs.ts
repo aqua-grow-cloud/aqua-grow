@@ -1,15 +1,16 @@
-import { harvestLogService } from '../api/harvestLogService';
+import { harvestLogService, type GetAllHarvestLogsParams } from '../api/harvestLogService';
 import { useQueryClient } from '@tanstack/vue-query';
+import type { MaybeRef } from 'vue';
 
 /**
  * Harvest Logs Composable
  * Provides reusable harvest log operations with loading/error states
  */
-export function useHarvestLogs() {
+export function useHarvestLogs(params?: MaybeRef<GetAllHarvestLogsParams>) {
     const queryClient = useQueryClient();
 
     // Queries
-    const { data: harvestLogs, isLoading, error, refetch } = harvestLogService.useGetAll();
+    const { data: harvestLogs, isLoading, error, refetch } = harvestLogService.useGetAll(params);
 
     // Mutations
     const recordHarvestMutation = harvestLogService.useRecord();
