@@ -1,9 +1,9 @@
 <template>
   <v-container fluid>
-    <PageHeader 
-        title="Supplier Management" 
-        action-label="Add Supplier" 
-        @action="openDialog" 
+    <PageHeader
+        title="Supplier Management"
+        action-label="Add Supplier"
+        @action="openDialog"
     />
 
     <v-card variant="outlined" class="rounded-lg mt-4">
@@ -25,7 +25,7 @@
                 {{ type }}
             </v-chip>
         </template>
-        
+
         <template v-slot:item.actions="{ item }">
           <v-btn icon size="small" variant="text" color="primary" @click="editItem(item)">
             <v-icon>mdi-pencil</v-icon>
@@ -89,7 +89,7 @@
                     multiple
                     variant="outlined"
                     density="compact"
-                    :items="['Starter', 'Grower', 'Finisher', 'Floating', 'Sinking']"
+                    :items="['King Fish Feed', 'Sneha Feed']"
                     ></v-combobox>
                 </v-col>
                 </v-row>
@@ -160,7 +160,7 @@ function close() {
 
 async function save() {
     if (!form.value.name) return; // Simple validation
-    
+
     if (form.value.id) {
         await updateMutation.mutateAsync({ id: form.value.id, data: form.value });
     } else {
