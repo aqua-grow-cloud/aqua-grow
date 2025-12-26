@@ -196,10 +196,20 @@
                             :items="fishTypeFilterItems"
                             label="Filter by Fish Type"
                             variant="outlined"
+                            clearable
+                            placeholder="All Types"
+                        ></v-select>
+                    </v-col>
+                    <v-col cols="12" sm="4">
+                        <v-select
+                            v-model="pondFilter"
+                            :items="pondFilterItems"
+                            label="Filter by Pond"
+                            variant="outlined"
                             density="compact"
                             hide-details
                             clearable
-                            placeholder="All Types"
+                            placeholder="All Ponds"
                         ></v-select>
                     </v-col>
                 </v-row>
@@ -264,12 +274,14 @@ const router = useRouter();
 const isFinal = ref(false);
 const batchFilter = ref<string | null>(null);
 const fishTypeFilter = ref<string | null>(null);
+const pondFilter = ref<string | null>(null);
 
 // Use composables
 const { batches, getBatchById } = useBatches();
 const { harvestLogs, recordHarvest } = useHarvestLogs(computed(() => ({
     batchId: batchFilter.value || undefined,
-    fishType: fishTypeFilter.value || undefined
+    fishType: fishTypeFilter.value || undefined,
+    pondId: pondFilter.value || undefined
 })));
 const { getPondById } = usePonds();
 
@@ -396,6 +408,17 @@ const batchFilterItems = computed(() => {
 const fishTypeFilterItems = computed(() => {
     const types = [...new Set((harvestLogs.value || []).map(l => l.fishType).filter(Boolean))];
     return types.sort();
+});
+
+const pondFilterItems = computed(() => {
+    const pondIds = [...new Set((harvestLogs.value || []).map(l => l.pondId).filter(Boolean))];
+    return pondIds.map(id => {
+        const pond = getPondById(id || '');
+        return {
+            title: pond?.name || id || 'Unknown',
+            value: id as string
+        };
+    }).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 });
 
 // getFishType removed as we now use log.fishType stored in the record

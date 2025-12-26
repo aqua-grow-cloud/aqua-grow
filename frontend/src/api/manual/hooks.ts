@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import { AXIOS_INSTANCE } from '../axios-instance';
 import type { Supplier, FeedStock, FeedOrder, OrderMessageResponse, Batch } from './types';
-import { computed } from 'vue';
+import type { GetAllBatchesParams } from '../generated/model';
+import { computed, unref, type MaybeRef } from 'vue';
 
 // --- Suppliers ---
 
@@ -214,11 +215,13 @@ export const useCancelOrder = () => {
 
 // --- Batches ---
 
-export const useGetAllBatches = () => {
+export const useGetAllBatches = (params?: MaybeRef<GetAllBatchesParams>) => {
     return useQuery({
-        queryKey: ['batches'],
+        queryKey: ['batches', params],
         queryFn: async () => {
-            const { data } = await AXIOS_INSTANCE.get<Batch[]>('/api/batches');
+            const { data } = await AXIOS_INSTANCE.get<Batch[]>('/api/batches', {
+                params: unref(params)
+            });
             return data;
         }
     });

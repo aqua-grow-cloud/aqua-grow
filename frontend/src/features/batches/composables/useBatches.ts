@@ -1,18 +1,20 @@
 import { computed } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
-import { batchService, type Batch } from '../api/batchService';
+import { batchService, type Batch, type FishSeed } from '../api/batchService';
 import { useBatchStore } from '../stores/useBatchStore';
+import type { GetAllBatchesParams } from '../../../api/generated/model';
+import type { MaybeRef } from 'vue';
 
 /**
  * Batches Composable
  * Provides reusable batch operations with loading/error states
  */
-export function useBatches() {
+export function useBatches(params?: MaybeRef<GetAllBatchesParams>) {
     const queryClient = useQueryClient();
     const batchStore = useBatchStore();
 
     // Queries
-    const { data: batches, isLoading, error, refetch } = batchService.useGetAll();
+    const { data: batches, isLoading, error, refetch } = batchService.useGetAll(params);
 
     // Mutations
     const createBatch = batchService.useCreate();

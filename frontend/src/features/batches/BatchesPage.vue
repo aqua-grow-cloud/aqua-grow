@@ -6,17 +6,57 @@
       @action="dialog = true"
     />
 
-    <v-card>
+    <v-card class="mb-6 elevation-1">
+      <v-card-text class="bg-slate-50 border-b py-3 px-6">
+        <v-row dense align="center">
+          <v-col cols="12" sm="4">
+            <v-text-field
+              v-model="nameFilter"
+              label="Search by Batch Name"
+              variant="outlined"
+              density="compact"
+              hide-details
+              clearable
+              prepend-inner-icon="mdi-magnify"
+              placeholder="Enter batch name..."
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="4">
+            <v-select
+              v-model="pondFilter"
+              :items="pondFilterItems"
+              label="Filter by Pond"
+              variant="outlined"
+              density="compact"
+              hide-details
+              clearable
+              placeholder="All Ponds"
+            ></v-select>
+          </v-col>
+          <v-col cols="12" sm="4">
+            <v-select
+              v-model="speciesFilter"
+              :items="speciesFilterItems"
+              label="Filter by Species"
+              variant="outlined"
+              density="compact"
+              hide-details
+              clearable
+              placeholder="All Species"
+            ></v-select>
+          </v-col>
+        </v-row>
+      </v-card-text>
+      
       <v-data-table
         :headers="headers"
         :items="fishSeedList"
         :sort-by="[{ key: 'date', order: 'desc' }]"
-        class="elevation-0 rounded-lg border"
+        class="elevation-0"
       >
         <template v-slot:item.date="{ item }">
           {{ new Date(item.date).toLocaleDateString() }}
         </template>
-        <!-- Custom formatting if needed -->
       </v-data-table>
     </v-card>
 
@@ -41,9 +81,16 @@ import type { Batch as ApiBatch, FishSeed as ApiFishSeed } from '../../api/gener
 
 const store = useAquaStore();
 const dialog = ref(false);
+const nameFilter = ref('');
+const pondFilter = ref<string | null>(null);
+const speciesFilter = ref<string | null>(null);
 
 // Use composables
-const { batches, create: createBatch, update: updateBatch, addSeed: addBatchSeed } = useBatches();
+const { batches, create: createBatch, update: updateBatch, addSeed: addBatchSeed } = useBatches(computed(() => ({
+    name: nameFilter.value || undefined,
+    pondId: pondFilter.value || undefined,
+    fishType: speciesFilter.value || undefined
+})));
 const { ponds, getPondById } = usePonds();
 
 const headers = [
@@ -90,6 +137,27 @@ const fishSeedList = computed(() => {
     }
   });
   return list;
+});
+
+const pondFilterItems = computed(() => {
+    if (!ponds.value) return [];
+    return ponds.value.map(p => ({
+        title: p.name,
+        value: p.id
+    })).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+});
+
+const speciesFilterItems = computed(() => {
+    // We can extract all species from all batches or from seeds
+    // But since filtering is server-side, it might be better to have an explicit list
+    // For now we'll extract from current results or just use known common ones if available
+    const species = new Set<string>();
+    batches.value?.forEach(b => {
+        b.fishSeeds?.forEach(s => {
+            if (s.type) species.add(s.type);
+        });
+    });
+    return Array.from(species).sort();
 });
 
 async function saveBatch(batchData: Omit<ApiBatch, 'id'>) {
