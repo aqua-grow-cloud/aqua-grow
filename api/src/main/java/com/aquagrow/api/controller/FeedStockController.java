@@ -57,6 +57,7 @@ public class FeedStockController {
                     feedStock.setThreshold(feedStockDetails.getThreshold());
                     feedStock.setUnit(feedStockDetails.getUnit());
                     feedStock.setSupplierId(feedStockDetails.getSupplierId());
+                    feedStock.setLastStockingDate(feedStockDetails.getLastStockingDate());
                     return ResponseEntity.ok(feedStockRepository.save(feedStock));
                 })
                 .orElse(ResponseEntity.notFound().build());

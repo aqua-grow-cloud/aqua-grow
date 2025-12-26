@@ -1,15 +1,23 @@
 package com.aquagrow.api.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
 @Table(name = "suppliers")
+@Data
+@AllArgsConstructor
+@Builder
 public class Supplier {
 
     @Id
-    private String id;
+    @Builder.Default
+    private String id = java.util.UUID.randomUUID().toString();
 
     @Column(nullable = false)
     private String name;
@@ -35,105 +43,17 @@ public class Supplier {
     private String tenantId;
 
     @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @Builder.Default
+    private LocalDateTime updatedAt = LocalDateTime.now();
 
-    // Constructors
     public Supplier() {
         this.id = java.util.UUID.randomUUID().toString();
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
-    }
-
-    // Getters and Setters
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getPhone() {
-        return phone;
-    }
-
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
-
-    public String getWhatsappNumber() {
-        return whatsappNumber;
-    }
-
-    public void setWhatsappNumber(String whatsappNumber) {
-        this.whatsappNumber = whatsappNumber;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getAddress() {
-        return address;
-    }
-
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public String getExternalId() {
-        return externalId;
-    }
-
-    public void setExternalId(String externalId) {
-        this.externalId = externalId;
-    }
-
-    public List<String> getFeedTypes() {
-        return feedTypes;
-    }
-
-    public void setFeedTypes(List<String> feedTypes) {
-        this.feedTypes = feedTypes;
-    }
-
-    public String getTenantId() {
-        return tenantId;
-    }
-
-    public void setTenantId(String tenantId) {
-        this.tenantId = tenantId;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 
     @PreUpdate
