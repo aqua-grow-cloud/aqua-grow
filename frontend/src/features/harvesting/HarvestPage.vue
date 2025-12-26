@@ -27,16 +27,31 @@
                 required
               ></v-select>
 
-              <v-select
-                v-if="form.batchId"
-                v-model="form.fishType"
-                :items="availableSpecies"
-                label="Fish Type (Species)"
-                variant="outlined"
-                density="compact"
-                placeholder="Select Species or Mixed"
-                required
-              ></v-select>
+              <v-row dense v-if="form.batchId">
+                <v-col cols="12" sm="6">
+                  <v-select
+                    v-model="form.fishType"
+                    :items="availableSpecies"
+                    label="Fish Type"
+                    variant="outlined"
+                    density="compact"
+                    placeholder="Select Species"
+                    required
+                  ></v-select>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-select
+                    v-model="form.pondId"
+                    :items="availablePonds"
+                    item-title="name"
+                    item-value="id"
+                    label="Select Pond"
+                    variant="outlined"
+                    density="compact"
+                    required
+                  ></v-select>
+                </v-col>
+              </v-row>
 
               <v-row dense>
                   <v-col cols="12" sm="6">
@@ -193,7 +208,8 @@
             <v-table density="compact" hover class="harvest-table">
             <thead>
               <tr class="bg-grey-lighten-3">
-                <th class="text-caption font-weight-bold">Date</th>
+                <th class="text-caption font-weight-bold">Batch</th>
+                <th class="text-caption font-weight-bold">Pond</th>
                 <th class="text-caption font-weight-bold">Fish Type</th>
                 <th class="text-caption font-weight-bold">Count</th>
                 <th class="text-caption font-weight-bold">Discount (5%)</th>
@@ -203,12 +219,13 @@
                 <th class="text-caption font-weight-bold">Net Amount</th>
                 <th class="text-caption font-weight-bold">Rate</th>
                 <th class="text-caption font-weight-bold">Average</th>
-                <th class="text-caption font-weight-bold">Batch</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="log in harvestHistory" :key="log.id" :class="{'bg-green-lighten-5': log.isFinal}">
                 <td class="text-no-wrap">{{ formatDateShort(log.date) }}</td>
+                <td class="text-no-wrap text-caption">{{ getBatchName(log.batchId) }}</td>
+                <td>{{ getPondName(log.pondId) }}</td>
                 <td>{{ log.fishType || '-' }}</td>
                 <td>{{ log.count?.toLocaleString() || 0 }}</td>
                 <td class="text-error">{{ (log.discountWeight || 0).toFixed(1) }}</td>
@@ -218,7 +235,6 @@
                 <td class="text-success font-weight-bold text-no-wrap">₹{{ (log.revenue || 0).toLocaleString('en-IN', {maximumFractionDigits: 0}) }}</td>
                 <td class="text-caption">{{ (log.finalRate || 0).toFixed(2) }}</td>
                 <td class="text-caption">{{ ((log.avgWeightGrams || 0)/1000).toFixed(3) }}</td>
-                <td class="text-no-wrap text-caption">{{ getBatchName(log.batchId) }}</td>
               </tr>
             </tbody>
           </v-table>
@@ -276,7 +292,8 @@ const defaultForm = {
   count: 0,
   basicRate: 108,
   commissionRate: 0.2,
-  buyer: ''
+  buyer: '',
+  pondId: ''
 };
 
 const form = ref({ ...defaultForm });
@@ -295,14 +312,33 @@ watch(() => form.value.batchId, (newBatchId: string) => {
         } else {
             form.value.fishType = '';
         }
+
+        const pondIds = [...new Set((batch.fishSeeds as any[]).map(s => s.pondId).filter(Boolean))];
+        if (pondIds.length === 1 && pondIds[0]) {
+            form.value.pondId = pondIds[0];
+        } else {
+            form.value.pondId = '';
+        }
     }
 });
 
 const availableSpecies = computed(() => {
     if (!form.value.batchId) return [];
     const batch = getBatchById(form.value.batchId);
-    const species = batch?.fishSeeds?.map(s => s.type) || [];
-    return [...new Set(species), 'Mixed/All'];
+    let species: string[] = [];
+    if (form.value.pondId) {
+        species = (batch?.fishSeeds as any[])?.filter(s => s.pondId === form.value.pondId).map(s => s.type || '') || [];
+    } else {
+        species = batch?.fishSeeds?.map(s => s.type || '') || [];
+    }
+    return [...new Set(species.filter(Boolean)), 'Mixed/All'];
+});
+
+const availablePonds = computed(() => {
+    if (!form.value.batchId) return [];
+    const batch = getBatchById(form.value.batchId);
+    const pondIds = [...new Set((batch?.fishSeeds as any[])?.map(s => s.pondId).filter(Boolean) || [])];
+    return pondIds.map(id => getPondById(id || '')).filter(Boolean);
 });
 
 const calculated = computed(() => {
@@ -337,7 +373,7 @@ const calculated = computed(() => {
     };
 });
 
-const isValid = computed(() => form.value.batchId && form.value.biomassWeight > 0 && form.value.count > 0);
+const isValid = computed(() => form.value.batchId && form.value.pondId && form.value.biomassWeight > 0 && form.value.count > 0);
 
 const harvestHistory = computed(() => {
     return [...(harvestLogs.value || [])].sort((a: HarvestLog, b: HarvestLog) =>
@@ -364,6 +400,12 @@ const fishTypeFilterItems = computed(() => {
 
 // getFishType removed as we now use log.fishType stored in the record
 
+function getPondName(pondId?: string) {
+    if (!pondId) return '-';
+    const pond = getPondById(pondId);
+    return pond?.name || pondId;
+}
+
 function getBatchName(batchId?: string) {
     if (!batchId) return '-';
     const batch = getBatchById(batchId);
@@ -383,6 +425,7 @@ async function save() {
   const payload = {
       ...form.value,
       batchId: form.value.batchId,
+      pondId: form.value.pondId,
       fishType: form.value.fishType,
       date: form.value.date,
       count: form.value.count,
