@@ -3,9 +3,12 @@ package com.aquagrow.api.controller;
 import com.aquagrow.api.model.Batch;
 import com.aquagrow.api.repository.BatchRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.persistence.criteria.Join;
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -18,8 +21,32 @@ public class BatchController {
     private final com.aquagrow.api.repository.PondRepository pondRepository;
 
     @GetMapping
-    public List<Batch> getAllBatches() {
-        return batchRepository.findAll();
+    public List<Batch> getAllBatches(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String pondId,
+            @RequestParam(required = false) String fishType) {
+
+        return batchRepository.findAll((Specification<Batch>) (root, query, criteriaBuilder) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            if (name != null && !name.isEmpty()) {
+                predicates.add(criteriaBuilder.like(criteriaBuilder.lower(root.get("name")),
+                        "%" + name.toLowerCase() + "%"));
+            }
+
+            if (pondId != null && !pondId.isEmpty()) {
+                Join<Object, Object> seeds = root.join("fishSeeds");
+                predicates.add(criteriaBuilder.equal(seeds.get("pondId"), pondId));
+            }
+
+            if (fishType != null && !fishType.isEmpty()) {
+                Join<Object, Object> seeds = root.join("fishSeeds");
+                predicates.add(criteriaBuilder.equal(seeds.get("type"), fishType));
+            }
+
+            query.distinct(true);
+            return criteriaBuilder.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        });
     }
 
     @PostMapping
