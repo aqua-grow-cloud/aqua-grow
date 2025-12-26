@@ -13,8 +13,12 @@
                     :headers="headers"
                     :items="feedStocks || []"
                     :loading="isLoading"
+                    :sort-by="[{ key: 'lastStockingDate', order: 'desc' }]"
                     class="elevation-0"
                 >
+                    <template v-slot:item.lastStockingDate="{ item }">
+                        {{ item.lastStockingDate ? new Date(item.lastStockingDate).toLocaleDateString() : 'Never' }}
+                    </template>
                     <template v-slot:item.currentStock="{ item }">
                         <div class="d-flex align-center">
                             <v-badge
@@ -114,6 +118,15 @@
                         required
                         ></v-text-field>
                     </v-col>
+                    <v-col cols="12" sm="6">
+                        <v-text-field
+                        v-model="form.lastStockingDate"
+                        label="Stocking Date"
+                        type="date"
+                        variant="outlined"
+                        density="compact"
+                        ></v-text-field>
+                    </v-col>
                     <v-col cols="12">
                         <v-select
                             v-model="form.supplierId"
@@ -193,6 +206,7 @@ const headers = [
   { title: 'Feed Type', key: 'feedType' },
   { title: 'Current Stock', key: 'currentStock' },
   { title: 'Threshold', key: 'threshold' },
+  { title: 'Last Stocked', key: 'lastStockingDate' },
   { title: 'Status', key: 'status' },
   { title: 'Actions', key: 'actions', sortable: false },
 ];
@@ -212,7 +226,8 @@ const defaultForm: FeedStock = {
     currentStock: 0,
     threshold: 100,
     unit: 'kg',
-    supplierId: ''
+    supplierId: '',
+    lastStockingDate: new Date().toISOString().substr(0, 10)
 };
 const form = ref<FeedStock>({ ...defaultForm });
 
@@ -241,7 +256,10 @@ function openDialog() {
 }
 
 function editItem(item: FeedStock) {
-    form.value = { ...item };
+    form.value = { 
+        ...item,
+        lastStockingDate: item.lastStockingDate ? item.lastStockingDate.substr(0, 10) : undefined
+    };
     dialog.value = true;
 }
 

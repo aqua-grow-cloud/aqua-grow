@@ -17,6 +17,7 @@ export interface FeedStock {
     unit: string;
     supplierId?: string;
     lastUpdated?: string;
+    lastStockingDate?: string;
     tenantId?: string;
 }
 

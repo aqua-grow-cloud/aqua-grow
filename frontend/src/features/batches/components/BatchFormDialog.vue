@@ -110,6 +110,19 @@
                 density="compact"
               ></v-text-field>
             </v-col>
+            <v-col cols="12">
+              <v-select
+                v-model="form.vendor"
+                :items="suppliers || []"
+                item-title="name"
+                item-value="name"
+                label="Vendor / Supplier"
+                variant="outlined"
+                density="compact"
+                clearable
+                placeholder="Select supplier..."
+              ></v-select>
+            </v-col>
           </v-row>
         </v-container>
       </v-card-text>
@@ -130,6 +143,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import type { Batch, FishSeed, Pond } from '../../../api/generated/model';
+import { supplierService } from '../../inventory/api/supplierService';
 
 interface Props {
   modelValue: boolean;
@@ -149,6 +163,8 @@ const emit = defineEmits<{
   (e: 'add-seed', payload: { batchId: string; seed: FishSeed }): void;
 }>();
 
+const { data: suppliers } = supplierService.useGetAll();
+
 // Filter ponds that don't have an active batch and are active themselves
 // Show all active ponds, so we can add seeds to existing batches too
 const availablePonds = computed(() => {
@@ -164,6 +180,7 @@ const defaultForm = {
   quantity: 0,
   sizeInches: null as number | null,
   sizeGrams: null as number | null,
+  vendor: '',
 };
 
 const form = ref({ ...defaultForm });
@@ -242,7 +259,8 @@ function save() {
       type: form.value.type,
       quantity: form.value.quantity,
       sizeInches: form.value.sizeInches || undefined,
-      sizeGrams: form.value.sizeGrams || undefined
+      sizeGrams: form.value.sizeGrams || undefined,
+      vendor: form.value.vendor || undefined
   };
 
   if (!isNewBatchMode.value && existingBatch.value && existingBatch.value.id) {
@@ -261,7 +279,8 @@ function save() {
               type: form.value.type,
               quantity: form.value.quantity,
               sizeInches: form.value.sizeInches || undefined,
-              sizeGrams: form.value.sizeGrams || undefined
+              sizeGrams: form.value.sizeGrams || undefined,
+              vendor: form.value.vendor || undefined
           }]
       };
       emit('save', batchData);
