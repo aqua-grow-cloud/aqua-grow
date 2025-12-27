@@ -13,5 +13,6 @@
     <include file="db/changelog/changesets/06-add-harvest-fish-type.xml"/>
     <include file="db/changelog/changesets/07-refactor-batch-pond-relationship.xml"/>
     <include file="db/changelog/changesets/08-add-feed-stocking-date.xml"/>
+    <include file="db/changelog/changesets/09-alter-feed-stocking-date-type.xml"/>
 
 </databaseChangeLog>

@@ -7,7 +7,7 @@
 
     <changeSet id="08-add-feed-stock-last-stocking-date" author="antigravity">
         <addColumn tableName="feed_stock">
-            <column name="last_stocking_date" type="date">
+            <column name="last_stocking_date" type="timestamp">
                 <constraints nullable="true"/>
             </column>
         </addColumn>
