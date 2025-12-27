@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -39,7 +40,7 @@ public class FeedStock {
     private LocalDateTime lastUpdated = LocalDateTime.now();
 
     @Column(name = "last_stocking_date")
-    private LocalDateTime lastStockingDate;
+    private LocalDate lastStockingDate;
 
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
