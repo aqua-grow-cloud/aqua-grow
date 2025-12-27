@@ -241,7 +241,7 @@ function getBatchPonds(batch: ApiBatch): string {
   if (!batch.fishSeeds || batch.fishSeeds.length === 0) return 'No ponds';
   
   const pondIds = [...new Set(batch.fishSeeds.map(s => s.pondId).filter(Boolean))];
-  const pondNames = pondIds.map(id => getPondById(id || '').name).filter(Boolean);
+  const pondNames = pondIds.map(id => getPondById(id || '')?.name).filter(Boolean);
   
   return pondNames.join(', ') || 'Unknown';
 }
