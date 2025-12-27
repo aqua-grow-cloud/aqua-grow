@@ -85,7 +85,7 @@ public class BatchController {
                     batch.setStockingDate(batchDetails.getStockingDate());
                     batch.setEstimatedHarvestDate(batchDetails.getEstimatedHarvestDate());
                     batch.setStatus(batchDetails.getStatus());
-                    batch.getFishSeeds().addAll(batchDetails.getFishSeeds());
+                    // Don't modify fishSeeds here - use POST /{id}/seeds endpoint for that
                     return ResponseEntity.ok(batchRepository.save(batch));
                 })
                 .orElse(ResponseEntity.notFound().build());
