@@ -115,4 +115,14 @@ public class BatchController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<Batch> updateBatchStatus(@PathVariable String id, @RequestParam String status) {
+        return batchRepository.findById(id)
+                .map(batch -> {
+                    batch.setStatus(status);
+                    return ResponseEntity.ok(batchRepository.save(batch));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
