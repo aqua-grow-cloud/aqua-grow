@@ -13,4 +13,6 @@ public interface FeedStockRepository extends JpaRepository<FeedStock, String> {
 
     @Query("SELECT f FROM FeedStock f WHERE f.tenantId = ?1 AND f.currentStock < f.threshold")
     List<FeedStock> findLowStockByTenantId(String tenantId);
+
+    java.util.Optional<FeedStock> findByTenantIdAndFeedType(String tenantId, String feedType);
 }
