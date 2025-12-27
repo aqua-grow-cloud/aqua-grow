@@ -37,23 +37,36 @@
             ></v-text-field>
           </v-col>
            <v-col cols="12" sm="4">
-            <v-text-field
+            <v-select
               v-model="form.feedType"
+              :items="inventoryItems"
               label="Feed Type"
               variant="outlined"
               density="compact"
               required
-            ></v-text-field>
+            ></v-select>
           </v-col>
-          <v-col cols="12" sm="4">
+          <v-col cols="12" sm="2">
             <v-text-field
-              v-model.number="form.amount"
-              label="Amount (kg)"
+              v-model.number="displayAmount"
+              :label="`Amount (${unit})`"
               type="number"
               variant="outlined"
               density="compact"
               required
             ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="2">
+            <v-btn-toggle
+              v-model="unit"
+              mandatory
+              color="primary"
+              variant="outlined"
+              density="compact"
+            >
+              <v-btn value="kg">Kg</v-btn>
+              <v-btn value="bags">Bags</v-btn>
+            </v-btn-toggle>
           </v-col>
         </v-row>
         <v-btn color="primary" type="submit" :disabled="!isValid">Log Feed</v-btn>
@@ -88,21 +101,28 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useAquaStore } from '../../../stores/useAquaStore';
 import { useQueryClient } from '@tanstack/vue-query';
 import { useBatches } from '../../batches/composables/useBatches';
 import { usePonds } from '../../ponds/composables/usePonds';
 import { feedLogService } from '../api/feedLogService';
+import { feedStockService } from '../../inventory/api/feedStockService';
 import type { Batch, FeedLog } from '../../../api/generated/model';
 
-const store = useAquaStore();
 const queryClient = useQueryClient();
 
 // Use composables
 const { batches, getBatchById } = useBatches();
 const { getPondById } = usePonds();
 const { data: feedLogs } = feedLogService.useGetAll();
+const { data: feedStock } = feedStockService.useGetAll();
 const logFeedMutation = feedLogService.useLog();
+
+const inventoryItems = computed(() => {
+  return feedStock.value?.map(s => s.feedType).filter(Boolean) || [];
+});
+
+const unit = ref<'kg' | 'bags'>('kg');
+const displayAmount = ref(0);
 
 const activeBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
@@ -110,7 +130,7 @@ const activeBatches = computed(() => {
     const speciesList = [...new Set(b.fishSeeds?.map(s => s.type) || [])].join(', ') || 'Unknown';
     return {
       id: b.id,
-      label: `${pondNames} - ${speciesList}`
+      label: `${b.name} (${pondNames} - ${speciesList})`
     };
   }) || [];
 });
@@ -119,13 +139,13 @@ const defaultForm = {
   batchId: '',
   date: new Date().toISOString().substr(0, 10),
   time: '09:00',
-  feedType: 'Grower pellets',
+  feedType: '',
   amount: 0
 };
 
 const form = ref({ ...defaultForm });
 
-const isValid = computed(() => form.value.batchId && form.value.amount > 0);
+const isValid = computed(() => form.value.batchId && displayAmount.value > 0 && form.value.feedType);
 
 const recentLogs = computed(() => {
   return [...(feedLogs.value || [])].sort((a: FeedLog, b: FeedLog) => 
@@ -138,15 +158,19 @@ function getBatchLabel(batchId?: string) {
     const batch = getBatchById(batchId);
     if (!batch) return batchId;
     const pondNames = [...new Set(batch.fishSeeds?.map((s: any) => getPondById(s.pondId || '')?.name).filter(Boolean))].join(', ') || 'Unknown';
-    const species = [...new Set(batch.fishSeeds?.map((s: any) => s.type) || [])].join(', ') || 'Unknown';
-    return `${pondNames} (${species})`;
+    return `${batch.name} (${pondNames})`;
 }
 
 async function save() {
+  // Convert bags to kg if needed (1 bag = 40kg)
+  form.value.amount = unit.value === 'bags' ? displayAmount.value * 40 : displayAmount.value;
+  
   await logFeedMutation.mutateAsync({ data: form.value } as any);
   queryClient.invalidateQueries({ queryKey: ['api', 'feed-logs'] });
+  queryClient.invalidateQueries({ queryKey: ['api', 'feed-stock'] });
   
   // Reset amount but keep other defaults for quick entry
+  displayAmount.value = 0;
   form.value.amount = 0;
 }
 </script>
