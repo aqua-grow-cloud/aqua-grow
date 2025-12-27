@@ -17,7 +17,13 @@
       </v-col>
     </v-row>
 
+    <!-- Tabs for Batches vs Fish Seeds -->
     <v-card class="mb-6 elevation-1">
+      <v-tabs v-model="activeTab" bg-color="primary" dark>
+        <v-tab value="batches">Batches</v-tab>
+        <v-tab value="seeds">Fish Seeds</v-tab>
+      </v-tabs>
+
       <v-card-text class="bg-slate-50 border-b py-3 px-6">
         <v-row dense align="center">
           <v-col cols="12" sm="4">
@@ -44,7 +50,7 @@
               placeholder="All Ponds"
             ></v-select>
           </v-col>
-          <v-col cols="12" sm="4">
+          <v-col cols="12" sm="4" v-if="activeTab === 'seeds'">
             <v-select
               v-model="speciesFilter"
               :items="speciesFilterItems"
@@ -58,17 +64,56 @@
           </v-col>
         </v-row>
       </v-card-text>
-      
-      <v-data-table
-        :headers="headers"
-        :items="fishSeedList"
-        :sort-by="[{ key: 'date', order: 'desc' }]"
-        class="elevation-0"
-      >
-        <template v-slot:item.date="{ item }">
-          {{ new Date(item.date).toLocaleDateString() }}
-        </template>
-      </v-data-table>
+
+      <!-- Batches Table -->
+      <v-window v-model="activeTab">
+        <v-window-item value="batches">
+          <v-data-table
+            :headers="batchHeaders"
+            :items="batches || []"
+            :sort-by="[{ key: 'stockingDate', order: 'desc' }]"
+            class="elevation-0"
+          >
+            <template v-slot:item.stockingDate="{ item }">
+              {{ item.stockingDate ? new Date(item.stockingDate).toLocaleDateString() : '-' }}
+            </template>
+            <template v-slot:item.estimatedHarvestDate="{ item }">
+              {{ item.estimatedHarvestDate ? new Date(item.estimatedHarvestDate).toLocaleDateString() : '-' }}
+            </template>
+            <template v-slot:item.status="{ item }">
+              <v-chip :color="item.status === 'Active' ? 'success' : 'grey'" size="small">
+                {{ item.status }}
+              </v-chip>
+            </template>
+            <template v-slot:item.ponds="{ item }">
+              {{ getBatchPonds(item) }}
+            </template>
+            <template v-slot:item.actions="{ item }">
+              <v-btn
+                icon="mdi-pencil"
+                size="small"
+                variant="text"
+                color="primary"
+                @click="editBatch(item)"
+              ></v-btn>
+            </template>
+          </v-data-table>
+        </v-window-item>
+
+        <!-- Fish Seeds Table -->
+        <v-window-item value="seeds">
+          <v-data-table
+            :headers="seedHeaders"
+            :items="fishSeedList"
+            :sort-by="[{ key: 'date', order: 'desc' }]"
+            class="elevation-0"
+          >
+            <template v-slot:item.date="{ item }">
+              {{ new Date(item.date).toLocaleDateString() }}
+            </template>
+          </v-data-table>
+        </v-window-item>
+      </v-window>
     </v-card>
 
     <BatchManagementDialog 
@@ -99,6 +144,7 @@ import { useSuppliers } from '../inventory/composables/useSuppliers';
 import type { Batch as ApiBatch, FishSeed as ApiFishSeed } from '../../api/generated/model';
 
 const store = useAquaStore();
+const activeTab = ref('batches');
 const batchDialog = ref(false);
 const seedDialog = ref(false);
 const editedBatch = ref<ApiBatch | undefined>(undefined);
@@ -115,7 +161,16 @@ const { batches, create: createBatch, update: updateBatch, addSeed: addBatchSeed
 const { ponds, getPondById } = usePonds();
 const { suppliers } = useSuppliers();
 
-const headers = [
+const batchHeaders = [
+  { title: 'Batch Name', key: 'name' },
+  { title: 'Stocking Date', key: 'stockingDate' },
+  { title: 'Est. Harvest', key: 'estimatedHarvestDate' },
+  { title: 'Status', key: 'status' },
+  { title: 'Ponds', key: 'ponds' },
+  { title: 'Actions', key: 'actions', sortable: false },
+];
+
+const seedHeaders = [
   { title: 'Date', key: 'date' },
   { title: 'Batch', key: 'batchName' },
   { title: 'Pond', key: 'pondName' },
@@ -181,6 +236,20 @@ const speciesFilterItems = computed(() => {
     });
     return Array.from(species).sort();
 });
+
+function getBatchPonds(batch: ApiBatch): string {
+  if (!batch.fishSeeds || batch.fishSeeds.length === 0) return 'No ponds';
+  
+  const pondIds = [...new Set(batch.fishSeeds.map(s => s.pondId).filter(Boolean))];
+  const pondNames = pondIds.map(id => getPondById(id || '').name).filter(Boolean);
+  
+  return pondNames.join(', ') || 'Unknown';
+}
+
+function editBatch(batch: ApiBatch) {
+  editedBatch.value = batch;
+  batchDialog.value = true;
+}
 
 async function saveBatch(batchData: Partial<ApiBatch>) {
   if (batchData.id) {
