@@ -1,10 +1,21 @@
 <template>
   <v-container fluid>
-    <PageHeader
-      title="Batches"
-      :action-label="store.isManager ? 'New Batch / Add Seed' : undefined"
-      @action="dialog = true"
-    />
+    <v-row>
+      <v-col>
+        <PageHeader title="Batches">
+          <template #actions v-if="store.isManager">
+            <v-btn color="primary" variant="elevated" @click="batchDialog = true" class="mr-2">
+              <v-icon left>mdi-plus</v-icon>
+              Manage Batches
+            </v-btn>
+            <v-btn color="secondary" variant="elevated" @click="seedDialog = true">
+              <v-icon left>mdi-sprout</v-icon>
+              Add Fish Seed
+            </v-btn>
+          </template>
+        </PageHeader>
+      </v-col>
+    </v-row>
 
     <v-card class="mb-6 elevation-1">
       <v-card-text class="bg-slate-50 border-b py-3 px-6">
@@ -60,12 +71,18 @@
       </v-data-table>
     </v-card>
 
-    <BatchFormDialog 
-      v-model="dialog" 
-      :ponds="ponds || []" 
-      :batches="batches || []"
+    <BatchManagementDialog 
+      v-model="batchDialog" 
+      :batch="editedBatch"
       @save="saveBatch" 
-      @add-seed="handleAddSeed" 
+    />
+
+    <FishSeedDialog
+      v-model="seedDialog"
+      :batches="batches || []"
+      :ponds="ponds || []"
+      :suppliers="suppliers || []"
+      @save="handleAddSeed"
     />
   </v-container>
 </template>
@@ -73,14 +90,18 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useAquaStore } from '../../stores/useAquaStore';
-import BatchFormDialog from './components/BatchFormDialog.vue';
+import BatchManagementDialog from './components/BatchManagementDialog.vue';
+import FishSeedDialog from './components/FishSeedDialog.vue';
 import PageHeader from '../../components/PageHeader.vue';
 import { useBatches } from './composables/useBatches';
 import { usePonds } from '../ponds/composables/usePonds';
+import { useSuppliers } from '../inventory/composables/useSuppliers';
 import type { Batch as ApiBatch, FishSeed as ApiFishSeed } from '../../api/generated/model';
 
 const store = useAquaStore();
-const dialog = ref(false);
+const batchDialog = ref(false);
+const seedDialog = ref(false);
+const editedBatch = ref<ApiBatch | undefined>(undefined);
 const nameFilter = ref('');
 const pondFilter = ref<string | null>(null);
 const speciesFilter = ref<string | null>(null);
@@ -92,6 +113,7 @@ const { batches, create: createBatch, update: updateBatch, addSeed: addBatchSeed
     fishType: speciesFilter.value || undefined
 })));
 const { ponds, getPondById } = usePonds();
+const { suppliers } = useSuppliers();
 
 const headers = [
   { title: 'Date', key: 'date' },
@@ -160,13 +182,18 @@ const speciesFilterItems = computed(() => {
     return Array.from(species).sort();
 });
 
-async function saveBatch(batchData: Omit<ApiBatch, 'id'>) {
-  await createBatch(batchData);
-  dialog.value = false;
+async function saveBatch(batchData: Partial<ApiBatch>) {
+  if (batchData.id) {
+    await updateBatch(batchData.id, batchData);
+  } else {
+    await createBatch(batchData);
+  }
+  batchDialog.value = false;
+  editedBatch.value = undefined;
 }
 
 async function handleAddSeed(payload: { batchId: string; seed: ApiFishSeed }) {
     await addBatchSeed(payload.batchId, payload.seed);
-    dialog.value = false;
+    seedDialog.value = false;
 }
 </script>

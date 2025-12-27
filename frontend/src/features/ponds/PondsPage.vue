@@ -15,6 +15,7 @@
         <v-col v-for="pond in ponds" :key="pond.id" cols="12" sm="6" md="4" lg="3">
           <PondCard
             :pond="pond"
+            :batches="batches"
             :can-manage="store.isManager"
             @edit="openEditDialog"
             @delete="removePond"

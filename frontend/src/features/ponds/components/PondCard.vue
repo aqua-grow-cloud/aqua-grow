@@ -16,12 +16,24 @@
         <v-icon icon="mdi-arrow-expand-vertical" class="mr-2" size="small"></v-icon>
         <span>{{ pond.depth }} m Depth</span>
       </div>
-      <div v-if="pond.currentBatchId" class="text-caption text-primary mt-2">
-        <v-icon icon="mdi-fish" size="small" class="mr-1"></v-icon>
-        Active Batch: {{ pond.currentBatchId }}
+      <div v-if="activeBatches.length > 0" class="mt-3">
+        <div class="text-caption text-grey mb-1">Active Batches:</div>
+        <v-chip
+          v-for="batch in activeBatches"
+          :key="batch.id"
+          size="small"
+          color="primary"
+          variant="tonal"
+          class="mr-1 mb-1"
+          @click="navigateToBatch(batch.id)"
+          style="cursor: pointer"
+        >
+          <v-icon start size="small">mdi-fish</v-icon>
+          {{ batch.name || 'Unnamed' }}
+        </v-chip>
       </div>
       <div v-else class="text-caption text-grey mt-2">
-        No active batch
+        No active batches
       </div>
     </v-card-text>
 
@@ -51,10 +63,12 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { Pond } from '../../../api/generated/model';
+import { useRouter } from 'vue-router';
+import type { Pond, Batch } from '../../../api/generated/model';
 
 const props = defineProps<{
   pond: Pond;
+  batches?: Batch[];
   canManage?: boolean;
 }>();
 
@@ -64,6 +78,8 @@ defineEmits<{
   (e: 'stock', id?: string): void
 }>();
 
+const router = useRouter();
+
 const statusColor = computed(() => {
   switch (props.pond.status) {
     case 'Active': return 'success';
@@ -72,4 +88,19 @@ const statusColor = computed(() => {
     default: return 'primary';
   }
 });
+
+const activeBatches = computed(() => {
+  if (!props.batches || !props.pond.id) return [];
+  
+  return props.batches.filter(batch => 
+    batch.status === 'Active' && 
+    batch.fishSeeds?.some(seed => seed.pondId === props.pond.id)
+  );
+});
+
+function navigateToBatch(batchId?: string) {
+  if (batchId) {
+    router.push({ path: '/batches', query: { pondId: props.pond.id } });
+  }
+}
 </script>
