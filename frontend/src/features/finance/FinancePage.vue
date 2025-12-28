@@ -186,6 +186,9 @@ const tab = ref('expenditure');
 const { harvestLogs } = useHarvestLogs();
 const { batches, getBatchById } = useBatches(); // Need batches list for filter
 
+// Instantiate mutation at setup level
+const createMutation = expenditureService.useCreate();
+
 const batchOptions = computed(() => {
     return batches.value?.map(b => ({
         id: b.id,
@@ -196,7 +199,7 @@ const batchOptions = computed(() => {
 async function handleSaveExpenditure(payload: Omit<Expenditure, 'id'>) {
     // Originally called createExpenditure but we are managing state locally here via search
     // We should probably still call the service create.
-    await expenditureService.useCreate().mutateAsync({ data: payload as Expenditure });
+    await createMutation.mutateAsync({ data: payload as Expenditure });
     dialog.value = false;
     loadItems({ page: 1, itemsPerPage: itemsPerPage.value, sortBy: [] });
 }
