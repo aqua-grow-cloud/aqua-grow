@@ -35,20 +35,14 @@ public class FeedOrderController {
     @Autowired
     private WhatsAppMessageService whatsAppMessageService;
 
-    private String getTenantId(Authentication authentication) {
-        Jwt jwt = (Jwt) authentication.getPrincipal();
-        return jwt.getClaimAsString("tenant_id");
-    }
-
     @GetMapping
-    public List<FeedOrder> getAllOrders(Authentication authentication) {
-        String tenantId = getTenantId(authentication);
-        return feedOrderRepository.findByTenantIdOrderByOrderDateDesc(tenantId);
+    public List<FeedOrder> getAllOrders() {
+        return feedOrderRepository.findAll();
     }
 
     @PostMapping
-    public FeedOrder createOrder(@RequestBody FeedOrder order, Authentication authentication) {
-        String tenantId = getTenantId(authentication);
+    public FeedOrder createOrder(@RequestBody FeedOrder order) {
+        String tenantId = com.aquagrow.api.security.TenantContext.getTenantId();
         order.setTenantId(tenantId);
         order.setStatus(OrderStatus.PENDING);
         return feedOrderRepository.save(order);
@@ -58,12 +52,9 @@ public class FeedOrderController {
     public ResponseEntity<OrderMessageResponse> getOrderMessage(
             @PathVariable String id,
             @RequestParam(required = false) String contactPerson,
-            @RequestParam(required = false) String location,
-            Authentication authentication) {
-        String tenantId = getTenantId(authentication);
+            @RequestParam(required = false) String location) {
 
         return feedOrderRepository.findById(id)
-                .filter(order -> order.getTenantId().equals(tenantId))
                 .flatMap(order -> supplierRepository.findById(order.getSupplierId())
                         .map(supplier -> {
                             String message = whatsAppMessageService.generateOrderMessage(
@@ -89,11 +80,8 @@ public class FeedOrderController {
     }
 
     @PutMapping("/{id}/confirm")
-    public ResponseEntity<FeedOrder> confirmOrder(@PathVariable String id, Authentication authentication) {
-        String tenantId = getTenantId(authentication);
-
+    public ResponseEntity<FeedOrder> confirmOrder(@PathVariable String id) {
         return feedOrderRepository.findById(id)
-                .filter(order -> order.getTenantId().equals(tenantId))
                 .map(order -> {
                     order.setStatus(OrderStatus.CONFIRMED);
                     order.setConfirmationDate(LocalDateTime.now());
@@ -103,17 +91,14 @@ public class FeedOrderController {
     }
 
     @PutMapping("/{id}/receive")
-    public ResponseEntity<FeedOrder> receiveOrder(@PathVariable String id, Authentication authentication) {
-        String tenantId = getTenantId(authentication);
-
+    public ResponseEntity<FeedOrder> receiveOrder(@PathVariable String id) {
         return feedOrderRepository.findById(id)
-                .filter(order -> order.getTenantId().equals(tenantId))
                 .map(order -> {
                     order.setStatus(OrderStatus.RECEIVED);
                     order.setReceivedDate(LocalDateTime.now());
 
-                    // Update stock levels
-                    feedStockRepository.findByTenantId(tenantId).stream()
+                    // Update stock levels - rely on Filter to find stock for this tenant
+                    feedStockRepository.findAll().stream()
                             .filter(stock -> stock.getFeedType().equals(order.getFeedType()))
                             .findFirst()
                             .ifPresent(stock -> {
@@ -127,11 +112,8 @@ public class FeedOrderController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> cancelOrder(@PathVariable String id, Authentication authentication) {
-        String tenantId = getTenantId(authentication);
-
+    public ResponseEntity<Void> cancelOrder(@PathVariable String id) {
         return feedOrderRepository.findById(id)
-                .filter(order -> order.getTenantId().equals(tenantId))
                 .map(order -> {
                     order.setStatus(OrderStatus.CANCELLED);
                     feedOrderRepository.save(order);

@@ -20,19 +20,15 @@ public class FeedLogController {
     private final FeedLogRepository feedLogRepository;
     private final FeedStockRepository feedStockRepository;
 
-    private String getTenantId(Authentication authentication) {
-        Jwt jwt = (Jwt) authentication.getPrincipal();
-        return jwt.getClaimAsString("tenant_id");
-    }
-
     @GetMapping
     public List<FeedLog> getAllFeedLogs() {
         return feedLogRepository.findAll();
     }
 
     @PostMapping
-    public FeedLog logFeed(@RequestBody FeedLog log, Authentication authentication) {
-        String tenantId = getTenantId(authentication);
+    public FeedLog logFeed(@RequestBody FeedLog log) {
+        String tenantId = com.aquagrow.api.security.TenantContext.getTenantId();
+        log.setTenantId(tenantId);
 
         // Deduct from inventory
         feedStockRepository.findByTenantIdAndFeedType(tenantId, log.getFeedType())

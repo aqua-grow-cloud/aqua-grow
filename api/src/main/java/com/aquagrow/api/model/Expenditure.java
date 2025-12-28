@@ -13,6 +13,8 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@org.hibernate.annotations.FilterDef(name = "tenantFilter", parameters = @org.hibernate.annotations.ParamDef(name = "tenantId", type = String.class))
+@org.hibernate.annotations.Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Expenditure {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -25,4 +27,7 @@ public class Expenditure {
     private String subType;
     private Double amount;
     private String description;
+
+    @Column(name = "tenant_id", nullable = false)
+    private String tenantId;
 }

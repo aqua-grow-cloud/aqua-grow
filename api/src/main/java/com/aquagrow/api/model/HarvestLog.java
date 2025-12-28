@@ -13,6 +13,8 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@org.hibernate.annotations.FilterDef(name = "tenantFilter", parameters = @org.hibernate.annotations.ParamDef(name = "tenantId", type = String.class))
+@org.hibernate.annotations.Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class HarvestLog {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -33,4 +35,7 @@ public class HarvestLog {
     private Double revenue;
     private String buyer;
     private Boolean isFinal;
+
+    @Column(name = "tenant_id", nullable = false)
+    private String tenantId;
 }

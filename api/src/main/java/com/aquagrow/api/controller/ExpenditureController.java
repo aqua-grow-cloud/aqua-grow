@@ -22,6 +22,7 @@ public class ExpenditureController {
 
     @PostMapping
     public Expenditure logExpenditure(@RequestBody Expenditure expenditure) {
+        expenditure.setTenantId(com.aquagrow.api.security.TenantContext.getTenantId());
         return expenditureRepository.save(expenditure);
     }
 

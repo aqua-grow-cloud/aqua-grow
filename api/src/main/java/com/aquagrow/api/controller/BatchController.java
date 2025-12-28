@@ -51,6 +51,14 @@ public class BatchController {
 
     @PostMapping
     public Batch createBatch(@RequestBody Batch batch) {
+        // Tenant ID is set automatically by listeners or not needed on input if aspect
+        // handles view
+        // But for creation, we SHOULD set it.
+        // Actually, the Filter enforces VIEWING, but for CREATION we still need to set
+        // the tenantId.
+        // We can do this via an EntityListener or keep a small helper.
+        // For now, let's use TenantContext to set it.
+        batch.setTenantId(com.aquagrow.api.security.TenantContext.getTenantId());
         Batch savedBatch = batchRepository.save(batch);
         // Update first pond's currentBatchId if seeds exist
         if (savedBatch.getFishSeeds() != null && !savedBatch.getFishSeeds().isEmpty()) {
@@ -98,6 +106,9 @@ public class BatchController {
                 .map(batch -> {
                     // Ensure the seed is treated as new
                     seed.setId(null);
+                    // Inherit tenantId from Batch
+                    seed.setTenantId(batch.getTenantId());
+
                     // Ensure the collection is initialized
                     if (batch.getFishSeeds() == null) {
                         batch.setFishSeeds(new java.util.ArrayList<>());

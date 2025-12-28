@@ -18,39 +18,27 @@ public class FeedStockController {
     @Autowired
     private FeedStockRepository feedStockRepository;
 
-    private String getTenantId(Authentication authentication) {
-        Jwt jwt = (Jwt) authentication.getPrincipal();
-        return jwt.getClaimAsString("tenant_id");
-    }
-
     @GetMapping
-    public List<FeedStock> getAllFeedStock(Authentication authentication) {
-        String tenantId = getTenantId(authentication);
-        return feedStockRepository.findByTenantId(tenantId);
+    public List<FeedStock> getAllFeedStock() {
+        return feedStockRepository.findAll();
     }
 
     @GetMapping("/low")
-    public List<FeedStock> getLowStock(Authentication authentication) {
-        String tenantId = getTenantId(authentication);
-        return feedStockRepository.findLowStockByTenantId(tenantId);
+    public List<FeedStock> getLowStock() {
+        return feedStockRepository.findByCurrentStockLessThanThreshold();
     }
 
     @PostMapping
-    public FeedStock createFeedStock(@RequestBody FeedStock feedStock, Authentication authentication) {
-        String tenantId = getTenantId(authentication);
-        feedStock.setTenantId(tenantId);
+    public FeedStock createFeedStock(@RequestBody FeedStock feedStock) {
+        feedStock.setTenantId(com.aquagrow.api.security.TenantContext.getTenantId());
         return feedStockRepository.save(feedStock);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<FeedStock> updateFeedStock(
             @PathVariable String id,
-            @RequestBody FeedStock feedStockDetails,
-            Authentication authentication) {
-        String tenantId = getTenantId(authentication);
-
+            @RequestBody FeedStock feedStockDetails) {
         return feedStockRepository.findById(id)
-                .filter(feedStock -> feedStock.getTenantId().equals(tenantId))
                 .map(feedStock -> {
                     feedStock.setFeedType(feedStockDetails.getFeedType());
                     feedStock.setCurrentStock(feedStockDetails.getCurrentStock());
@@ -64,11 +52,8 @@ public class FeedStockController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteFeedStock(@PathVariable String id, Authentication authentication) {
-        String tenantId = getTenantId(authentication);
-
+    public ResponseEntity<Void> deleteFeedStock(@PathVariable String id) {
         return feedStockRepository.findById(id)
-                .filter(feedStock -> feedStock.getTenantId().equals(tenantId))
                 .map(feedStock -> {
                     feedStockRepository.delete(feedStock);
                     return ResponseEntity.ok().<Void>build();

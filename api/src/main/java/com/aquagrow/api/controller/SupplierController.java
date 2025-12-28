@@ -18,23 +18,14 @@ public class SupplierController {
     @Autowired
     private SupplierRepository supplierRepository;
 
-    private String getTenantId(Authentication authentication) {
-        Jwt jwt = (Jwt) authentication.getPrincipal();
-        return jwt.getClaimAsString("tenant_id");
-    }
-
     @GetMapping
     public List<Supplier> getAllSuppliers() {
-        // User requested global list of suppliers
         return supplierRepository.findAll();
     }
 
     @GetMapping("/attached")
     public ResponseEntity<Supplier> getAttachedSupplier(Authentication authentication) {
         Jwt jwt = (Jwt) authentication.getPrincipal();
-        // Extract external ID from token - assuming claim name 'supplierExternalId'
-        // based on user request: "supplierExternalId should match with supplier table
-        // externalId"
         String externalId = jwt.getClaimAsString("supplierExternalId");
 
         if (externalId == null) {
@@ -47,9 +38,8 @@ public class SupplierController {
     }
 
     @PostMapping
-    public Supplier createSupplier(@RequestBody Supplier supplier, Authentication authentication) {
-        String tenantId = getTenantId(authentication);
-        supplier.setTenantId(tenantId);
+    public Supplier createSupplier(@RequestBody Supplier supplier) {
+        supplier.setTenantId(com.aquagrow.api.security.TenantContext.getTenantId());
         return supplierRepository.save(supplier);
     }
 

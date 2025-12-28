@@ -23,6 +23,7 @@ public class EmployeeController {
 
     @PostMapping
     public Employee createEmployee(@RequestBody Employee employee) {
+        employee.setTenantId(com.aquagrow.api.security.TenantContext.getTenantId());
         return employeeRepository.save(employee);
     }
 

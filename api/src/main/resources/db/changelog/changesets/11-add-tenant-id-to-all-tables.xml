@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="11-add-tenant-id-to-all-tables" author="antigravity">
+        <!-- Ponds -->
+        <addColumn tableName="ponds">
+            <column name="tenant_id" type="VARCHAR(255)" defaultValue="default-tenant">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_ponds_tenant_id" tableName="ponds">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- Employees -->
+        <addColumn tableName="employees">
+            <column name="tenant_id" type="VARCHAR(255)" defaultValue="default-tenant">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_employees_tenant_id" tableName="employees">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- Expenditures -->
+        <addColumn tableName="expenditures">
+            <column name="tenant_id" type="VARCHAR(255)" defaultValue="default-tenant">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_expenditures_tenant_id" tableName="expenditures">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- Fish Seeds -->
+        <addColumn tableName="fish_seeds">
+            <column name="tenant_id" type="VARCHAR(255)" defaultValue="default-tenant">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_fish_seeds_tenant_id" tableName="fish_seeds">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- Harvest Logs -->
+        <addColumn tableName="harvest_logs">
+            <column name="tenant_id" type="VARCHAR(255)" defaultValue="default-tenant">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_harvest_logs_tenant_id" tableName="harvest_logs">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- Feed Logs -->
+        <addColumn tableName="feed_logs">
+            <column name="tenant_id" type="VARCHAR(255)" defaultValue="default-tenant">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_feed_logs_tenant_id" tableName="feed_logs">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- Sample Logs -->
+        <addColumn tableName="sample_logs">
+            <column name="tenant_id" type="VARCHAR(255)" defaultValue="default-tenant">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_sample_logs_tenant_id" tableName="sample_logs">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- Salary Payments -->
+        <addColumn tableName="salary_payments">
+            <column name="tenant_id" type="VARCHAR(255)" defaultValue="default-tenant">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_salary_payments_tenant_id" tableName="salary_payments">
+            <column name="tenant_id"/>
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

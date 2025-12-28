@@ -13,6 +13,8 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@org.hibernate.annotations.FilterDef(name = "tenantFilter", parameters = @org.hibernate.annotations.ParamDef(name = "tenantId", type = String.class))
+@org.hibernate.annotations.Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class SalaryPayment {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -27,4 +29,7 @@ public class SalaryPayment {
     private Double bonus;
     private Double netAmount;
     private String month; // e.g., "2023-11"
+
+    @Column(name = "tenant_id", nullable = false)
+    private String tenantId;
 }

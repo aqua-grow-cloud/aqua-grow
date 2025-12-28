@@ -22,6 +22,7 @@ public class SampleLogController {
 
     @PostMapping
     public SampleLog logSample(@RequestBody SampleLog log) {
+        log.setTenantId(com.aquagrow.api.security.TenantContext.getTenantId());
         return sampleLogRepository.save(log);
     }
 

@@ -35,6 +35,7 @@ public class HarvestLogController {
 
     @PostMapping
     public HarvestLog recordHarvest(@RequestBody HarvestLog log) {
+        log.setTenantId(com.aquagrow.api.security.TenantContext.getTenantId());
         HarvestLog savedLog = harvestLogRepository.save(log);
 
         // Handle batch closure if final harvest

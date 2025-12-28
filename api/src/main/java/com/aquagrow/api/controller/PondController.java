@@ -23,6 +23,7 @@ public class PondController {
 
     @PostMapping
     public Pond createPond(@RequestBody Pond pond) {
+        pond.setTenantId(com.aquagrow.api.security.TenantContext.getTenantId());
         return pondRepository.save(pond);
     }
 
