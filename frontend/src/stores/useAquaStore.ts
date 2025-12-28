@@ -12,21 +12,59 @@ export const useAquaStore = defineStore('aqua', () => {
     const currentUser = ref<User>({ id: 'u1', name: 'Admin User', role: 'Admin' });
 
     // --- Global Notifications ---
-    const globalError = ref<string | null>(null);
-    const globalErrorType = ref<string>('error'); // error, warning, info
-    const isGlobalErrorVisible = ref(false);
+    type NotificationType = 'success' | 'businessError' | 'systemError';
 
-    function notify(message: string, type: 'error' | 'warning' | 'info' = 'error') {
-        globalError.value = message;
-        globalErrorType.value = type;
-        isGlobalErrorVisible.value = true;
+    const globalMessage = ref<string | null>(null);
+    const globalNotificationType = ref<NotificationType>('success');
+    const isGlobalNotificationVisible = ref(false);
+    const notificationRetryCallback = ref<(() => void) | null>(null);
+
+    const notificationConfig = {
+        success: {
+            color: 'success',
+            timeout: 3000,
+            icon: 'mdi-check-circle'
+        },
+        businessError: {
+            color: 'error',
+            timeout: 6000,
+            icon: 'mdi-alert-circle'
+        },
+        systemError: {
+            color: 'error',
+            timeout: 0, // No auto-dismiss for system errors
+            icon: 'mdi-alert-octagon'
+        }
+    };
+
+    function notify(message: string, type: NotificationType = 'success', retryCallback?: () => void) {
+        globalMessage.value = message;
+        globalNotificationType.value = type;
+        isGlobalNotificationVisible.value = true;
+        notificationRetryCallback.value = retryCallback || null;
+
+        // Auto-dismiss for success and business errors
+        const config = notificationConfig[type];
+        if (config.timeout > 0) {
+            setTimeout(() => {
+                clearNotification();
+            }, config.timeout);
+        }
     }
 
     function clearNotification() {
-        isGlobalErrorVisible.value = false;
+        isGlobalNotificationVisible.value = false;
+        notificationRetryCallback.value = null;
         setTimeout(() => {
-            globalError.value = null;
+            globalMessage.value = null;
         }, 300);
+    }
+
+    function retryAction() {
+        if (notificationRetryCallback.value) {
+            notificationRetryCallback.value();
+            clearNotification();
+        }
     }
 
     // --- Auth Getters ---
@@ -47,10 +85,13 @@ export const useAquaStore = defineStore('aqua', () => {
         setUserRole,
 
         // Notifications
-        globalError,
-        globalErrorType,
-        isGlobalErrorVisible,
+        globalMessage,
+        globalNotificationType,
+        isGlobalNotificationVisible,
+        notificationRetryCallback,
+        notificationConfig,
         notify,
-        clearNotification
+        clearNotification,
+        retryAction,
     };
 });

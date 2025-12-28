@@ -51,7 +51,7 @@ AXIOS_INSTANCE.interceptors.response.use(
 
             // Don't show notification for 401s if we are handling them (or if login redirect happens)
             if (error.response?.status !== 401) {
-                store.notify(message, 'error');
+                store.notify(message, 'systemError');
             }
         });
         return Promise.reject(error);

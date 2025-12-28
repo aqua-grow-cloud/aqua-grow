@@ -73,13 +73,23 @@
 
     <!-- Global Notification Snackbar -->
     <v-snackbar
-      v-model="store.isGlobalErrorVisible"
-      :color="store.globalErrorType"
+      v-model="store.isGlobalNotificationVisible"
+      :color="store.notificationConfig[store.globalNotificationType].color"
       location="top right"
-      timeout="5000"
+      :timeout="store.notificationConfig[store.globalNotificationType].timeout"
     >
-      {{ store.globalError }}
+      <div class="d-flex align-center">
+        <v-icon :icon="store.notificationConfig[store.globalNotificationType].icon" class="mr-2"></v-icon>
+        {{ store.globalMessage }}
+      </div>
       <template v-slot:actions>
+        <v-btn 
+          v-if="store.globalNotificationType === 'systemError' && store.notificationRetryCallback"
+          variant="text" 
+          @click="store.retryAction"
+        >
+          Retry
+        </v-btn>
         <v-btn variant="text" @click="store.clearNotification">Close</v-btn>
       </template>
     </v-snackbar>
