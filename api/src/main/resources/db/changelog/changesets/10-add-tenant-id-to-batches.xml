@@ -7,7 +7,7 @@
 
     <changeSet id="10-add-tenant-id-to-batches" author="system">
         <addColumn tableName="batches">
-            <column name="tenant_id" type="VARCHAR(255)">
+            <column name="tenant_id" type="VARCHAR(255)" defaultValue="default-tenant">
                 <constraints nullable="false"/>
             </column>
         </addColumn>
