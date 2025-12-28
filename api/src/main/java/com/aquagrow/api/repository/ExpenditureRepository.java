@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface ExpenditureRepository extends JpaRepository<Expenditure, String> {
+public interface ExpenditureRepository extends JpaRepository<Expenditure, String>,
+        org.springframework.data.jpa.repository.JpaSpecificationExecutor<Expenditure> {
     List<Expenditure> findByBatchId(String batchId);
 }
