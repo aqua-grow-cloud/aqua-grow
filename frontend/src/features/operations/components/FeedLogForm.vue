@@ -107,6 +107,7 @@ import { usePonds } from '../../ponds/composables/usePonds';
 import { feedLogService } from '../api/feedLogService';
 import { feedStockService } from '../../inventory/api/feedStockService';
 import type { Batch, FeedLog } from '../../../api/generated/model';
+import { useApiAction } from '../../../composables/useApiAction';
 
 const queryClient = useQueryClient();
 
@@ -116,6 +117,11 @@ const { getPondById } = usePonds();
 const { data: feedLogs } = feedLogService.useGetAll();
 const { data: feedStock } = feedStockService.useGetAll();
 const logFeedMutation = feedLogService.useLog();
+
+const { execute: executeLogFeed, isLoading: isLogging, error: logError } = useApiAction(
+    () => logFeedMutation.mutateAsync({ data: form.value } as any),
+    { successMessage: 'Feed logged successfully' }
+);
 
 const inventoryItems = computed(() => {
   return feedStock.value?.map(s => s.feedType).filter(Boolean) || [];
@@ -165,12 +171,16 @@ async function save() {
   // Convert bags to kg if needed (1 bag = 40kg)
   form.value.amount = unit.value === 'bags' ? displayAmount.value * 40 : displayAmount.value;
   
-  await logFeedMutation.mutateAsync({ data: form.value } as any);
-  queryClient.invalidateQueries({ queryKey: ['api', 'feed-logs'] });
-  queryClient.invalidateQueries({ queryKey: ['api', 'feed-stock'] });
+  await executeLogFeed();
   
-  // Reset amount but keep other defaults for quick entry
-  displayAmount.value = 0;
-  form.value.amount = 0;
+  if (!logError.value) {
+    // Invalidate queries regardless of success/fail to be safe, but usually on success
+    queryClient.invalidateQueries({ queryKey: ['api', 'feed-logs'] });
+    queryClient.invalidateQueries({ queryKey: ['api', 'feed-stock'] });
+    
+    // Reset amount
+    displayAmount.value = 0;
+    form.value.amount = 0;
+  }
 }
 </script>

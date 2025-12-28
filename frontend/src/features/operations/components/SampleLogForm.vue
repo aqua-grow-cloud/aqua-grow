@@ -175,6 +175,7 @@ import {useBatches} from '../../batches/composables/useBatches';
 import {usePonds} from '../../ponds/composables/usePonds';
 import {sampleLogService} from '../api/sampleLogService';
 import type {Batch, SampleLog} from '../../../api/generated/model';
+import { useApiAction } from '../../../composables/useApiAction';
 
 const store = useAquaStore();
 const queryClient = useQueryClient();
@@ -184,6 +185,11 @@ const { batches, getBatchById } = useBatches();
 const { getPondById } = usePonds();
 const { data: sampleLogs } = sampleLogService.useGetAll();
 const logSampleMutation = sampleLogService.useLog();
+
+const { execute: executeLogSample, isLoading: isLogging, error: logError } = useApiAction(
+    () => logSampleMutation.mutateAsync({ data: form.value } as any),
+    { successMessage: 'Sample logged successfully' }
+);
 
 const activeBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
@@ -241,7 +247,7 @@ function getPondName(batchId?: string) {
     if (!batchId) return '-';
     const batch = getBatchById(batchId);
     if (!batch) return '-';
-	return [...new Set(batch.fishSeeds?.map((s: any) => getPondById(s.pondId || '')?.name).filter(Boolean))].join(', ') || '-';
+    return [...new Set(batch.fishSeeds?.map((s: any) => getPondById(s.pondId || '')?.name).filter(Boolean))].join(', ') || '-';
 }
 
 function getSpecies(batchId?: string) {
@@ -257,10 +263,11 @@ function getBatchDate(batchId?: string) {
 }
 
 async function save() {
-  await logSampleMutation.mutateAsync({ data: form.value } as any);
-  queryClient.invalidateQueries({ queryKey: ['api', 'sample-logs'] });
-
-  // Reset fields
-  form.value = JSON.parse(JSON.stringify(defaultForm));
+  await executeLogSample();
+  if (!logError.value) {
+      queryClient.invalidateQueries({ queryKey: ['api', 'sample-logs'] });
+      // Reset fields
+      form.value = JSON.parse(JSON.stringify(defaultForm));
+  }
 }
 </script>
