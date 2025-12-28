@@ -31,39 +31,71 @@
         <v-window-item value="expenditure">
           <v-card variant="outlined" class="rounded-lg shadow-sm">
             <v-card-title class="px-6 py-4 bg-slate-50 border-b">
-                <div class="d-flex align-center">
-                    <v-icon icon="mdi-finance" color="primary" class="mr-2"></v-icon>
-                    Expenditure Pivot Table
+                <div class="d-flex align-center justify-space-between w-100 flex-wrap gap-4">
+                    <div class="d-flex align-center">
+                        <v-icon icon="mdi-finance" color="primary" class="mr-2"></v-icon>
+                        Expenditure Log
+                    </div>
+                    <div class="d-flex gap-2">
+                        <v-select
+                            v-model="filters.batchId"
+                            :items="batchOptions"
+                            item-title="label"
+                            item-value="id"
+                            label="Filter by Batch"
+                            density="compact"
+                            variant="outlined"
+                            hide-details
+                            clearable
+                            class="w-48"
+                            @update:model-value="onFilterChange"
+                        ></v-select>
+                        <v-select
+                            v-model="filters.macroInvestment"
+                            :items="['ADVANCE', 'LEASE', 'INVESTMENT', 'NO_RETURN']"
+                            label="Macro Category"
+                            density="compact"
+                            variant="outlined"
+                            hide-details
+                            clearable
+                            class="w-40"
+                            @update:model-value="onFilterChange"
+                        ></v-select>
+                        <v-select
+                            v-model="filters.category"
+                            :items="['Feed', 'Seed', 'Salary', 'Maintenance', 'Electricity', 'Other']"
+                            label="Type"
+                            density="compact"
+                            variant="outlined"
+                            hide-details
+                            clearable
+                            class="w-32"
+                            @update:model-value="onFilterChange"
+                        ></v-select>
+                    </div>
                 </div>
             </v-card-title>
 
-            <v-table hover>
-              <thead>
-                <tr class="bg-grey-lighten-4">
-                  <th class="text-subtitle-2 font-weight-bold">Batch</th>
-                  <th class="text-subtitle-2 font-weight-bold">MacroInvestment</th>
-                  <th class="text-subtitle-2 font-weight-bold">Type</th>
-                  <th class="text-subtitle-2 font-weight-bold text-right">SUM of Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(row, index) in flattenedRows" :key="index">
-                  <td class="font-weight-bold text-primary">{{ row.isFirstBatch ? row.batchName : '' }}</td>
-                  <td class="font-weight-medium">{{ row.isFirstMacro ? row.macroName : '' }}</td>
-                  <td class="text-grey-darken-1">{{ row.type || '-' }}</td>
-                  <td class="text-right font-weight-bold">₹{{ row.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
-                </tr>
-              </tbody>
-              <tfoot class="bg-slate-100 font-weight-bold">
-                  <tr>
-                      <td colspan="3" class="text-right text-uppercase text-caption">Total Outgoings:</td>
-                      <td class="text-right text-h6 text-error">₹{{ grandTotalExp.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
-                  </tr>
-              </tfoot>
-            </v-table>
-            <v-card-text v-if="flattenedRows.length === 0" class="text-center py-12 text-grey">
-              <div>No expenditure records found.</div>
-            </v-card-text>
+            <v-data-table-server
+                v-model:items-per-page="itemsPerPage"
+                :headers="headers"
+                :items="serverItems"
+                :items-length="totalItems"
+                :loading="loading"
+                item-value="id"
+                @update:options="loadItems"
+                hover
+            >
+                <template v-slot:item.date="{ item }">
+                    {{ formatDate(item.date) }}
+                </template>
+                <template v-slot:item.batchId="{ item }">
+                    {{ getBatchName(item.batchId) }}
+                </template>
+                <template v-slot:item.amount="{ item }">
+                    <span class="font-weight-bold">₹{{ (item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                </template>
+            </v-data-table-server>
           </v-card>
         </v-window-item>
 
@@ -137,87 +169,97 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch, reactive } from 'vue';
 import { useAquaStore } from '../../stores/useAquaStore';
 import PageHeader from '../../components/PageHeader.vue';
 import ExpenditureDialog from './components/ExpenditureDialog.vue';
-import { useExpenditures } from './composables/useExpenditures';
+import { expenditureService } from './api/expenditureService';
 import { useHarvestLogs } from '../harvesting/composables/useHarvestLogs';
 import { useBatches } from '../batches/composables/useBatches';
 import type { Expenditure, HarvestLog } from '../../api/generated/model';
-import type { Expenditure as ApiExpenditure } from '../../api/generated/model';
 
 const store = useAquaStore();
 const dialog = ref(false);
 const tab = ref('expenditure');
 
 // Use composables
-const { expenditures, create: createExpenditure } = useExpenditures();
 const { harvestLogs } = useHarvestLogs();
-const { getBatchById } = useBatches();
+const { batches, getBatchById } = useBatches(); // Need batches list for filter
 
-async function handleSaveExpenditure(payload: Omit<Expenditure, 'id'>) {
-    await createExpenditure(payload);
-    dialog.value = false;
-}
-
-interface PivotRow {
-    batchName: string;
-    macroName: string;
-    type: string;
-    amount: number;
-    isFirstBatch: boolean;
-    isFirstMacro: boolean;
-}
-
-const flattenedRows = computed(() => {
-  const rows: PivotRow[] = [];
-  const groups: Record<string, Record<string, Record<string, number>>> = {};
-
-  expenditures.value?.forEach((exp: ApiExpenditure) => {
-    let batchDisplay = 'General / Unallocated';
-    if (exp.batchId) {
-      const batch = getBatchById(exp.batchId);
-      batchDisplay = batch?.stockingDate || 'Unknown Batch';
-    }
-
-    const macro = exp.macroInvestment || 'Unallocated';
-    const subType = exp.subType || 'Other';
-
-    if (!groups[batchDisplay]) groups[batchDisplay] = {};
-    const bGroup = groups[batchDisplay]!;
-    if (!bGroup[macro]) bGroup[macro] = {};
-    const mGroup = bGroup[macro]!;
-    if (!mGroup[subType]) mGroup[subType] = 0;
-    mGroup[subType] += exp.amount || 0;
-  });
-
-  Object.keys(groups).forEach(batchName => {
-      let isFirstBatch = true;
-      const macros = groups[batchName];
-      if (!macros) return;
-      Object.keys(macros).forEach(macroName => {
-          let isFirstMacro = true;
-          const types = macros[macroName];
-          if (!types) return;
-          Object.keys(types).forEach(typeName => {
-              rows.push({
-                  batchName,
-                  macroName,
-                  type: typeName,
-                  amount: types[typeName] || 0,
-                  isFirstBatch,
-                  isFirstMacro
-              });
-              isFirstBatch = false;
-              isFirstMacro = false;
-          });
-      });
-  });
-  return rows;
+const batchOptions = computed(() => {
+    return batches.value?.map(b => ({
+        id: b.id,
+        label: b.name || `Batch ${b.stockingDate}`
+    })) || [];
 });
 
-const grandTotalExp = computed(() => expenditures.value?.reduce((sum: number, exp: ApiExpenditure) => sum + (exp.amount || 0), 0) || 0);
+async function handleSaveExpenditure(payload: Omit<Expenditure, 'id'>) {
+    // Originally called createExpenditure but we are managing state locally here via search
+    // We should probably still call the service create.
+    await expenditureService.useCreate().mutateAsync({ data: payload as Expenditure });
+    dialog.value = false;
+    loadItems({ page: 1, itemsPerPage: itemsPerPage.value, sortBy: [] });
+}
+
+// Data Table State
+const itemsPerPage = ref(10);
+const headers: any[] = [
+    { title: 'Date', key: 'date', sortable: false }, // Sort not implemented in backend yet
+    { title: 'Batch', key: 'batchId', sortable: false },
+    { title: 'Macro', key: 'macroInvestment', sortable: false },
+    { title: 'Type', key: 'category', sortable: false },
+    { title: 'Sub-Type', key: 'subType', sortable: false },
+    { title: 'Description', key: 'description', sortable: false },
+    { title: 'Amount', key: 'amount', align: 'end', sortable: false },
+];
+const serverItems = ref<Expenditure[]>([]);
+const totalItems = ref(0);
+const loading = ref(false);
+
+const filters = reactive({
+    batchId: null as string | null,
+    macroInvestment: null as string | null,
+    category: null as string | null
+});
+
+function onFilterChange() {
+    loadItems({ page: 1, itemsPerPage: itemsPerPage.value, sortBy: [] });
+}
+
+// Load Items Function compatible with v-data-table-server @update:options
+async function loadItems({ page, itemsPerPage, sortBy }: { page?: number, itemsPerPage?: number, sortBy?: any[] } = {}) {
+    loading.value = true;
+    try {
+        const p = page || 1;
+        const size = itemsPerPage || 10;
+        
+        const response = await expenditureService.search({
+            batchId: filters.batchId || undefined,
+            macroInvestment: filters.macroInvestment || undefined,
+            category: filters.category || undefined,
+            page: p - 1, // Spring Boot is 0-indexed
+            size: size,
+            // sort not implemented yet
+        });
+
+        serverItems.value = response.content || [];
+        totalItems.value = response.totalElements || 0;
+    } catch (e) {
+        console.error("Failed to load expenditures", e);
+    } finally {
+        loading.value = false;
+    }
+}
+
+
+const grandTotalExp = computed(() => {
+    // Note: Grand total calculation on client side is now restricted to the current page view or requires a separate aggregation endpoint
+    // For now, we can sum the currently visible items or remove this total if misleading.
+    // Given the pivot request was about "views", maybe total is less important on raw list or needs separate API.
+    // Returning sum of loaded items for now.
+    return serverItems.value.reduce((sum, item) => sum + (item.amount || 0), 0);
+});
+
 const grandTotalInc = computed(() => harvestLogs.value?.reduce((sum: number, log: HarvestLog) => sum + (log.revenue || 0), 0) || 0);
 
 function formatDate(dateStr?: string) {
@@ -226,10 +268,13 @@ function formatDate(dateStr?: string) {
 }
 
 function getBatchName(batchId?: string) {
-    if (!batchId) return 'Unknown';
+    if (!batchId) return 'General / Unallocated';
     const batch = getBatchById(batchId);
     return batch?.name || batch?.stockingDate || 'Unknown';
 }
+
+// Initial load
+// loadItems called by v-data-table-server automatically on mount
 </script>
 
 <style scoped>
