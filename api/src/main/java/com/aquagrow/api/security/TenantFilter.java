@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 
 @Component
+@lombok.extern.slf4j.Slf4j
 public class TenantFilter implements Filter {
 
     @Override
@@ -25,11 +26,13 @@ public class TenantFilter implements Filter {
 
             if (authentication != null && authentication.getPrincipal() instanceof Jwt) {
                 Jwt jwt = (Jwt) authentication.getPrincipal();
-                String tenantId = jwt.getClaimAsString("tenantId");
+                String tenantId = jwt.getClaimAsString("tenant_id");
 
                 if (tenantId != null) {
+                    log.debug("Setting Tenant Context to: {}", tenantId);
                     TenantContext.setTenantId(tenantId);
                 } else {
+                    log.warn("No tenant_id claim found in JWT for user: {}", authentication.getName());
                     // Fail securely if no tenant ID is present in the token
                     res.sendError(HttpServletResponse.SC_FORBIDDEN, "No Tenant ID found in token");
                     return;
