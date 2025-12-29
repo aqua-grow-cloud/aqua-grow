@@ -143,6 +143,13 @@
         </v-card>
       </v-col>
     </v-row>
+
+    <!-- Fish Stocking Pivot -->
+    <v-row class="mt-4 mb-8">
+        <v-col cols="12">
+            <FishStockingPivot :batches="batches || []" />
+        </v-col>
+    </v-row>
   </v-container>
 </template>
 
@@ -156,6 +163,7 @@ import { feedLogService } from './api/feedLogService';
 import { sampleLogService } from './api/sampleLogService';
 import { harvestLogService } from '../harvesting/api/harvestLogService';
 import { feedStockService } from '../inventory/api/feedStockService';
+import FishStockingPivot from './components/FishStockingPivot.vue';
 import type { Batch, FeedLog, Pond, HarvestLog, SampleLog } from '../../api/generated/model';
 
 const store = useAquaStore();
