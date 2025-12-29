@@ -6,6 +6,7 @@ export interface Supplier {
     email?: string;
     address?: string;
     feedTypes?: string[];
+    orderTemplate?: string;
     tenantId?: string;
 }
 

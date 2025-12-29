@@ -92,6 +92,21 @@
                     :items="['King Fish Feed', 'Sneha Feed']"
                     ></v-combobox>
                 </v-col>
+                <v-col cols="12">
+                    <v-textarea
+                      v-model="form.orderTemplate"
+                      label="WhatsApp Order Template"
+                      variant="outlined"
+                      density="compact"
+                      rows="4"
+                      hint="Custom message template for this supplier"
+                      persistent-hint
+                    ></v-textarea>
+                    <div class="text-caption text-grey mt-2" v-pre>
+                      <strong>Placeholders:</strong> 
+                      {{supplierName}}, {{feedType}}, {{quantity}}, {{contactPerson}}, {{location}}, {{phone}}, {{date}}
+                    </div>
+                </v-col>
                 </v-row>
             </v-form>
           </v-container>
@@ -133,7 +148,8 @@ const defaultForm: Supplier = {
     phone: '',
     whatsappNumber: '',
     address: '',
-    feedTypes: []
+    feedTypes: [],
+    orderTemplate: ''
 };
 const form = ref<Supplier>({ ...defaultForm });
 
