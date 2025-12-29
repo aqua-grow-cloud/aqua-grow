@@ -144,10 +144,16 @@
       </v-col>
     </v-row>
 
-    <!-- Fish Stocking Pivot -->
-    <v-row class="mt-4 mb-8">
+    <!-- Pivot Tables -->
+    <v-row class="mt-4">
         <v-col cols="12">
             <FishStockingPivot :batches="batches || []" />
+        </v-col>
+    </v-row>
+
+    <v-row class="mb-8">
+        <v-col cols="12">
+            <SampleLogPivot />
         </v-col>
     </v-row>
   </v-container>
