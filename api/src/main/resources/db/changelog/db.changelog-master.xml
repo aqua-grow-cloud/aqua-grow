@@ -14,7 +14,8 @@
     <include file="db/changelog/changesets/07-refactor-batch-pond-relationship.xml"/>
     <include file="db/changelog/changesets/08-add-feed-stocking-date.xml"/>
     <include file="db/changelog/changesets/09-alter-feed-stocking-date-type.xml"/>
+    <include file="db/changelog/changesets/09-add-tenant-id-to-all-tables.xml"/>
     <include file="db/changelog/changesets/10-add-tenant-id-to-batches.xml"/>
-    <include file="db/changelog/changesets/11-add-tenant-id-to-all-tables.xml"/>
+    <include file="db/changelog/changesets/11-add-fish-type-to-sample-log.xml"/>
 
 </databaseChangeLog>

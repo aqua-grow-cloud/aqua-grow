@@ -22,6 +22,8 @@ public class SampleLog {
     @Column(nullable = false)
     private String batchId;
 
+    private String fishType;
+
     @Column(nullable = false)
     private LocalDate date;
 
