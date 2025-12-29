@@ -104,57 +104,95 @@ interface StatusGroup {
 const groupedData = computed<StatusGroup[]>(() => {
   if (!props.batches) return [];
 
-  const groups: Record<string, Batch[]> = {};
+  // Flatten all seeds into a structure we can group
+  interface FlatSeed {
+      status: string;
+      batchId: string;
+      batchName: string;
+      stockingDate?: string;
+      type: string;
+      quantity: number;
+  }
+
+  const allSeeds: FlatSeed[] = [];
+  props.batches.forEach(b => {
+      if (b.fishSeeds) {
+          b.fishSeeds.forEach(seed => {
+              allSeeds.push({
+                  status: seed.status || (b.status === 'Active' ? 'Active' : 'Completed'), // Fallback if seed status missing
+                  batchId: b.id || '',
+                  batchName: b.name || '',
+                  stockingDate: b.stockingDate,
+                  type: seed.type || 'Unknown',
+                  quantity: seed.quantity || 0
+              });
+          });
+      }
+  });
+
+  const groups: Record<string, FlatSeed[]> = {};
   
   // 1. Group by Status
-  props.batches.forEach(b => {
-    const status = b.status || 'UNKNOWN';
+  allSeeds.forEach(seed => {
+    const status = seed.status || 'Active'; // Default to active if unknown
     if (!groups[status]) groups[status] = [];
-    groups[status].push(b);
+    groups[status].push(seed);
   });
 
   const result: StatusGroup[] = [];
 
-  // 2. Process each group
+  // 2. Process each status group
   Object.keys(groups).sort().forEach(status => {
-    const rawBatches = groups[status];
-    if (!rawBatches) return;
+    const seedsInStatus = groups[status];
+    if (!seedsInStatus) return; // FIX: Ensure seedsInStatus exists
     
-    // Sort batches by date
-    rawBatches.sort((a, b) => 
+    // Group by Batch within this status
+    const batchMap: Record<string, FlatSeed[]> = {};
+    seedsInStatus.forEach(s => {
+        if (!batchMap[s.batchId]) batchMap[s.batchId] = [];
+        const batchSeeds = batchMap[s.batchId];
+        if (batchSeeds) { // FIX: Ensure batchSeeds exists array wise before push, although it should
+             batchSeeds.push(s);
+        }
+    });
+
+    // Convert batchMap to ProcessedBatch array
+    const processedBatches: ProcessedBatch[] = Object.keys(batchMap).reduce((acc: ProcessedBatch[], batchId) => {
+        const seeds = batchMap[batchId];
+        if (!seeds || seeds.length === 0) return acc;
+        
+        const representative = seeds[0];
+        if (!representative) return acc; // FIX: Double check representative exists
+        
+        // Aggregate by type
+        const typeMap: Record<string, number> = {};
+        seeds.forEach(s => {
+            typeMap[s.type] = (typeMap[s.type] || 0) + s.quantity;
+        });
+
+        const types: FishTypeSummary[] = Object.keys(typeMap).sort().map(typeName => ({
+            name: typeName,
+            quantity: typeMap[typeName] || 0
+        }));
+        
+        const batchTotal = types.reduce((sum, t) => sum + t.quantity, 0);
+
+        acc.push({
+            id: batchId,
+            name: representative.batchName,
+            stockingDate: representative.stockingDate,
+            types,
+            totalQuantity: batchTotal,
+            totalRows: types.length + 1 // +1 for batch subtotal
+        });
+        
+        return acc;
+    }, []);
+
+    // Sort processed batches by date
+    processedBatches.sort((a, b) => 
         new Date(a.stockingDate || '').getTime() - new Date(b.stockingDate || '').getTime()
     );
-
-    const processedBatches: ProcessedBatch[] = rawBatches.map(b => {
-       const typeMap: Record<string, number> = {};
-       
-       b.fishSeeds?.forEach(seed => {
-           const type = seed.type || 'Unknown';
-           typeMap[type] = (typeMap[type] || 0) + (seed.quantity || 0);
-       });
-
-       const types: FishTypeSummary[] = Object.keys(typeMap)
-            .sort()
-            .map(t => ({ name: t, quantity: typeMap[t] || 0 }));
-            
-       const batchTotal = types.reduce((sum, t) => sum + (t.quantity || 0), 0);
-
-       if (types.length === 0) {
-           // Handle empty batch case to ensure it renders at least one row
-           // Or maybe we treat it as 0 quantity?
-           // For pivot logic, usually we want rows. Let's add a placeholder if empty?
-           // User mock shows valid data. 
-       }
-
-       return {
-           id: b.id || '',
-           name: b.name || '',
-           stockingDate: b.stockingDate,
-           types,
-           totalQuantity: batchTotal,
-           totalRows: types.length + 1 // +1 for the batch total row
-       };
-    }).filter(b => b.types.length > 0); // Only show batches with fish
 
     if (processedBatches.length > 0) {
         const groupTotal = processedBatches.reduce((sum, b) => sum + b.totalQuantity, 0);
