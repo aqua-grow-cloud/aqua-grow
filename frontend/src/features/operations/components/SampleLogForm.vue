@@ -272,7 +272,13 @@ const availableFishTypes = computed(() => {
 const isValid = computed(() => form.value.batchId && form.value.fishType && form.value.sampleCount > 0);
 
 const recentLogs = computed(() => {
-    return [...(sampleLogs.value || [])].sort((a: SampleLog, b: SampleLog) =>
+    const raw = sampleLogs.value;
+    // Handle Page response (content property) or legacy List response
+    const logs = (raw && 'content' in raw && Array.isArray((raw as any).content)) 
+        ? (raw as any).content 
+        : (Array.isArray(raw) ? raw : []);
+        
+    return [...logs].sort((a: SampleLog, b: SampleLog) =>
       new Date(b.date || '').getTime() - new Date(a.date || '').getTime()
     ).slice(0, 5);
 });
