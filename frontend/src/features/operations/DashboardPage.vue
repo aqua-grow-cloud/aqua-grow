@@ -223,7 +223,11 @@ const totalBiomassEst = computed(() => {
     let currentQuantity = Math.max(0, totalStocked - totalHarvested);
 
     // 3. Get latest sampling data
-    const batchSamples = [...(sampleLogs.value || [])]
+    const allSamples = Array.isArray(sampleLogs.value) 
+      ? sampleLogs.value 
+      : ((sampleLogs.value as any)?.content || []);
+    
+    const batchSamples = [...allSamples]
       .filter(l => l.batchId === batch.id)
       .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime());
     
