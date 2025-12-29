@@ -8,6 +8,18 @@ import type { User, UserRole } from '../types';
  * Feature-specific state is delegated to feature stores.
  */
 export const useAquaStore = defineStore('aqua', () => {
+    // --- Global Loading State ---
+    const activeRequests = ref(0);
+    const isLoading = computed(() => activeRequests.value > 0);
+
+    function startLoading() {
+        activeRequests.value++;
+    }
+
+    function stopLoading() {
+        activeRequests.value = Math.max(0, activeRequests.value - 1);
+    }
+
     // --- Auth State ---
     const currentUser = ref<User>({ id: 'u1', name: 'Admin User', role: 'Admin' });
 
@@ -83,6 +95,12 @@ export const useAquaStore = defineStore('aqua', () => {
         isManager,
         isOperator,
         setUserRole,
+
+        // Loading
+        activeRequests,
+        isLoading,
+        startLoading,
+        stopLoading,
 
         // Notifications
         globalMessage,

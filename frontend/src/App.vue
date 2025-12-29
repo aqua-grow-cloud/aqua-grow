@@ -93,6 +93,23 @@
         <v-btn variant="text" @click="store.clearNotification">Close</v-btn>
       </template>
     </v-snackbar>
+
+    <!-- Global Blocking Loading Overlay -->
+    <v-overlay
+      v-model="store.isLoading"
+      class="align-center justify-center"
+      persistent
+      scrim="white"
+      opacity="0.3"
+      z-index="3000"
+    >
+      <v-progress-circular
+        indeterminate
+        color="primary"
+        size="64"
+        width="6"
+      ></v-progress-circular>
+    </v-overlay>
   </v-app>
 </template>
 

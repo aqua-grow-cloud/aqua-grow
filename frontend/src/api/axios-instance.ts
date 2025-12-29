@@ -6,6 +6,10 @@ export const AXIOS_INSTANCE = axios.create({
 });
 
 AXIOS_INSTANCE.interceptors.request.use(async (config) => {
+    // Trigger global loading
+    const { useAquaStore } = await import('../stores/useAquaStore');
+    useAquaStore().startLoading();
+
     if (keycloak.authenticated) {
         try {
             await keycloak.updateToken(70); // Refresh if expiring in < 70 seconds
@@ -22,8 +26,15 @@ AXIOS_INSTANCE.interceptors.request.use(async (config) => {
 });
 
 AXIOS_INSTANCE.interceptors.response.use(
-    (response) => response,
+    async (response) => {
+        const { useAquaStore } = await import('../stores/useAquaStore');
+        useAquaStore().stopLoading();
+        return response;
+    },
     async (error) => {
+        const { useAquaStore } = await import('../stores/useAquaStore');
+        useAquaStore().stopLoading();
+
         const originalRequest = error.config;
 
         // check if 401 and not already retried
@@ -45,15 +56,13 @@ AXIOS_INSTANCE.interceptors.response.use(
         }
 
         // Dynamic import to avoid circular dependency if store imports api
-        import('../stores/useAquaStore').then(({ useAquaStore }) => {
-            const store = useAquaStore();
-            const message = error.response?.data?.message || error.message || 'An unknown error occurred';
+        const store = useAquaStore();
+        const message = error.response?.data?.message || error.message || 'An unknown error occurred';
 
-            // Don't show notification for 401s if we are handling them (or if login redirect happens)
-            if (error.response?.status !== 401) {
-                store.notify(message, 'systemError');
-            }
-        });
+        // Don't show notification for 401s if we are handling them (or if login redirect happens)
+        if (error.response?.status !== 401) {
+            store.notify(message, 'systemError');
+        }
         return Promise.reject(error);
     }
 );
