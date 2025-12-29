@@ -4,7 +4,7 @@
     <v-card-text>
       <v-form @submit.prevent="save">
         <v-row>
-           <v-col cols="12" sm="6">
+           <v-col cols="12" sm="4">
             <v-select
               v-model="form.batchId"
               :items="activeBatches"
@@ -16,7 +16,18 @@
               required
             ></v-select>
           </v-col>
-           <v-col cols="12" sm="6">
+           <v-col cols="12" sm="4">
+            <v-select
+              v-model="form.fishType"
+              :items="availableFishTypes"
+              label="Fish Type"
+              variant="outlined"
+              density="compact"
+              :disabled="!form.batchId"
+              required
+            ></v-select>
+          </v-col>
+           <v-col cols="12" sm="4">
             <v-text-field
               v-model="form.date"
               label="Date"
