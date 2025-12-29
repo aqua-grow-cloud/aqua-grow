@@ -17,5 +17,6 @@
     <include file="db/changelog/changesets/10-add-tenant-id-to-batches.xml"/>
     <include file="db/changelog/changesets/11-add-tenant-id-to-all-tables.xml"/>
     <include file="db/changelog/changesets/12-add-fish-type-to-sample-log.xml"/>
+    <include file="db/changelog/changesets/13-move-status-to-fish-seed.xml"/>
 
 </databaseChangeLog>

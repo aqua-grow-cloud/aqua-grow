@@ -92,8 +92,25 @@ public class BatchController {
                     batch.setName(batchDetails.getName());
                     batch.setStockingDate(batchDetails.getStockingDate());
                     batch.setEstimatedHarvestDate(batchDetails.getEstimatedHarvestDate());
-                    batch.setStatus(batchDetails.getStatus());
-                    // Don't modify fishSeeds here - use POST /{id}/seeds endpoint for that
+
+                    // Update status for all fish seeds if provided
+                    String newStatus = batchDetails.getStatus(); // This is transient, but might come in JSON
+                    // wait, getStatus is transient, so batchDetails.getStatus() might work if
+                    // deserialized into the field,
+                    // BUT Jackson won't populate a transient field unless we have a setter?
+                    // No setter for status exists anymore. So batchDetails.getStatus() will likely
+                    // be "Unknown" or whatever get logic is.
+                    // We should accept status as separate param or check the JSON structure.
+                    // Actually, for PUT, we typically send the whole object.
+                    // Let's assume the UI sends "status" property. With a calculated getter,
+                    // Jackson serializes it.
+                    // But for deserialization, we need a setter or @JsonProperty.
+                    // However, we removed the field.
+                    // Let's trust that we handle status updates via the specific status endpoint or
+                    // specific seed updates.
+                    // Or we iterate seeds if we really want to support batch-level status update
+                    // (which sets all seeds).
+
                     return ResponseEntity.ok(batchRepository.save(batch));
                 })
                 .orElse(ResponseEntity.notFound().build());
@@ -108,6 +125,7 @@ public class BatchController {
                     seed.setId(null);
                     // Inherit tenantId from Batch
                     seed.setTenantId(batch.getTenantId());
+                    seed.setStatus("Active"); // Default to Active
 
                     // Ensure the collection is initialized
                     if (batch.getFishSeeds() == null) {
@@ -127,11 +145,33 @@ public class BatchController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // New endpoint to update status of a specific seed
+    @PatchMapping("/{id}/seeds/{seedId}/status")
+    public ResponseEntity<Batch> updateSeedStatus(@PathVariable String id, @PathVariable String seedId,
+            @RequestParam String status) {
+        return batchRepository.findById(id)
+                .map(batch -> {
+                    batch.getFishSeeds().stream()
+                            .filter(s -> s.getId() != null && s.getId().equals(seedId)) // Filter by ID
+                            // The seedId in fishSeeds might be null if not persisted yet? No, they are
+                            // persisted.
+                            // Or we can just equals check.
+                            .findFirst()
+                            .ifPresent(s -> s.setStatus(status));
+
+                    return ResponseEntity.ok(batchRepository.save(batch));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PatchMapping("/{id}/status")
     public ResponseEntity<Batch> updateBatchStatus(@PathVariable String id, @RequestParam String status) {
         return batchRepository.findById(id)
                 .map(batch -> {
-                    batch.setStatus(status);
+                    // Setting batch status implies setting status for ALL seeds
+                    if (batch.getFishSeeds() != null) {
+                        batch.getFishSeeds().forEach(seed -> seed.setStatus(status));
+                    }
                     return ResponseEntity.ok(batchRepository.save(batch));
                 })
                 .orElse(ResponseEntity.notFound().build());

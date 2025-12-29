@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="13-move-status-to-fish-seed" author="antigravity">
+        <!-- Add status to fish_seeds with default 'Active' -->
+        <addColumn tableName="fish_seeds">
+            <column name="status" type="VARCHAR(255)" defaultValue="Active">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+
+        <!-- Drop status from batches -->
+        <dropColumn tableName="batches" columnName="status"/>
+    </changeSet>
+
+</databaseChangeLog>

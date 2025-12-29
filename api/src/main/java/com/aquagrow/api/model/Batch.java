@@ -25,7 +25,20 @@ public class Batch {
     private String tenantId; // CRITICAL: For multi-tenancy isolation
     private LocalDate stockingDate;
     private LocalDate estimatedHarvestDate;
-    private String status; // Active, Harvested
+
+    // Status is now derived from FishSeeds
+    @Transient
+    public String getStatus() {
+        if (fishSeeds == null || fishSeeds.isEmpty()) {
+            return "Unknown";
+        }
+
+        boolean allHarvested = fishSeeds.stream()
+                .allMatch(seed -> "Harvested".equalsIgnoreCase(seed.getStatus())
+                        || "Completed".equalsIgnoreCase(seed.getStatus()));
+
+        return allHarvested ? "Completed" : "Active";
+    }
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "batch_id")

@@ -31,4 +31,7 @@ public class FishSeed {
 
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
+
+    @Builder.Default
+    private String status = "Active"; // Active, Harvested
 }
