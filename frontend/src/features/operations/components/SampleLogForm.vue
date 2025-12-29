@@ -148,7 +148,15 @@
 
       <v-divider class="my-4"></v-divider>
 
-      <h3 class="text-subtitle-1 mb-2 font-weight-bold">Recent Samples</h3>
+      <v-divider class="my-4"></v-divider>
+
+      <div class="d-flex justify-space-between align-center mb-2">
+         <h3 class="text-subtitle-1 font-weight-bold">Recent Samples</h3>
+         <v-btn variant="text" color="primary" size="small" :to="{ name: 'sample-logs-history' }">
+            View Full History
+            <v-icon end>mdi-arrow-right</v-icon>
+         </v-btn>
+      </div>
        <v-table density="compact" class="border rounded">
         <thead>
           <tr class="bg-grey-lighten-4">

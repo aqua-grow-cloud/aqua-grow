@@ -24,6 +24,11 @@ const router = createRouter({
             component: () => import('../features/operations/OperationsPage.vue')
         },
         {
+            path: '/operations/sample-logs',
+            name: 'sample-logs-history',
+            component: () => import('../features/operations/SampleLogsPage.vue')
+        },
+        {
             path: '/harvest',
             name: 'harvest',
             component: () => import('../features/harvesting/HarvestPage.vue')

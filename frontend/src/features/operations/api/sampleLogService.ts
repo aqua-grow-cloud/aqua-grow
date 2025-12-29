@@ -6,13 +6,29 @@ import {
 } from '../../../api/generated/sample-log-controller/sample-log-controller';
 import type { SampleLog } from '../../../api/generated/model';
 
+import { useQuery } from '@tanstack/vue-query';
+import { AXIOS_INSTANCE as axios } from '../../../api/axios-instance';
+
 /**
  * Sample Log Service
  * Wraps Orval-generated hooks with business logic and error handling
  */
 export const sampleLogService = {
     /**
-     * Get all sample logs hook
+     * Search sample logs hook
+     */
+    useSearch(params: any) {
+        return useQuery({
+            queryKey: ['sample-logs', 'search', params],
+            queryFn: async () => {
+                const { data } = await axios.get('/api/sample-logs', { params: params.value });
+                return data;
+            }
+        });
+    },
+
+    /**
+     * Get all sample logs hook (legacy/simple)
      */
     useGetAll() {
         return useGetAllSampleLogs();
