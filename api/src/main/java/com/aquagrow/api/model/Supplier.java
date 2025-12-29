@@ -40,6 +40,9 @@ public class Supplier {
     @Column(name = "feed_type")
     private List<String> feedTypes;
 
+    @Column(name = "order_template", length = 2000)
+    private String orderTemplate;
+
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 

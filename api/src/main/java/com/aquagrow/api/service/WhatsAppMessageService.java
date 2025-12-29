@@ -11,21 +11,29 @@ import java.time.format.DateTimeFormatter;
 public class WhatsAppMessageService {
 
     public String generateOrderMessage(FeedOrder order, Supplier supplier, String contactPerson, String location) {
-        return String.format("""
-                %s
-                %s
-                %s
-                %.0f kg
-                %s
+        String template = supplier.getOrderTemplate();
+        if (template == null || template.trim().isEmpty()) {
+            template = """
+                    {{supplierName}}
+                    {{feedType}}
+                    {{contactPerson}}
+                    {{quantity}} kg
+                    {{location}}
 
-                Cell - %s
-                """,
-                supplier.getName(),
-                order.getFeedType(),
-                contactPerson,
-                order.getQuantity(),
-                location,
-                supplier.getWhatsappNumber() != null ? supplier.getWhatsappNumber() : supplier.getPhone());
+                    Cell - {{phone}}
+                    """;
+        }
+
+        return template
+                .replace("{{supplierName}}", supplier.getName() != null ? supplier.getName() : "")
+                .replace("{{feedType}}", order.getFeedType() != null ? order.getFeedType() : "")
+                .replace("{{contactPerson}}", contactPerson != null ? contactPerson : "")
+                .replace("{{quantity}}", order.getQuantity() != null ? String.format("%.0f", order.getQuantity()) : "0")
+                .replace("{{location}}", location != null ? location : "")
+                .replace("{{phone}}",
+                        (supplier.getWhatsappNumber() != null ? supplier.getWhatsappNumber()
+                                : (supplier.getPhone() != null ? supplier.getPhone() : "")))
+                .replace("{{date}}", LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE));
     }
 
     public String getWhatsAppWebLink(String phoneNumber, String message) {
