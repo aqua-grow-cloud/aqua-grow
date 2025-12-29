@@ -143,7 +143,7 @@
           <tr class="bg-grey-lighten-4">
             <th>Date</th>
             <th>Pond</th>
-            <th>Fish</th>
+            <th>Species</th>
             <th>Pieces</th>
             <th>Total Weight</th>
             <th>Weight/Unit</th>
@@ -154,7 +154,7 @@
           <tr v-for="log in recentLogs" :key="log.id">
             <td>{{ log.date }}</td>
             <td>{{ getPondName(log.batchId) }}</td>
-            <td>{{ getSpecies(log.batchId) }}</td>
+            <td class="font-weight-medium text-primary">{{ log.fishType || getSpecies(log.batchId) }}</td>
             <td>{{ log.sampleCount }}</td>
             <td>{{ log.totalSampleWeight }} g</td>
             <td class="font-weight-bold">{{ (log.averageWeight || 0).toFixed(1) }} g</td>
@@ -205,6 +205,7 @@ const activeBatches = computed(() => {
 const defaultForm = {
   batchId: '',
   date: new Date().toISOString().substr(0, 10),
+  fishType: '',
   sampleCount: 0,
   totalSampleWeight: 0,
   averageWeight: 0,
@@ -235,7 +236,21 @@ watch(calculatedABW, (newVal) => {
     form.value.averageWeight = newVal;
 });
 
-const isValid = computed(() => form.value.batchId && form.value.sampleCount > 0);
+// Watch batch changes to reset fishType
+watch(() => form.value.batchId, () => {
+    form.value.fishType = '';
+});
+
+// Compute available fish types for selected batch
+const availableFishTypes = computed(() => {
+    if (!form.value.batchId) return [];
+    const batch = getBatchById(form.value.batchId);
+    if (!batch?.fishSeeds) return [];
+    
+    return [...new Set(batch.fishSeeds.map((s: any) => s.type))];
+});
+
+const isValid = computed(() => form.value.batchId && form.value.fishType && form.value.sampleCount > 0);
 
 const recentLogs = computed(() => {
     return [...(sampleLogs.value || [])].sort((a: SampleLog, b: SampleLog) =>
