@@ -72,6 +72,33 @@
                             class="w-32"
                             @update:model-value="onFilterChange"
                         ></v-select>
+                        <v-btn
+                            variant="outlined"
+                            prepend-icon="mdi-download"
+                            color="primary"
+                            density="compact"
+                            class="rounded-lg"
+                            @click="handleExportCsv"
+                        >
+                            Export
+                        </v-btn>
+                        <v-btn
+                            variant="outlined"
+                            prepend-icon="mdi-upload"
+                            color="secondary"
+                            density="compact"
+                            class="rounded-lg"
+                            @click="triggerFileInput"
+                        >
+                            Import
+                        </v-btn>
+                        <input
+                            ref="fileInput"
+                            type="file"
+                            accept=".csv"
+                            style="display: none"
+                            @change="handleImportCsv"
+                        />
                     </div>
                 </div>
             </v-card-title>
@@ -169,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive } from 'vue';
+import { ref, computed, watch, reactive, useTemplateRef } from 'vue';
 import { useAquaStore } from '../../stores/useAquaStore';
 import PageHeader from '../../components/PageHeader.vue';
 import ExpenditureDialog from './components/ExpenditureDialog.vue';
@@ -181,6 +208,7 @@ import type { Expenditure, HarvestLog } from '../../api/generated/model';
 const store = useAquaStore();
 const dialog = ref(false);
 const tab = ref('expenditure');
+const fileInput = ref<HTMLInputElement | null>(null);
 
 // Use composables
 const { harvestLogs } = useHarvestLogs();
@@ -252,6 +280,36 @@ async function loadItems({ page, itemsPerPage, sortBy }: { page?: number, itemsP
     } finally {
         loading.value = false;
     }
+}
+
+async function handleExportCsv() {
+    try {
+        await expenditureService.exportCsv();
+    } catch (e) {
+        console.error("Export failed", e);
+    }
+}
+
+async function handleImportCsv(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (file) {
+        loading.value = true;
+        try {
+            await expenditureService.importCsv(file);
+            loadItems({ page: 1, itemsPerPage: itemsPerPage.value, sortBy: [] });
+        } catch (e) {
+            console.error("Import failed", e);
+        } finally {
+            loading.value = false;
+            // Reset input
+            if (fileInput.value) fileInput.value.value = '';
+        }
+    }
+}
+
+function triggerFileInput() {
+    fileInput.value?.click();
 }
 
 

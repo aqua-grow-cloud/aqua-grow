@@ -30,12 +30,46 @@ export const expenditureService = {
      * Search expenditures with pagination
      */
     search(params: ExpenditureSearchParams) {
-        // Import dynamically or assume it's available via the import at top if I add it.
-        // Wait, I need to add the import to the top of the file first.
         return customInstance<PageExpenditure>({
             url: '/api/expenditures/search',
             method: 'get',
             params
+        });
+    },
+
+    /**
+     * Export expenditures to CSV
+     */
+    async exportCsv() {
+        const response = await customInstance<Blob>({
+            url: '/api/expenditures/export',
+            method: 'get',
+            responseType: 'blob'
+        });
+
+        const url = window.URL.createObjectURL(new Blob([response]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'expenditures.csv');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    },
+
+    /**
+     * Import expenditures from CSV
+     */
+    async importCsv(file: File) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        return customInstance({
+            url: '/api/expenditures/import',
+            method: 'post',
+            data: formData,
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
         });
     }
 };
