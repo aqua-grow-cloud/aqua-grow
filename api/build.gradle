@@ -38,6 +38,7 @@ dependencies {
 	implementation 'org.apache.logging.log4j:log4j-spring-boot'
 	implementation 'org.apache.logging.log4j:log4j-jcl'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.1'
+	implementation 'com.opencsv:opencsv:5.9'
 	implementation 'org.liquibase:liquibase-core'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'org.postgresql:postgresql'
