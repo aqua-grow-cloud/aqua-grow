@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface BatchRepository extends JpaRepository<Batch, String>, JpaSpecificationExecutor<Batch> {
     List<Batch> findDistinctByFishSeedsPondId(String pondId);
+
+    java.util.Optional<Batch> findByName(String name);
 }

@@ -1,7 +1,9 @@
 package com.aquagrow.api.controller;
 
 import com.aquagrow.api.dto.CsvExpenditure;
+import com.aquagrow.api.model.Batch;
 import com.aquagrow.api.model.Expenditure;
+import com.aquagrow.api.repository.BatchRepository;
 import com.aquagrow.api.repository.ExpenditureRepository;
 import com.opencsv.bean.CsvToBean;
 import com.opencsv.bean.CsvToBeanBuilder;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class ExpenditureController {
 
     private final ExpenditureRepository expenditureRepository;
+    private final BatchRepository batchRepository;
 
     @GetMapping
     public List<Expenditure> getAllExpenditures() {
@@ -75,15 +78,23 @@ public class ExpenditureController {
 
         List<Expenditure> expenditures = expenditureRepository.findAll();
         List<CsvExpenditure> csvExpenditures = expenditures.stream()
-                .map(e -> CsvExpenditure.builder()
-                        .batchId(e.getBatchId())
-                        .date(e.getDate())
-                        .category(e.getCategory())
-                        .macroInvestment(e.getMacroInvestment())
-                        .subType(e.getSubType())
-                        .amount(e.getAmount())
-                        .description(e.getDescription())
-                        .build())
+                .map(e -> {
+                    String batchName = "Unallocated";
+                    if (e.getBatchId() != null) {
+                        batchName = batchRepository.findById(e.getBatchId())
+                                .map(Batch::getName)
+                                .orElse("Unknown Batch");
+                    }
+                    return CsvExpenditure.builder()
+                            .batchName(batchName)
+                            .date(e.getDate())
+                            .category(e.getCategory())
+                            .macroInvestment(e.getMacroInvestment())
+                            .subType(e.getSubType())
+                            .amount(e.getAmount())
+                            .description(e.getDescription())
+                            .build();
+                })
                 .collect(Collectors.toList());
 
         StatefulBeanToCsv<CsvExpenditure> writer = new StatefulBeanToCsvBuilder<CsvExpenditure>(response.getWriter())
@@ -107,16 +118,24 @@ public class ExpenditureController {
 
             List<CsvExpenditure> csvExpenditures = csvToBean.parse();
             List<Expenditure> expenditures = csvExpenditures.stream()
-                    .map(csv -> Expenditure.builder()
-                            .batchId(csv.getBatchId())
-                            .date(csv.getDate())
-                            .category(csv.getCategory())
-                            .macroInvestment(csv.getMacroInvestment())
-                            .subType(csv.getSubType())
-                            .amount(csv.getAmount())
-                            .description(csv.getDescription())
-                            .tenantId(tenantId)
-                            .build())
+                    .map(csv -> {
+                        String batchId = null;
+                        if (csv.getBatchName() != null && !csv.getBatchName().isEmpty()) {
+                            batchId = batchRepository.findByName(csv.getBatchName())
+                                    .map(Batch::getId)
+                                    .orElse(null); // Or throw error? For now just unallocated
+                        }
+                        return Expenditure.builder()
+                                .batchId(batchId)
+                                .date(csv.getDate())
+                                .category(csv.getCategory())
+                                .macroInvestment(csv.getMacroInvestment())
+                                .subType(csv.getSubType())
+                                .amount(csv.getAmount())
+                                .description(csv.getDescription())
+                                .tenantId(tenantId)
+                                .build();
+                    })
                     .collect(Collectors.toList());
 
             return expenditureRepository.saveAll(expenditures);

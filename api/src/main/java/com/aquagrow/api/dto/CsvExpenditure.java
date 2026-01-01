@@ -15,8 +15,8 @@ import java.time.LocalDate;
 @Builder
 public class CsvExpenditure {
 
-    @CsvBindByName(column = "Batch ID")
-    private String batchId;
+    @CsvBindByName(column = "Batch Name")
+    private String batchName;
 
     @CsvBindByName(column = "Date")
     @CsvDate("yyyy-MM-dd")
