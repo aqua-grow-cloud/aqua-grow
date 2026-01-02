@@ -69,6 +69,9 @@
                 <th class="text-subtitle-2 font-weight-bold">Pond</th>
                 <th class="text-subtitle-2 font-weight-bold">Start Date</th>
                 <th class="text-subtitle-2 font-weight-bold text-center">Days of Culture</th>
+                <th class="text-subtitle-2 font-weight-bold text-center">Stocked</th>
+                <th class="text-subtitle-2 font-weight-bold text-center">Harvested</th>
+                <th class="text-subtitle-2 font-weight-bold text-center">Loss</th>
                 <th class="text-subtitle-2 font-weight-bold text-center">Current FCR</th>
                 <th class="text-subtitle-2 font-weight-bold">Status</th>
               </tr>
@@ -83,7 +86,16 @@
                     {{ calculateAge(batch.stockingDate) }} Days
                   </v-chip>
                 </td>
-                <td class="text-center font-weight-bold">
+                <td class="text-center font-weight-medium text-grey-darken-1">
+                  {{ getBatchStockedQty(batch).toLocaleString() }}
+                </td>
+                <td class="text-center font-weight-medium text-success">
+                  {{ getBatchHarvestedQty(batch).toLocaleString() }}
+                </td>
+                <td class="text-center font-weight-bold" :class="getBatchLoss(batch) > 0 ? 'text-error' : ''">
+                  {{ getBatchLoss(batch).toLocaleString() }}
+                </td>
+                <td class="text-center font-weight-bold text-primary">
                   {{ calculateBatchFCR(batch) }}
                 </td>
                 <td>
@@ -278,6 +290,24 @@ function calculateBatchBiomass(batch: Batch): number {
         return (currentQuantity * currentABW) / 1000;
     }
     return 0;
+}
+
+function getBatchStockedQty(batch: Batch): number {
+    return batch.fishSeeds?.reduce((sum, s) => sum + (s.quantity || 0), 0) || 0;
+}
+
+function getBatchHarvestedQty(batch: Batch): number {
+    return harvestLogs.value
+      ?.filter(l => l.batchId === batch.id)
+      .reduce((sum, l) => sum + (l.count || 0), 0) || 0;
+}
+
+function getBatchLoss(batch: Batch): number {
+    const stocked = getBatchStockedQty(batch);
+    const harvested = getBatchHarvestedQty(batch);
+    // Loss is difference but only if harvested has started or it's a closed batch.
+    // For simplicity as requested, show the difference.
+    return Math.max(0, stocked - harvested);
 }
 
 const totalBiomassEst = computed(() => {
