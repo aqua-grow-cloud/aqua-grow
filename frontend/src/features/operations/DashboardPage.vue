@@ -31,20 +31,11 @@
         </v-card>
       </v-col>
 
-       <v-col cols="12" sm="6" md="3">
-         <v-card 
-            color="error" 
-            variant="tonal" 
-            class="rounded-lg"
-            :to="'/feed-stock'"
-            hover
-         >
+      <v-col cols="12" sm="6" md="3">
+         <v-card color="info" variant="tonal" class="rounded-lg">
           <v-card-item>
-             <div class="text-overline mb-1">Low Stock Alerts</div>
-             <div class="text-h4 mb-1 font-weight-bold">
-                {{ lowStockCount }}
-                <v-icon size="small" end>mdi-arrow-right</v-icon>
-             </div>
+             <div class="text-overline mb-1">Average FCR</div>
+             <div class="text-h4 mb-1 font-weight-bold">{{ avgFCR }}</div>
           </v-card-item>
         </v-card>
       </v-col>
@@ -77,8 +68,8 @@
                 <th class="text-subtitle-2 font-weight-bold">Batch</th>
                 <th class="text-subtitle-2 font-weight-bold">Pond</th>
                 <th class="text-subtitle-2 font-weight-bold">Start Date</th>
-                <th class="text-subtitle-2 font-weight-bold">Est. End Date</th>
                 <th class="text-subtitle-2 font-weight-bold text-center">Days of Culture</th>
+                <th class="text-subtitle-2 font-weight-bold text-center">Current FCR</th>
                 <th class="text-subtitle-2 font-weight-bold">Status</th>
               </tr>
             </thead>
@@ -87,11 +78,13 @@
                 <td class="font-weight-medium text-primary">{{ batch.name || 'Unnamed' }}</td>
                 <td>{{ getBatchPonds(batch) }}</td>
                 <td>{{ formatDate(batch.stockingDate) }}</td>
-                <td>{{ batch.estimatedHarvestDate ? formatDate(batch.estimatedHarvestDate) : '-' }}</td>
                 <td class="text-center">
                   <v-chip size="small" variant="tonal" :color="getAgeColor(batch.stockingDate)">
                     {{ calculateAge(batch.stockingDate) }} Days
                   </v-chip>
+                </td>
+                <td class="text-center font-weight-bold">
+                  {{ calculateBatchFCR(batch) }}
                 </td>
                 <td>
                   <v-chip
@@ -211,15 +204,43 @@ const feedToday = computed(() => {
     .reduce((sum: number, l: FeedLog) => sum + (l.amount || 0), 0) || 0;
 });
 
-const totalBiomassEst = computed(() => {
-  if (!batches.value) return 0;
+const avgFCR = computed(() => {
+    const activeWithFCR = activeBatches.value
+        .map(b => parseFloat(calculateBatchFCR(b)))
+        .filter(fcr => !isNaN(fcr) && fcr > 0);
+    
+    if (activeWithFCR.length === 0) return '-';
+    const sum = activeWithFCR.reduce((a, b) => a + b, 0);
+    return (sum / activeWithFCR.length).toFixed(2);
+});
 
-  let totalBiomass = 0;
+function calculateBatchFCR(batch: Batch): string {
+    const totalFeed = feedLogs.value
+        ?.filter(l => l.batchId === batch.id)
+        .reduce((sum, l) => sum + (l.amount || 0), 0) || 0;
+    
+    if (totalFeed === 0) return '-';
 
-  activeBatches.value.forEach((batch: Batch) => {
+    // 1. Initial Biomass (at stocking)
+    const initialBiomass = batch.fishSeeds?.reduce((sum, s) => {
+        return sum + ((s.quantity || 0) * (s.sizeGrams || 0)) / 1000;
+    }, 0) || 0;
+
+    // 2. Current Biomass Estimate
+    const currentBiomass = calculateBatchBiomass(batch);
+
+    // 3. Weight Gained
+    const weightGained = currentBiomass - initialBiomass;
+
+    if (weightGained <= 0) return '-';
+
+    return (totalFeed / weightGained).toFixed(2);
+}
+
+function calculateBatchBiomass(batch: Batch): number {
     // 1. Base quantity from stocking
     const totalStocked = batch.fishSeeds?.reduce((sum, s) => sum + (s.quantity || 0), 0) || 0;
-    if (totalStocked === 0) return;
+    if (totalStocked === 0) return 0;
 
     // 2. Subtract harvests
     const totalHarvested = harvestLogs.value
@@ -254,11 +275,14 @@ const totalBiomassEst = computed(() => {
     }
 
     if (currentABW) {
-        totalBiomass += (currentQuantity * currentABW) / 1000;
+        return (currentQuantity * currentABW) / 1000;
     }
-  });
+    return 0;
+}
 
-  return Math.round(totalBiomass);
+const totalBiomassEst = computed(() => {
+  if (!batches.value) return 0;
+  return Math.round(activeBatches.value.reduce((sum, b) => sum + calculateBatchBiomass(b), 0));
 });
 
 function getBatchPonds(batch: Batch) {
