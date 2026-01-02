@@ -47,7 +47,7 @@
         <v-card variant="outlined" class="rounded-lg">
           <v-card-title class="px-6 py-4 d-flex align-center flex-wrap">
             <v-icon icon="mdi-calendar-clock" class="mr-2" color="primary"></v-icon>
-            <span class="mr-4">Running Batches Timeline</span>
+            <span class="mr-4">Batches Timeline</span>
             <v-spacer></v-spacer>
             <div style="width: 250px;">
                 <v-text-field
@@ -71,13 +71,13 @@
                 <th class="text-subtitle-2 font-weight-bold text-center">Days of Culture</th>
                 <th class="text-subtitle-2 font-weight-bold text-center">Stocked</th>
                 <th class="text-subtitle-2 font-weight-bold text-center">Harvested</th>
-                <th class="text-subtitle-2 font-weight-bold text-center">Loss</th>
+                <th class="text-subtitle-2 font-weight-bold text-center">Balance / Loss</th>
                 <th class="text-subtitle-2 font-weight-bold text-center">Current FCR</th>
                 <th class="text-subtitle-2 font-weight-bold">Status</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="batch in activeBatchesWithHistory" :key="batch.id">
+              <tr v-for="batch in sortedDashboardBatches" :key="batch.id">
                 <td class="font-weight-medium text-primary">{{ batch.name || 'Unnamed' }}</td>
                 <td>{{ getBatchPonds(batch) }}</td>
                 <td>{{ formatDate(batch.stockingDate) }}</td>
@@ -92,26 +92,38 @@
                 <td class="text-center font-weight-medium text-success">
                   {{ getBatchHarvestedQty(batch).toLocaleString() }}
                 </td>
-                <td class="text-center font-weight-bold" :class="getBatchLoss(batch) > 0 ? 'text-error' : ''">
-                  {{ getBatchLoss(batch).toLocaleString() }}
+                <td class="text-center font-weight-bold">
+                  <v-tooltip 
+                    :text="(batch.status as string) === 'Completed' ? 'Final Loss' : 'Remaining Balance'"
+                    location="top"
+                  >
+                    <template v-slot:activator="{ props }">
+                      <span 
+                        v-bind="props"
+                        :class="(batch.status as string) === 'Completed' && getBatchDiff(batch) > 0 ? 'text-error' : ''"
+                      >
+                        {{ getBatchDiff(batch).toLocaleString() }}
+                      </span>
+                    </template>
+                  </v-tooltip>
                 </td>
                 <td class="text-center font-weight-bold text-primary">
                   {{ calculateBatchFCR(batch) }}
                 </td>
                 <td>
                   <v-chip
-                    :color="getBatchStatusColor(batch.stockingDate)"
+                    :color="getBatchStatusColor(batch.status)"
                     size="x-small"
                     variant="flat"
                     class="text-uppercase"
                   >
-                    {{ getBatchStatusLabel(batch.stockingDate) }}
+                    {{ batch.status }}
                   </v-chip>
                 </td>
               </tr>
             </tbody>
           </v-table>
-          <v-card-text v-if="activeBatches.length === 0" class="text-center py-8 text-grey">
+          <v-card-text v-if="dashboardBatches.length === 0" class="text-center py-8 text-grey">
             <v-icon icon="mdi-history" size="48" class="mb-2 opacity-20"></v-icon>
             <div>No running batches.</div>
           </v-card-text>
@@ -119,35 +131,6 @@
       </v-col>
     </v-row>
 
-    <v-row class="mt-4">
-      <!-- Alerts / Notifications -->
-      <v-col cols="12" md="6">
-        <v-card variant="outlined" class="rounded-lg">
-          <v-card-title class="px-6 py-4">Recent Alerts</v-card-title>
-          <v-divider></v-divider>
-          <v-list density="comfortable">
-            <v-list-item prepend-icon="mdi-water-alert" title="Low DO in Pond A1" subtitle="30 mins ago" color="error"></v-list-item>
-            <v-list-item prepend-icon="mdi-flask-empty-minus-outline" title="Feed stock running low" subtitle="2 hours ago" color="warning"></v-list-item>
-          </v-list>
-        </v-card>
-      </v-col>
-
-      <!-- Quick Stats / Forecast -->
-      <v-col cols="12" md="6">
-        <v-card variant="outlined" class="rounded-lg">
-          <v-card-title class="px-6 py-4">Harvest Forecast</v-card-title>
-          <v-divider></v-divider>
-          <v-card-text>
-              <div class="d-flex align-center justify-space-between mb-4">
-                  <span class="text-grey-darken-1">Next Expected Harvest:</span>
-                  <span class="font-weight-bold">{{ formatDate('2025-01-23') }}</span>
-              </div>
-              <v-progress-linear model-value="85" color="success" height="12" rounded></v-progress-linear>
-              <div class="text-caption mt-2 text-right">85% through the current cycle</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
 
     <!-- Pivot Tables -->
     <v-row class="mt-4">
@@ -198,32 +181,38 @@ const activePondsCount = computed(() => {
   return ponds.value?.filter((p: Pond) => p.status === 'Active').length || 0;
 });
 
-const activeBatches = computed(() => {
-  return batches.value?.filter((b: Batch) => b.status === 'Active') || [];
+const dashboardBatches = computed(() => {
+  return batches.value?.filter((b: Batch) => b.status === 'Active' || b.status === 'Completed') || [];
 });
 
-// Sort batches to show the ones coming up
-const activeBatchesWithHistory = computed(() => {
-    return [...activeBatches.value].sort((a, b) =>
-      new Date(a.stockingDate || '').getTime() - new Date(b.stockingDate || '').getTime()
-    );
+const sortedDashboardBatches = computed(() => {
+    return [...dashboardBatches.value].sort((a, b) => {
+      // Show active first
+      if (a.status !== b.status) return a.status === 'Active' ? -1 : 1;
+      // Then sort by stocking date (newest first)
+      return new Date(b.stockingDate || '').getTime() - new Date(a.stockingDate || '').getTime();
+    });
+});
+
+const activeBatches = computed(() => {
+  return batches.value?.filter((b: Batch) => b.status === 'Active') || [];
 });
 
 const feedToday = computed(() => {
   const today = new Date().toISOString().substr(0, 10);
   return feedLogs.value
-    ?.filter((l: FeedLog) => l.date === today)
+    ?.filter((l: FeedLog) => l.date === today && dashboardBatches.value.some(b => b.id === l.batchId && b.status === 'Active'))
     .reduce((sum: number, l: FeedLog) => sum + (l.amount || 0), 0) || 0;
 });
 
 const avgFCR = computed(() => {
-    const activeWithFCR = activeBatches.value
+    const batchesWithFCR = dashboardBatches.value
         .map(b => parseFloat(calculateBatchFCR(b)))
         .filter(fcr => !isNaN(fcr) && fcr > 0);
     
-    if (activeWithFCR.length === 0) return '-';
-    const sum = activeWithFCR.reduce((a, b) => a + b, 0);
-    return (sum / activeWithFCR.length).toFixed(2);
+    if (batchesWithFCR.length === 0) return '-';
+    const sum = batchesWithFCR.reduce((a, b) => a + b, 0);
+    return (sum / batchesWithFCR.length).toFixed(2);
 });
 
 function calculateBatchFCR(batch: Batch): string {
@@ -238,7 +227,7 @@ function calculateBatchFCR(batch: Batch): string {
         return sum + ((s.quantity || 0) * (s.sizeGrams || 0)) / 1000;
     }, 0) || 0;
 
-    // 2. Current Biomass Estimate
+    // 2. Current Biomass Estimate (or final weight if harvested)
     const currentBiomass = calculateBatchBiomass(batch);
 
     // 3. Weight Gained
@@ -250,6 +239,14 @@ function calculateBatchFCR(batch: Batch): string {
 }
 
 function calculateBatchBiomass(batch: Batch): number {
+    // If completed, use actual harvested actualWeight
+    if (batch.status === 'Completed') {
+        return harvestLogs.value
+          ?.filter(l => l.batchId === batch.id)
+          .reduce((sum, l) => sum + (l.actualWeight || l.biomassWeight || 0), 0) || 0;
+    }
+
+    // Otherwise, use estimation logic
     // 1. Base quantity from stocking
     const totalStocked = batch.fishSeeds?.reduce((sum, s) => sum + (s.quantity || 0), 0) || 0;
     if (totalStocked === 0) return 0;
@@ -302,11 +299,9 @@ function getBatchHarvestedQty(batch: Batch): number {
       .reduce((sum, l) => sum + (l.count || 0), 0) || 0;
 }
 
-function getBatchLoss(batch: Batch): number {
+function getBatchDiff(batch: Batch): number {
     const stocked = getBatchStockedQty(batch);
     const harvested = getBatchHarvestedQty(batch);
-    // Loss is difference but only if harvested has started or it's a closed batch.
-    // For simplicity as requested, show the difference.
     return Math.max(0, stocked - harvested);
 }
 
@@ -348,19 +343,9 @@ function getAgeColor(stockingDate?: string) {
     return 'indigo';
 }
 
-function getBatchStatusLabel(stockingDate?: string) {
-    if (!stockingDate) return 'Unknown';
-    const start = new Date(stockingDate).getTime();
-    const refDate = new Date(referenceDate.value).getTime();
-    if (start > refDate) return 'Scheduled';
-    return 'Running';
-}
-
-function getBatchStatusColor(stockingDate?: string) {
-    if (!stockingDate) return 'grey';
-    const start = new Date(stockingDate).getTime();
-    const refDate = new Date(referenceDate.value).getTime();
-    if (start > refDate) return 'info';
-    return 'success';
+function getBatchStatusColor(status?: string) {
+    if (status === 'Active') return 'success';
+    if (status === 'Completed') return 'info';
+    return 'grey';
 }
 </script>
