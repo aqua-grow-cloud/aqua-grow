@@ -43,6 +43,11 @@ public class FeedOrder {
     @Column(name = "received_date")
     private LocalDateTime receivedDate;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status", nullable = false)
+    @Builder.Default
+    private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
+
     @Column(length = 1000)
     private String notes;
 

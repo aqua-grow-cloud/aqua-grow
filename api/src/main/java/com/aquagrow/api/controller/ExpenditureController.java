@@ -1,5 +1,7 @@
 package com.aquagrow.api.controller;
 
+import java.util.Objects;
+
 import com.aquagrow.api.dto.CsvExpenditure;
 import com.aquagrow.api.model.Batch;
 import com.aquagrow.api.model.Expenditure;
@@ -67,7 +69,7 @@ public class ExpenditureController {
             }
 
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
-        }, pageable);
+        }, Objects.requireNonNull(pageable));
     }
 
     @GetMapping("/export")
@@ -81,7 +83,7 @@ public class ExpenditureController {
                 .map(e -> {
                     String batchName = "Unallocated";
                     if (e.getBatchId() != null) {
-                        batchName = batchRepository.findById(e.getBatchId())
+                        batchName = batchRepository.findById(Objects.requireNonNull(e.getBatchId()))
                                 .map(Batch::getName)
                                 .orElse("Unknown Batch");
                     }
@@ -138,7 +140,7 @@ public class ExpenditureController {
                     })
                     .collect(Collectors.toList());
 
-            return expenditureRepository.saveAll(expenditures);
+            return (List<Expenditure>) expenditureRepository.saveAll(expenditures);
         }
     }
 }

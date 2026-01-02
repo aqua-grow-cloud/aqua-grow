@@ -1,5 +1,7 @@
 package com.aquagrow.api.controller;
 
+import java.util.Objects;
+
 import com.aquagrow.api.dto.OrderMessageResponse;
 import com.aquagrow.api.model.FeedOrder;
 import com.aquagrow.api.model.FeedStock;
@@ -45,6 +47,7 @@ public class FeedOrderController {
         String tenantId = com.aquagrow.api.security.TenantContext.getTenantId();
         order.setTenantId(tenantId);
         order.setStatus(OrderStatus.PENDING);
+        order.setPaymentStatus(com.aquagrow.api.model.PaymentStatus.UNPAID);
         return feedOrderRepository.save(order);
     }
 
@@ -55,7 +58,7 @@ public class FeedOrderController {
             @RequestParam(required = false) String location) {
 
         return feedOrderRepository.findById(id)
-                .flatMap(order -> supplierRepository.findById(order.getSupplierId())
+                .flatMap(order -> supplierRepository.findById(Objects.requireNonNull(order.getSupplierId()))
                         .map(supplier -> {
                             String message = whatsAppMessageService.generateOrderMessage(
                                     order,
@@ -106,6 +109,18 @@ public class FeedOrderController {
                                 feedStockRepository.save(stock);
                             });
 
+                    return ResponseEntity.ok(feedOrderRepository.save(order));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/payment")
+    public ResponseEntity<FeedOrder> updatePaymentStatus(
+            @PathVariable String id,
+            @RequestParam com.aquagrow.api.model.PaymentStatus status) {
+        return feedOrderRepository.findById(id)
+                .map(order -> {
+                    order.setPaymentStatus(status);
                     return ResponseEntity.ok(feedOrderRepository.save(order));
                 })
                 .orElse(ResponseEntity.notFound().build());
