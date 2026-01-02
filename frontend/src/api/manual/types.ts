@@ -29,11 +29,18 @@ export enum OrderStatus {
     CANCELLED = 'CANCELLED'
 }
 
+export enum PaymentStatus {
+    UNPAID = 'UNPAID',
+    PAID = 'PAID',
+    PARTIAL = 'PARTIAL'
+}
+
 export interface FeedOrder {
     id?: string;
     feedType: string;
     quantity: number;
     status?: OrderStatus;
+    paymentStatus?: PaymentStatus;
     supplierId: string;
     orderDate?: string;
     confirmationDate?: string;

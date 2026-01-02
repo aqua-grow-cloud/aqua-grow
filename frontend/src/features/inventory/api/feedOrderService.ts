@@ -4,7 +4,8 @@ import {
     useGetOrderMessage,
     useConfirmOrder,
     useReceiveOrder,
-    useCancelOrder
+    useCancelOrder,
+    useUpdateOrderPaymentStatus
 } from '../../../api/manual/hooks';
 
 export const feedOrderService = {
@@ -14,4 +15,5 @@ export const feedOrderService = {
     useConfirm: useConfirmOrder,
     useReceive: useReceiveOrder,
     useCancel: useCancelOrder,
+    useUpdatePaymentStatus: useUpdateOrderPaymentStatus,
 };

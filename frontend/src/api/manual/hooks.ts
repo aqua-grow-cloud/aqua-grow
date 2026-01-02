@@ -213,6 +213,19 @@ export const useCancelOrder = () => {
     });
 };
 
+export const useUpdateOrderPaymentStatus = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (payload: { id: string; status: string }) => {
+            const { data } = await AXIOS_INSTANCE.put<FeedOrder>(`/api/feed-orders/${payload.id}/payment?status=${payload.status}`);
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['feed-orders'] });
+        }
+    });
+};
+
 // --- Batches ---
 
 export const useGetAllBatches = (params?: MaybeRef<GetAllBatchesParams>) => {

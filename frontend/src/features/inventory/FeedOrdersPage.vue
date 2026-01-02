@@ -2,9 +2,21 @@
   <v-container fluid>
     <PageHeader 
         title="Feed Orders" 
-        action-label="New Order" 
+        :action-label="store.isManager ? 'New Order' : undefined"
         @action="openCreateDialog" 
-    />
+    >
+        <template v-slot:actions v-if="store.isManager">
+            <v-btn
+                variant="outlined"
+                color="secondary"
+                prepend-icon="mdi-export"
+                class="mr-2"
+                @click="exportUnpaidSummary"
+            >
+                Send Unpaid Summary
+            </v-btn>
+        </template>
+    </PageHeader>
 
     <v-card variant="outlined" class="rounded-lg mt-4">
         <v-data-table
@@ -16,6 +28,14 @@
              <template v-slot:item.orderDate="{ item }">
                 {{ formatDate(item.orderDate) }}
             </template>
+
+             <template v-slot:item.confirmationDate="{ item }">
+                {{ formatDate(item.confirmationDate) }}
+            </template>
+
+             <template v-slot:item.receivedDate="{ item }">
+                {{ formatDate(item.receivedDate) }}
+            </template>
             
             <template v-slot:item.supplierId="{ item }">
                 {{ getSupplierName(item.supplierId) }}
@@ -25,6 +45,25 @@
                 <v-chip :color="getStatusColor(item.status)" size="small" label>
                     {{ item.status }}
                 </v-chip>
+            </template>
+
+            <template v-slot:item.paymentStatus="{ item }">
+                <v-select
+                    :model-value="item.paymentStatus"
+                    :items="['UNPAID', 'PAID', 'PARTIAL']"
+                    density="compact"
+                    variant="plain"
+                    hide-details
+                    class="payment-select"
+                    :color="getPaymentColor(item.paymentStatus)"
+                    @update:model-value="(val) => updatePaymentStatus(item, val)"
+                >
+                    <template v-slot:selection="{ item: selItem }">
+                         <span :class="`text-caption font-weight-bold text-${getPaymentColor(selItem.value)}`">
+                            {{ selItem.value }}
+                         </span>
+                    </template>
+                </v-select>
             </template>
 
             <template v-slot:item.actions="{ item }">
@@ -117,12 +156,17 @@ import { supplierService } from '../inventory/api/supplierService';
 import { feedStockService } from '../inventory/api/feedStockService';
 import type { FeedOrder, FeedStock, Supplier } from '../../api/manual/types';
 
+const store = useAquaStore();
+
 const headers = [
-  { title: 'Date', key: 'orderDate' },
+  { title: 'Order Date', key: 'orderDate' },
+  { title: 'Confirmed', key: 'confirmationDate' },
+  { title: 'Received', key: 'receivedDate' },
   { title: 'Feed Type', key: 'feedType' },
-  { title: 'Quantity (kg)', key: 'quantity' },
+  { title: 'kg', key: 'quantity' },
   { title: 'Supplier', key: 'supplierId' },
   { title: 'Status', key: 'status' },
+  { title: 'Payment', key: 'paymentStatus' },
   { title: 'Actions', key: 'actions', sortable: false },
 ];
 
@@ -135,6 +179,7 @@ const createMutation = feedOrderService.useCreate();
 const confirmMutation = feedOrderService.useConfirm();
 const receiveMutation = feedOrderService.useReceive();
 const cancelMutation = feedOrderService.useCancel();
+const updatePaymentMutation = feedOrderService.useUpdatePaymentStatus();
 
 const createDialog = ref(false);
 const messageDialog = ref(false);
@@ -162,6 +207,15 @@ function getStatusColor(status?: string) {
         case 'CONFIRMED': return 'info';
         case 'RECEIVED': return 'success';
         case 'CANCELLED': return 'error';
+        default: return 'grey';
+    }
+}
+
+function getPaymentColor(status?: string) {
+    switch (status) {
+        case 'UNPAID': return 'error';
+        case 'PAID': return 'success';
+        case 'PARTIAL': return 'warning';
         default: return 'grey';
     }
 }
@@ -217,5 +271,60 @@ async function cancelOrder(item: FeedOrder) {
     if (confirm('Are you sure you want to cancel this order?')) {
         await cancelMutation.mutateAsync(item.id);
     }
+}
+
+async function updatePaymentStatus(item: FeedOrder, status: string) {
+    if (!item.id) return;
+    await updatePaymentMutation.mutateAsync({ id: item.id, status });
+}
+
+function exportUnpaidSummary() {
+    if (!orders.value || !suppliers.value) return;
+
+    // Group unpaid orders by supplier
+    const unpaidBySupplier: Record<string, FeedOrder[]> = {};
+    orders.value
+        .filter(o => o.paymentStatus !== 'PAID' && o.status !== 'CANCELLED')
+        .forEach(o => {
+            const sId = o.supplierId;
+            if (sId) {
+                if (!unpaidBySupplier[sId]) unpaidBySupplier[sId] = [];
+                unpaidBySupplier[sId].push(o);
+            }
+        });
+
+    const supplierIds = Object.keys(unpaidBySupplier);
+    if (supplierIds.length === 0) {
+        alert('No unpaid orders found!');
+        return;
+    }
+
+    // Generate summary for each supplier and offer to send
+    supplierIds.forEach(sId => {
+        const sName = getSupplierName(sId);
+        const sOrders = unpaidBySupplier[sId];
+        if (!sOrders) return;
+
+        const supplier = suppliers.value?.find(s => s.id === sId);
+        const phone = supplier?.whatsappNumber || supplier?.phone;
+
+        if (!phone) {
+            console.warn(`No phone number for supplier ${sName}`);
+            return;
+        }
+        
+        let summary = `*Unpaid Orders Summary - ${sName}*\n\n`;
+        let totalKg = 0;
+        sOrders.forEach((o: FeedOrder) => {
+            summary += `- ${o.feedType}: ${o.quantity}kg (${formatDate(o.orderDate)})\n`;
+            totalKg += (o.quantity || 0);
+        });
+        summary += `\n*Total Pending:* ${totalKg}kg`;
+
+        if (confirm(`Send unpaid summary to ${sName} (${phone})?`)) {
+            const link = `https://web.whatsapp.com/send?phone=${phone.replace(/\+/g, '').replace(/\s/g, '')}&text=${encodeURIComponent(summary)}`;
+            window.open(link, '_blank');
+        }
+    });
 }
 </script>
