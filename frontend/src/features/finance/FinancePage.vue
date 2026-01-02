@@ -24,6 +24,10 @@
           <v-icon start icon="mdi-plus-circle-outline"></v-icon>
           Incomings (Payments)
         </v-tab>
+        <v-tab value="balance">
+          <v-icon start icon="mdi-scale-balance"></v-icon>
+          Balance Sheet
+        </v-tab>
       </v-tabs>
 
       <v-window v-model="tab">
@@ -183,6 +187,11 @@
             Net Position: <strong>₹{{ (grandTotalInc - grandTotalExp).toLocaleString() }}</strong>
           </v-alert>
         </v-window-item>
+
+        <!-- Balance Sheet Tab -->
+        <v-window-item value="balance">
+          <BalancePivotTable />
+        </v-window-item>
       </v-window>
     </template>
 
@@ -200,6 +209,7 @@ import { ref, computed, watch, reactive, useTemplateRef } from 'vue';
 import { useAquaStore } from '../../stores/useAquaStore';
 import PageHeader from '../../components/PageHeader.vue';
 import ExpenditureDialog from './components/ExpenditureDialog.vue';
+import BalancePivotTable from './components/BalancePivotTable.vue';
 import { expenditureService } from './api/expenditureService';
 import { useHarvestLogs } from '../harvesting/composables/useHarvestLogs';
 import { useBatches } from '../batches/composables/useBatches';
