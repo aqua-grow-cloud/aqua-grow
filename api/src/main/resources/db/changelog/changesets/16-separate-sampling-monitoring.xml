@@ -32,7 +32,7 @@
         <sql>
             INSERT INTO monitoring_logs (id, batch_id, date, do_level, ph, temperature, ammonia, salinity, turbidity, tenant_id)
             SELECT 
-                lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(6))),
+                gen_random_uuid()::text,
                 batch_id, date, do_level, ph_level, temperature, ammonia, salinity, turbidity, tenant_id
             FROM sample_logs
             WHERE do_level IS NOT NULL OR ph_level IS NOT NULL OR temperature IS NOT NULL OR ammonia IS NOT NULL OR salinity IS NOT NULL OR turbidity IS NOT NULL;
