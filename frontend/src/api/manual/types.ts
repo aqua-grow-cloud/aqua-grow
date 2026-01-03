@@ -57,6 +57,7 @@ export interface OrderMessageResponse {
 
 export interface FishSeed {
     id?: string;
+    pondId?: string;
     date: string;
     type: string;
     quantity: number;
@@ -64,6 +65,7 @@ export interface FishSeed {
     sizeGrams?: number;
     description?: string;
     batchId?: string;
+    status?: string;
 }
 
 export interface Batch {
@@ -74,5 +76,31 @@ export interface Batch {
     estimatedHarvestDate?: string;
     status: 'Active' | 'Harvested';
     fishSeeds?: FishSeed[];
+    tenantId?: string;
+}
+
+export interface MonitoringLog {
+    id?: string;
+    batchId: string;
+    date: string;
+    doLevel?: number;
+    ph?: number;
+    temperature?: number;
+    ammonia?: number;
+    salinity?: number;
+    turbidity?: number;
+    tenantId?: string;
+}
+
+export interface SampleLog {
+    id?: string;
+    batchId: string;
+    fishType?: string;
+    date: string;
+    sampleCount?: number;
+    totalSampleWeight?: number;
+    averageWeight?: number;
+    averageLength?: number;
+    survivalEstimate?: number;
     tenantId?: string;
 }

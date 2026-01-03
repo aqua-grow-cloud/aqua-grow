@@ -83,70 +83,8 @@
           </v-col>
         </v-row>
 
-        <v-divider class="mb-4"></v-divider>
-        <div class="text-subtitle-2 mb-2">Water Quality</div>
-
-        <v-row>
-          <v-col cols="6" sm="3">
-             <v-text-field
-              v-model.number="form.waterQuality.do"
-              label="DO (mg/L)"
-              type="number"
-              variant="outlined"
-              density="compact"
-            ></v-text-field>
-          </v-col>
-          <v-col cols="6" sm="3">
-             <v-text-field
-              v-model.number="form.waterQuality.ph"
-              label="pH"
-              type="number"
-              variant="outlined"
-              density="compact"
-            ></v-text-field>
-          </v-col>
-          <v-col cols="6" sm="3">
-             <v-text-field
-              v-model.number="form.waterQuality.temperature"
-              label="Temp (°C)"
-              type="number"
-              variant="outlined"
-              density="compact"
-            ></v-text-field>
-          </v-col>
-           <v-col cols="6" sm="3">
-             <v-text-field
-              v-model.number="form.waterQuality.ammonia"
-              label="Ammonia"
-              type="number"
-              variant="outlined"
-              density="compact"
-            ></v-text-field>
-          </v-col>
-          <v-col cols="6" sm="3">
-             <v-text-field
-              v-model.number="form.waterQuality.salinity"
-              label="Salinity (ppt)"
-              type="number"
-              variant="outlined"
-              density="compact"
-            ></v-text-field>
-          </v-col>
-           <v-col cols="6" sm="3">
-             <v-text-field
-              v-model.number="form.survivalEstimate"
-              label="Est. Survival (%)"
-              type="number"
-              variant="outlined"
-              density="compact"
-            ></v-text-field>
-          </v-col>
-        </v-row>
-
         <v-btn color="primary" type="submit" :disabled="!isValid" class="mt-2 text-capitalize">Log Sample</v-btn>
       </v-form>
-
-      <v-divider class="my-4"></v-divider>
 
       <v-divider class="my-4"></v-divider>
 
@@ -189,12 +127,12 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue';
 import {useQueryClient} from '@tanstack/vue-query';
-import {useAquaStore} from '../../../stores/useAquaStore';
+import {useAquaStore} from '@/stores/useAquaStore.ts';
 import {useBatches} from '../../batches/composables/useBatches';
 import {usePonds} from '../../ponds/composables/usePonds';
 import {sampleLogService} from '../api/sampleLogService';
-import type {Batch, SampleLog} from '../../../api/generated/model';
-import { useApiAction } from '../../../composables/useApiAction';
+import type {Batch, SampleLog} from '@/api/manual/types.ts';
+import { useApiAction } from '@/composables/useApiAction.ts';
 
 const store = useAquaStore();
 const queryClient = useQueryClient();
@@ -229,18 +167,10 @@ const defaultForm = {
   totalSampleWeight: 0,
   averageWeight: 0,
   averageLength: 0,
-  survivalEstimate: 100,
-  waterQuality: {
-    do: 0,
-    ph: 7.5,
-    temperature: 28,
-    ammonia: 0,
-    salinity: 0,
-    turbidity: 0
-  }
+  survivalEstimate: 100
 };
 
-const form = ref(JSON.parse(JSON.stringify(defaultForm))); // Deep copy for nested obj
+const form = ref({ ...defaultForm });
 
 // Auto-calculate ABW
 const calculatedABW = computed(() => {
@@ -265,7 +195,7 @@ const availableFishTypes = computed(() => {
     if (!form.value.batchId) return [];
     const batch = getBatchById(form.value.batchId);
     if (!batch?.fishSeeds) return [];
-    
+
     return [...new Set(batch.fishSeeds.map((s: any) => s.type))];
 });
 
@@ -273,11 +203,10 @@ const isValid = computed(() => form.value.batchId && form.value.fishType && form
 
 const recentLogs = computed(() => {
     const raw = sampleLogs.value;
-    // Handle Page response (content property) or legacy List response
-    const logs = (raw && 'content' in raw && Array.isArray((raw as any).content)) 
-        ? (raw as any).content 
+    const logs = (raw && 'content' in raw && Array.isArray((raw as any).content))
+        ? (raw as any).content
         : (Array.isArray(raw) ? raw : []);
-        
+
     return [...logs].sort((a: SampleLog, b: SampleLog) =>
       new Date(b.date || '').getTime() - new Date(a.date || '').getTime()
     ).slice(0, 5);
@@ -306,8 +235,7 @@ async function save() {
   await executeLogSample();
   if (!logError.value) {
       queryClient.invalidateQueries({ queryKey: ['api', 'sample-logs'] });
-      // Reset fields
-      form.value = JSON.parse(JSON.stringify(defaultForm));
+      form.value = { ...defaultForm };
   }
 }
 </script>

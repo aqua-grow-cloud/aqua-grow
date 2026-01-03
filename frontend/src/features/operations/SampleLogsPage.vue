@@ -68,29 +68,23 @@
         <template v-slot:item.date="{ item }">
           {{ formatDate(item.date) }}
         </template>
-        
+
         <template v-slot:item.batchName="{ item }">
            <div class="font-weight-medium">{{ getBatchName(item.batchId) }}</div>
         </template>
-        
+
         <template v-slot:item.pondName="{ item }">
            {{ getPondName(item.batchId) }}
         </template>
-        
+
         <template v-slot:item.sampleCount="{ item }">
            {{ item.sampleCount }} pcs
         </template>
-        
+
         <template v-slot:item.averageWeight="{ item }">
            {{ (item.averageWeight || 0).toFixed(2) }} g
         </template>
-        
-         <template v-slot:item.waterQuality="{ item }">
-           <div v-if="item.waterQuality" class="text-caption">
-             DO: {{ item.waterQuality.doLevel }} | pH: {{ item.waterQuality.ph }}
-           </div>
-           <span v-else>-</span>
-        </template>
+
 
       </v-data-table-server>
     </v-card>
@@ -103,11 +97,11 @@ import { useRouter } from 'vue-router';
 import { usePonds } from '../ponds/composables/usePonds';
 import { useBatches } from '../batches/composables/useBatches';
 import { sampleLogService } from './api/sampleLogService';
-import type { SampleLog } from '../../api/generated/model';
+import type { SampleLog } from '@/api/generated/model';
 
 const router = useRouter();
 const { ponds } = usePonds();
-const { batches, getBatchById } = useBatches(); 
+const { batches, getBatchById } = useBatches();
 
 const filters = ref({
   pondId: null,
@@ -129,7 +123,6 @@ const headers = [
   { title: 'Species', key: 'fishType', align: 'start' as const },
   { title: 'Sample Count', key: 'sampleCount', align: 'end' as const },
   { title: 'Avg Weight', key: 'averageWeight', align: 'end' as const },
-  { title: 'Water Quality', key: 'waterQuality', align: 'start' as const, sortable: false },
 ];
 
 const pondOptions = computed(() => ponds.value || []);
@@ -202,7 +195,7 @@ function getPondName(batchId?: string) {
     if (!batchId) return '-';
     const batch = getBatchById(batchId);
     if (!batch?.fishSeeds) return '-';
-    
+
     const pondNames = new Set<string>();
     batch.fishSeeds.forEach((s: any) => {
         if (s.pondId) {

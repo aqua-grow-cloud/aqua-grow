@@ -9,7 +9,8 @@
         align-tabs="start"
       >
         <v-tab value="feed">Feed Routine</v-tab>
-        <v-tab value="sampling">Sampling & Monitoring</v-tab>
+        <v-tab value="sampling">Sampling</v-tab>
+        <v-tab value="monitoring">Monitoring</v-tab>
       </v-tabs>
 
       <v-window v-model="tab">
@@ -24,6 +25,12 @@
              <SampleLogForm />
           </v-container>
         </v-window-item>
+
+        <v-window-item value="monitoring">
+          <v-container fluid>
+             <MonitoringLogForm />
+          </v-container>
+        </v-window-item>
       </v-window>
     </v-card>
   </v-container>
@@ -31,10 +38,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useAquaStore } from '../../stores/useAquaStore';
 import PageHeader from '../../components/PageHeader.vue';
 import FeedLogForm from './components/FeedLogForm.vue';
 import SampleLogForm from './components/SampleLogForm.vue';
+import MonitoringLogForm from './components/MonitoringLogForm.vue';
 
 const tab = ref('feed');
 </script>
