@@ -20,5 +20,6 @@
     <include file="db/changelog/changesets/13-move-status-to-fish-seed.xml"/>
     <include file="db/changelog/changesets/14-add-supplier-order-template.xml"/>
     <include file="db/changelog/changesets/15-add-payment-status-to-feed-order.xml"/>
+    <include file="db/changelog/changesets/16-separate-sampling-monitoring.xml"/>
 
 </databaseChangeLog>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="16-separate-sampling-monitoring" author="pan1mu20">
+        <!-- Create MonitoringLogs Table -->
+        <createTable tableName="monitoring_logs">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="batch_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="do_level" type="DOUBLE"/>
+            <column name="ph" type="DOUBLE"/>
+            <column name="temperature" type="DOUBLE"/>
+            <column name="ammonia" type="DOUBLE"/>
+            <column name="salinity" type="DOUBLE"/>
+            <column name="turbidity" type="DOUBLE"/>
+            <column name="tenant_id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Migrate data from sample_logs to monitoring_logs if any rows exist with water quality data -->
+        <sql>
+            INSERT INTO monitoring_logs (id, batch_id, date, do_level, ph, temperature, ammonia, salinity, turbidity, tenant_id)
+            SELECT 
+                lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(2))) || '-' || lower(hex(randomblob(6))),
+                batch_id, date, do_level, ph_level, temperature, ammonia, salinity, turbidity, tenant_id
+            FROM sample_logs
+            WHERE do_level IS NOT NULL OR ph_level IS NOT NULL OR temperature IS NOT NULL OR ammonia IS NOT NULL OR salinity IS NOT NULL OR turbidity IS NOT NULL;
+        </sql>
+
+        <!-- Drop columns from sample_logs -->
+        <dropColumn tableName="sample_logs" columnName="do_level"/>
+        <dropColumn tableName="sample_logs" columnName="ph_level"/>
+        <dropColumn tableName="sample_logs" columnName="temperature"/>
+        <dropColumn tableName="sample_logs" columnName="ammonia"/>
+        <dropColumn tableName="sample_logs" columnName="salinity"/>
+        <dropColumn tableName="sample_logs" columnName="turbidity"/>
+    </changeSet>
+
+</databaseChangeLog>

@@ -33,9 +33,6 @@ public class SampleLog {
     private Double averageLength;
     private Double survivalEstimate;
 
-    @Embedded
-    private WaterQuality waterQuality;
-
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 }
