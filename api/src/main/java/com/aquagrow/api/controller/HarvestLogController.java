@@ -9,6 +9,8 @@ import org.springframework.data.domain.Example;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/harvest-logs")
@@ -47,7 +49,6 @@ public class HarvestLogController {
                 // If generic final harvest, mark ALL seeds (legacy behavior or full harvest).
 
                 String targetType = log.getFishType();
-                boolean allClosed = true;
 
                 if (batch.getFishSeeds() != null) {
                     batch.getFishSeeds().forEach(seed -> {
@@ -57,31 +58,25 @@ public class HarvestLogController {
                         }
                     });
 
-                    // Check if *all* are now harvested to clear pond status
-                    // NOTE: getStatus() is calculated from seeds now.
-                    // We need to re-save to make the calculated status effectively "Completed" for
-                    // the batch
-                    // But we manually check ponds here
+                    // After updating statuses, let's check each pond involved in this batch
+                    Set<String> affectedPonds = batch.getFishSeeds().stream()
+                            .map(com.aquagrow.api.model.FishSeed::getPondId)
+                            .filter(java.util.Objects::nonNull)
+                            .collect(Collectors.toSet());
 
-                    // If ALL seeds for a specific pond are harvested, we can free that pond?
-                    // Or only free pond if ALL seeds in batch are done?
-                    // User said: "if all the FishSeeds are completed(harested) then the batch is
-                    // completed."
-                    // So we only clear currentBatchId from ponds when the ENTIRE batch is closed
-                    // (i.e. all seeds harvested).
+                    for (String pId : affectedPonds) {
+                        boolean pondStillHasActiveSeeds = batch.getFishSeeds().stream()
+                                .filter(s -> pId.equals(s.getPondId()))
+                                .anyMatch(s -> "Active".equalsIgnoreCase(s.getStatus()));
 
-                    if (batch.getFishSeeds().stream().allMatch(s -> "Harvested".equalsIgnoreCase(s.getStatus())
-                            || "Completed".equalsIgnoreCase(s.getStatus()))) {
-                        batch.getFishSeeds().forEach(seed -> {
-                            if (seed.getPondId() != null) {
-                                pondRepository.findById(seed.getPondId()).ifPresent(pond -> {
-                                    if (batch.getId().equals(pond.getCurrentBatchId())) {
-                                        pond.setCurrentBatchId(null);
-                                        pondRepository.save(pond);
-                                    }
-                                });
-                            }
-                        });
+                        if (!pondStillHasActiveSeeds) {
+                            pondRepository.findById(pId).ifPresent(p -> {
+                                if (batch.getId().equals(p.getCurrentBatchId())) {
+                                    p.setCurrentBatchId(null);
+                                    pondRepository.save(p);
+                                }
+                            });
+                        }
                     }
                 }
 
