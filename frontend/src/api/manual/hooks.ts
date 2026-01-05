@@ -290,3 +290,21 @@ export const useAddFishSeed = () => {
         }
     });
 };
+
+export const useMoveFishSeed = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (payload: { batchId: string; seedId: string; targetPondId: string; quantity?: number }) => {
+            const params = new URLSearchParams();
+            params.append('targetPondId', payload.targetPondId);
+            if (payload.quantity) params.append('quantity', payload.quantity.toString());
+
+            const { data } = await AXIOS_INSTANCE.post<Batch>(`/api/batches/${payload.batchId}/seeds/${payload.seedId}/move?${params.toString()}`);
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['batches'] });
+            queryClient.invalidateQueries({ queryKey: ['ponds'] });
+        }
+    });
+};

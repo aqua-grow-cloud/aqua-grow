@@ -20,6 +20,7 @@ export function useBatches(params?: MaybeRef<GetAllBatchesParams>) {
     const createBatch = batchService.useCreate();
     const updateBatch = batchService.useUpdate();
     const addSeedMutation = batchService.useAddSeed();
+    const moveSeedMutation = batchService.useMoveSeed();
 
     // Computed
     const activeBatches = computed(() =>
@@ -47,6 +48,12 @@ export function useBatches(params?: MaybeRef<GetAllBatchesParams>) {
         queryClient.invalidateQueries({ queryKey: ['api', 'batches'] });
     }
 
+    async function moveSeed(payload: { batchId: string; seedId: string; targetPondId: string; quantity?: number }) {
+        await moveSeedMutation.mutateAsync(payload);
+        queryClient.invalidateQueries({ queryKey: ['api', 'batches'] });
+        queryClient.invalidateQueries({ queryKey: ['api', 'ponds'] });
+    }
+
     function getBatchById(id?: string) {
         if (!id || !batches.value) return undefined;
         return batches.value.find((b: Batch) => b.id === id);
@@ -72,6 +79,7 @@ export function useBatches(params?: MaybeRef<GetAllBatchesParams>) {
         create,
         update,
         addSeed,
+        moveSeed,
         refetch,
         getBatchById,
 

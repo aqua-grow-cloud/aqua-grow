@@ -3,7 +3,8 @@ import {
     useCreateBatch,
     useUpdateBatch,
     useGetBatchesByPond,
-    useAddFishSeed
+    useAddFishSeed,
+    useMoveFishSeed
 } from '../../../api/manual/hooks';
 import type { Batch, FishSeed } from '../../../api/generated/model';
 
@@ -35,7 +36,12 @@ export const batchService = {
     /**
      * Add fish seed to batch hook
      */
-    useAddSeed: useAddFishSeed
+    useAddSeed: useAddFishSeed,
+
+    /**
+     * Move fish seed between ponds hook
+     */
+    useMoveSeed: useMoveFishSeed
 };
 
 export type {

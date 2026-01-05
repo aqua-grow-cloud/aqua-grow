@@ -111,6 +111,16 @@
             <template v-slot:item.date="{ item }">
               {{ new Date(item.date).toLocaleDateString() }}
             </template>
+            <template v-slot:item.actions="{ item }" v-if="store.isManager">
+              <v-btn
+                icon="mdi-truck-delivery"
+                size="small"
+                variant="text"
+                color="secondary"
+                @click="openMoveDialog(item)"
+                title="Move Fish"
+              ></v-btn>
+            </template>
           </v-data-table>
         </v-window-item>
       </v-window>
@@ -129,6 +139,14 @@
       :suppliers="suppliers || []"
       @save="handleAddSeed"
     />
+
+    <MoveFishSeedDialog
+      v-model="moveDialog"
+      :seed="selectedSeed"
+      :ponds="ponds || []"
+      :loading="isMoving"
+      @save="handleMoveSeed"
+    />
   </v-container>
 </template>
 
@@ -137,6 +155,7 @@ import { ref, computed } from 'vue';
 import { useAquaStore } from '../../stores/useAquaStore';
 import BatchManagementDialog from './components/BatchManagementDialog.vue';
 import FishSeedDialog from './components/FishSeedDialog.vue';
+import MoveFishSeedDialog from './components/MoveFishSeedDialog.vue';
 import PageHeader from '../../components/PageHeader.vue';
 import { useBatches } from './composables/useBatches';
 import { usePonds } from '../ponds/composables/usePonds';
@@ -147,13 +166,15 @@ const store = useAquaStore();
 const activeTab = ref('batches');
 const batchDialog = ref(false);
 const seedDialog = ref(false);
+const moveDialog = ref(false);
 const editedBatch = ref<ApiBatch | undefined>(undefined);
+const selectedSeed = ref<any | null>(null);
 const nameFilter = ref('');
 const pondFilter = ref<string | null>(null);
 const speciesFilter = ref<string | null>(null);
 
 // Use composables
-const { batches, create: createBatch, update: updateBatch, addSeed: addBatchSeed } = useBatches(computed(() => ({
+const { batches, create: createBatch, update: updateBatch, addSeed: addBatchSeed, moveSeed } = useBatches(computed(() => ({
     name: nameFilter.value || undefined,
     pondId: pondFilter.value || undefined,
     fishType: speciesFilter.value || undefined
@@ -178,6 +199,7 @@ const seedHeaders = [
   { title: 'Quantity', key: 'quantity' },
   { title: 'Size (inches)', key: 'sizeInches' },
   { title: 'Size (grams)', key: 'sizeGrams' },
+  { title: 'Actions', key: 'actions', sortable: false },
 ];
 
 const fishSeedList = computed(() => {
@@ -190,6 +212,8 @@ const fishSeedList = computed(() => {
             const pond = getPondById(seed.pondId || '');
             list.push({
                 id: seed.id,
+                batchId: batch.id,
+                pondId: seed.pondId,
                 date: seed.date || '',
                 batchName: batchDisplayName,
                 pondName: pond ? pond.name : 'Unknown',
@@ -264,5 +288,21 @@ async function saveBatch(batchData: Partial<ApiBatch>) {
 async function handleAddSeed(payload: { batchId: string; seed: ApiFishSeed }) {
     await addBatchSeed(payload.batchId, payload.seed);
     seedDialog.value = false;
+}
+
+const isMoving = ref(false);
+function openMoveDialog(seed: any) {
+    selectedSeed.value = seed;
+    moveDialog.value = true;
+}
+
+async function handleMoveSeed(payload: any) {
+    isMoving.value = true;
+    try {
+        await moveSeed(payload);
+        moveDialog.value = false;
+    } finally {
+        isMoving.value = false;
+    }
 }
 </script>
