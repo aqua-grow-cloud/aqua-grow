@@ -176,4 +176,63 @@ public class BatchController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PostMapping("/{id}/seeds/{seedId}/move")
+    public ResponseEntity<Batch> moveFishSeed(
+            @PathVariable String id,
+            @PathVariable String seedId,
+            @RequestParam String targetPondId,
+            @RequestParam(required = false) Integer quantity) {
+        return batchRepository.findById(id)
+                .map(batch -> {
+                    com.aquagrow.api.model.FishSeed sourceSeed = batch.getFishSeeds().stream()
+                            .filter(s -> s.getId() != null && s.getId().equals(seedId))
+                            .findFirst()
+                            .orElse(null);
+
+                    if (sourceSeed == null) {
+                        return ResponseEntity.notFound().<Batch>build();
+                    }
+
+                    int moveQty = (quantity != null) ? quantity : sourceSeed.getQuantity();
+
+                    if (moveQty > sourceSeed.getQuantity() || moveQty <= 0) {
+                        return ResponseEntity.badRequest().<Batch>build();
+                    }
+
+                    if (moveQty == sourceSeed.getQuantity()) {
+                        // Full move
+                        sourceSeed.setPondId(targetPondId);
+                    } else {
+                        // Partial move - split the seed
+                        sourceSeed.setQuantity(sourceSeed.getQuantity() - moveQty);
+
+                        com.aquagrow.api.model.FishSeed newSeed = com.aquagrow.api.model.FishSeed.builder()
+                                .pondId(targetPondId)
+                                .date(sourceSeed.getDate())
+                                .type(sourceSeed.getType())
+                                .quantity(moveQty)
+                                .sizeInches(sourceSeed.getSizeInches())
+                                .sizeGrams(sourceSeed.getSizeGrams())
+                                .unitPrice(sourceSeed.getUnitPrice())
+                                .vendor(sourceSeed.getVendor())
+                                .tenantId(sourceSeed.getTenantId())
+                                .status(sourceSeed.getStatus())
+                                .build();
+
+                        batch.getFishSeeds().add(newSeed);
+                    }
+
+                    Batch savedBatch = batchRepository.save(batch);
+
+                    // Update pond currentBatchId for target pond
+                    pondRepository.findById(targetPondId).ifPresent(pond -> {
+                        pond.setCurrentBatchId(savedBatch.getId());
+                        pondRepository.save(pond);
+                    });
+
+                    return ResponseEntity.ok(savedBatch);
+                })
+                .orElse(ResponseEntity.notFound().<Batch>build());
+    }
 }
