@@ -218,17 +218,18 @@
             <v-table density="compact" hover class="harvest-table">
             <thead>
               <tr class="bg-grey-lighten-3">
+                <th class="text-caption font-weight-bold">Date</th>
                 <th class="text-caption font-weight-bold">Batch</th>
                 <th class="text-caption font-weight-bold">Pond</th>
                 <th class="text-caption font-weight-bold">Fish Type</th>
                 <th class="text-caption font-weight-bold">Count</th>
                 <th class="text-caption font-weight-bold">Discount (5%)</th>
                 <th class="text-caption font-weight-bold">Tonne (KG)</th>
-                <th class="text-caption font-weight-bold">Actual</th>
+                <th class="text-caption font-weight-bold">Net Wt.</th>
                 <th class="text-caption font-weight-bold">Comm.</th>
                 <th class="text-caption font-weight-bold">Net Amount</th>
                 <th class="text-caption font-weight-bold">Rate</th>
-                <th class="text-caption font-weight-bold">Average</th>
+                <th class="text-caption font-weight-bold">Avg. Wt. (KG)</th>
               </tr>
             </thead>
             <tbody>

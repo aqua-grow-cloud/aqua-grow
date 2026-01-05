@@ -111,6 +111,16 @@
             <template v-slot:item.date="{ item }">
               {{ new Date(item.date).toLocaleDateString() }}
             </template>
+            <template v-slot:item.status="{ item }">
+              <v-chip
+                :color="item.status === 'Active' ? 'success' : 'grey'"
+                size="x-small"
+                variant="flat"
+                class="text-uppercase font-weight-bold"
+              >
+                {{ item.status }}
+              </v-chip>
+            </template>
             <template v-slot:item.actions="{ item }" v-if="store.isManager">
               <v-btn
                 icon="mdi-truck-delivery"
@@ -199,6 +209,7 @@ const seedHeaders = [
   { title: 'Quantity', key: 'quantity' },
   { title: 'Size (inches)', key: 'sizeInches' },
   { title: 'Size (grams)', key: 'sizeGrams' },
+  { title: 'Status', key: 'status' },
   { title: 'Actions', key: 'actions', sortable: false },
 ];
 
@@ -209,6 +220,10 @@ const fishSeedList = computed(() => {
 
     if (batch.fishSeeds && batch.fishSeeds.length > 0) {
         batch.fishSeeds.forEach((seed: ApiFishSeed) => {
+            // Client-side filtering to supplement server-side batch filtering
+            if (pondFilter.value && seed.pondId !== pondFilter.value) return;
+            if (speciesFilter.value && seed.type !== speciesFilter.value) return;
+
             const pond = getPondById(seed.pondId || '');
             list.push({
                 id: seed.id,
@@ -220,11 +235,12 @@ const fishSeedList = computed(() => {
                 type: seed.type || 'Unknown',
                 quantity: seed.quantity || 0,
                 sizeInches: seed.sizeInches || '-',
-                sizeGrams: seed.sizeGrams || '-'
+                sizeGrams: seed.sizeGrams || '-',
+                status: seed.status || 'Active'
             });
         });
-    } else {
-        // Fallback for batches without seeds
+    } else if (!pondFilter.value && !speciesFilter.value) {
+        // Fallback for batches without seeds - only if no specific filters are active
         list.push({
             id: batch.id,
             date: batch.stockingDate || '',
