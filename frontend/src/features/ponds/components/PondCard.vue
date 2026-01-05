@@ -94,7 +94,7 @@ const activeBatches = computed(() => {
   
   return props.batches.filter(batch => 
     batch.status === 'Active' && 
-    batch.fishSeeds?.some(seed => seed.pondId === props.pond.id)
+    batch.fishSeeds?.some(seed => seed.pondId === props.pond.id && seed.status === 'Active')
   );
 });
 
