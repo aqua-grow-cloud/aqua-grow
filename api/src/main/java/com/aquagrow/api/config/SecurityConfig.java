@@ -52,7 +52,7 @@ public class SecurityConfig {
             java.util.Collection<org.springframework.security.core.GrantedAuthority> authorities = defaultAuthoritiesConverter
                     .convert(jwt);
 
-            // Extract realm_access.roles
+            // 1. Extract realm_access.roles
             java.util.Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
             if (realmAccess != null && realmAccess.containsKey("roles")) {
                 @SuppressWarnings("unchecked")
@@ -61,6 +61,25 @@ public class SecurityConfig {
                         .map(role -> new org.springframework.security.core.authority.SimpleGrantedAuthority(
                                 "ROLE_" + role))
                         .toList());
+            }
+
+            // 2. Extract resource_access (Client Roles)
+            java.util.Map<String, Object> resourceAccess = jwt.getClaimAsMap("resource_access");
+            if (resourceAccess != null) {
+                resourceAccess.forEach((client, clientObject) -> {
+                    if (clientObject instanceof java.util.Map) {
+                        @SuppressWarnings("unchecked")
+                        java.util.Map<String, Object> clientMap = (java.util.Map<String, Object>) clientObject;
+                        if (clientMap.containsKey("roles")) {
+                            @SuppressWarnings("unchecked")
+                            java.util.List<String> roles = (java.util.List<String>) clientMap.get("roles");
+                            authorities.addAll(roles.stream()
+                                    .map(role -> new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                            "ROLE_" + role))
+                                    .toList());
+                        }
+                    }
+                });
             }
             return authorities;
         });
