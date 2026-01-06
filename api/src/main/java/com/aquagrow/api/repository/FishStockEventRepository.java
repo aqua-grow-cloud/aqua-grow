@@ -10,4 +10,6 @@ public interface FishStockEventRepository extends JpaRepository<FishStockEvent, 
     List<FishStockEvent> findByBatchId(String batchId);
 
     List<FishStockEvent> findByPondId(String pondId);
+
+    boolean existsByTypeAndReferenceId(com.aquagrow.api.model.FishStockEventType type, String referenceId);
 }
