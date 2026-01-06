@@ -90,11 +90,21 @@
             </template>
             <template v-slot:item.actions="{ item }">
               <v-btn
+                icon="mdi-eye"
+                size="small"
+                variant="text"
+                color="info"
+                class="mr-1"
+                @click="viewBatchDetails(item)"
+                title="View Details"
+              ></v-btn>
+              <v-btn
                 icon="mdi-pencil"
                 size="small"
                 variant="text"
                 color="primary"
                 @click="editBatch(item)"
+                title="Edit Batch"
               ></v-btn>
             </template>
           </v-data-table>
@@ -162,6 +172,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAquaStore } from '../../stores/useAquaStore';
 import BatchManagementDialog from './components/BatchManagementDialog.vue';
 import FishSeedDialog from './components/FishSeedDialog.vue';
@@ -172,6 +183,7 @@ import { usePonds } from '../ponds/composables/usePonds';
 import { useSuppliers } from '../inventory/composables/useSuppliers';
 import type { Batch as ApiBatch, FishSeed as ApiFishSeed } from '../../api/generated/model';
 
+const router = useRouter();
 const store = useAquaStore();
 const activeTab = ref('batches');
 const batchDialog = ref(false);
@@ -284,6 +296,12 @@ function getBatchPonds(batch: ApiBatch): string {
   const pondNames = pondIds.map(id => getPondById(id || '')?.name).filter(Boolean);
   
   return pondNames.join(', ') || 'Unknown';
+}
+
+function viewBatchDetails(batch: ApiBatch) {
+  if (batch.id) {
+    router.push(`/batches/${batch.id}`);
+  }
 }
 
 function editBatch(batch: ApiBatch) {

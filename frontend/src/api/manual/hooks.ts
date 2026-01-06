@@ -308,3 +308,29 @@ export const useMoveFishSeed = () => {
         }
     });
 };
+
+// --- Fish Stock Events ---
+
+export const useGetFishStockEventsByBatch = (batchId: string) => {
+    return useQuery({
+        queryKey: ['fish-stock-events', 'batch', batchId],
+        queryFn: async () => {
+            if (!batchId) return [];
+            const { data } = await AXIOS_INSTANCE.get<any[]>(`/api/fish-stock-events/batch/${batchId}`);
+            return data;
+        },
+        enabled: !!batchId
+    });
+};
+
+export const useGetFishStockEventsByPond = (pondId: string) => {
+    return useQuery({
+        queryKey: ['fish-stock-events', 'pond', pondId],
+        queryFn: async () => {
+            if (!pondId) return [];
+            const { data } = await AXIOS_INSTANCE.get<any[]>(`/api/fish-stock-events/pond/${pondId}`);
+            return data;
+        },
+        enabled: !!pondId
+    });
+};

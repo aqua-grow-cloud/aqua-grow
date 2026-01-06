@@ -19,6 +19,11 @@ const router = createRouter({
             component: () => import('../features/batches/BatchesPage.vue')
         },
         {
+            path: '/batches/:id',
+            name: 'batch-detail',
+            component: () => import('../features/batches/BatchDetailPage.vue')
+        },
+        {
             path: '/operations',
             name: 'operations',
             component: () => import('../features/operations/OperationsPage.vue')
