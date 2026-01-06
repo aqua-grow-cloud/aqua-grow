@@ -104,3 +104,24 @@ export interface SampleLog {
     survivalEstimate?: number;
     tenantId?: string;
 }
+export enum FishStockEventType {
+    SEED = 'SEED',
+    HARVEST = 'HARVEST',
+    MORTALITY = 'MORTALITY',
+    SAMPLING = 'SAMPLING',
+    TRANSFER_OUT = 'TRANSFER_OUT',
+    TRANSFER_IN = 'TRANSFER_IN'
+}
+
+export interface FishStockEvent {
+    id?: string;
+    pondId: string;
+    batchId: string;
+    date: string;
+    type: FishStockEventType;
+    fishType?: string;
+    quantityDelta: number;
+    avgWeightGram?: number;
+    referenceId?: string;
+    tenantId?: string;
+}
