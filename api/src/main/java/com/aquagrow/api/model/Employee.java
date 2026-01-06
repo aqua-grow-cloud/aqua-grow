@@ -28,4 +28,5 @@ public class Employee {
     private Double advanceTaken;
     private String status; // Active, Inactive
     private LocalDate joinedDate;
+    private String whatsappNumber;
 }

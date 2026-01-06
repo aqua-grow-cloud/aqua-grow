@@ -16,6 +16,7 @@ public class SampleLogController {
 
     private final BatchRepository batchRepository;
     private final SampleLogRepository sampleLogRepository;
+    private final com.aquagrow.api.repository.FishStockEventRepository fishStockEventRepository;
 
     @GetMapping
     public org.springframework.data.domain.Page<SampleLog> searchSampleLogs(
@@ -55,8 +56,35 @@ public class SampleLogController {
 
     @PostMapping
     public SampleLog logSample(@RequestBody SampleLog log) {
-        log.setTenantId(com.aquagrow.api.security.TenantContext.getTenantId());
-        return sampleLogRepository.save(log);
+        String tenantId = com.aquagrow.api.security.TenantContext.getTenantId();
+        log.setTenantId(tenantId);
+        SampleLog savedLog = sampleLogRepository.save(log);
+
+        // Try to find the pondId for this event.
+        // If the batch only has this fishType in one pond, we use that.
+        String resolvedPondId = batchRepository.findById(savedLog.getBatchId())
+                .map(batch -> batch.getFishSeeds().stream()
+                        .filter(s -> s.getType().equals(savedLog.getFishType()))
+                        .map(com.aquagrow.api.model.FishSeed::getPondId)
+                        .distinct()
+                        .toList())
+                .filter(list -> list.size() == 1)
+                .map(list -> list.get(0))
+                .orElse("N/A"); // Default to N/A or just don't set pondId if it spans multiple
+
+        fishStockEventRepository.save(com.aquagrow.api.model.FishStockEvent.builder()
+                .pondId(resolvedPondId)
+                .batchId(savedLog.getBatchId())
+                .date(savedLog.getDate())
+                .type(com.aquagrow.api.model.FishStockEventType.SAMPLING)
+                .fishType(savedLog.getFishType())
+                .quantityDelta(0) // Sampling usually doesn't change quantity
+                .avgWeightGram(savedLog.getAverageWeight())
+                .referenceId(savedLog.getId())
+                .tenantId(tenantId)
+                .build());
+
+        return savedLog;
     }
 
     @GetMapping("/batch/{batchId}")

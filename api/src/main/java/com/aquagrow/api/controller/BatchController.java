@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.persistence.criteria.Join;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,6 +20,7 @@ public class BatchController {
 
     private final BatchRepository batchRepository;
     private final com.aquagrow.api.repository.PondRepository pondRepository;
+    private final com.aquagrow.api.repository.FishStockEventRepository fishStockEventRepository;
 
     @GetMapping
     public List<Batch> getAllBatches(
@@ -51,15 +53,29 @@ public class BatchController {
 
     @PostMapping
     public Batch createBatch(@RequestBody Batch batch) {
-        // Tenant ID is set automatically by listeners or not needed on input if aspect
-        // handles view
-        // But for creation, we SHOULD set it.
-        // Actually, the Filter enforces VIEWING, but for CREATION we still need to set
-        // the tenantId.
-        // We can do this via an EntityListener or keep a small helper.
-        // For now, let's use TenantContext to set it.
-        batch.setTenantId(com.aquagrow.api.security.TenantContext.getTenantId());
+        String tenantId = com.aquagrow.api.security.TenantContext.getTenantId();
+        batch.setTenantId(tenantId);
+
         Batch savedBatch = batchRepository.save(batch);
+
+        // Log SEED events for each initial fish seed
+        if (savedBatch.getFishSeeds() != null) {
+            savedBatch.getFishSeeds().forEach(seed -> {
+                com.aquagrow.api.model.FishStockEvent event = com.aquagrow.api.model.FishStockEvent.builder()
+                        .pondId(seed.getPondId())
+                        .batchId(savedBatch.getId())
+                        .date(seed.getDate())
+                        .type(com.aquagrow.api.model.FishStockEventType.SEED)
+                        .fishType(seed.getType())
+                        .quantityDelta(seed.getQuantity())
+                        .avgWeightGram(seed.getSizeGrams())
+                        .referenceId(seed.getId())
+                        .tenantId(tenantId)
+                        .build();
+                fishStockEventRepository.save(event);
+            });
+        }
+
         // Update first pond's currentBatchId if seeds exist
         if (savedBatch.getFishSeeds() != null && !savedBatch.getFishSeeds().isEmpty()) {
             String pondId = savedBatch.getFishSeeds().get(0).getPondId();
@@ -121,10 +137,11 @@ public class BatchController {
             @RequestBody com.aquagrow.api.model.FishSeed seed) {
         return batchRepository.findById(id)
                 .map(batch -> {
+                    String tenantId = batch.getTenantId();
                     // Ensure the seed is treated as new
                     seed.setId(null);
                     // Inherit tenantId from Batch
-                    seed.setTenantId(batch.getTenantId());
+                    seed.setTenantId(tenantId);
                     seed.setStatus("Active"); // Default to Active
 
                     // Ensure the collection is initialized
@@ -133,6 +150,27 @@ public class BatchController {
                     }
                     batch.getFishSeeds().add(seed);
                     Batch savedBatch = batchRepository.save(batch);
+
+                    // Find the saved seed (to get its generated ID)
+                    com.aquagrow.api.model.FishSeed savedSeed = savedBatch.getFishSeeds().stream()
+                            .filter(s -> s.getType().equals(seed.getType())
+                                    && s.getQuantity().equals(seed.getQuantity()))
+                            .findFirst()
+                            .orElse(seed);
+
+                    // Create FishStockEvent for the new seed
+                    fishStockEventRepository.save(com.aquagrow.api.model.FishStockEvent.builder()
+                            .pondId(seed.getPondId())
+                            .batchId(savedBatch.getId())
+                            .date(seed.getDate())
+                            .type(com.aquagrow.api.model.FishStockEventType.SEED)
+                            .fishType(seed.getType())
+                            .quantityDelta(seed.getQuantity())
+                            .avgWeightGram(seed.getSizeGrams())
+                            .referenceId(savedSeed.getId())
+                            .tenantId(tenantId)
+                            .build());
+
                     // Update pond currentBatchId
                     if (seed.getPondId() != null) {
                         pondRepository.findById(seed.getPondId()).ifPresent(pond -> {
@@ -200,6 +238,9 @@ public class BatchController {
                         return ResponseEntity.badRequest().<Batch>build();
                     }
 
+                    String tenantId = com.aquagrow.api.security.TenantContext.getTenantId();
+                    String originalPondId = sourceSeed.getPondId();
+
                     if (moveQty == sourceSeed.getQuantity()) {
                         // Full move
                         sourceSeed.setPondId(targetPondId);
@@ -216,7 +257,7 @@ public class BatchController {
                                 .sizeGrams(sourceSeed.getSizeGrams())
                                 .unitPrice(sourceSeed.getUnitPrice())
                                 .vendor(sourceSeed.getVendor())
-                                .tenantId(sourceSeed.getTenantId())
+                                .tenantId(tenantId)
                                 .status(sourceSeed.getStatus())
                                 .build();
 
@@ -224,6 +265,33 @@ public class BatchController {
                     }
 
                     Batch savedBatch = batchRepository.save(batch);
+
+                    // Create TRANSFER events
+                    // 1. Out of source pond
+                    fishStockEventRepository.save(com.aquagrow.api.model.FishStockEvent.builder()
+                            .pondId(originalPondId)
+                            .batchId(savedBatch.getId())
+                            .date(LocalDate.now()) // Transfer happens now
+                            .type(com.aquagrow.api.model.FishStockEventType.TRANSFER_OUT)
+                            .fishType(sourceSeed.getType())
+                            .quantityDelta(-moveQty)
+                            .avgWeightGram(sourceSeed.getSizeGrams())
+                            .referenceId(seedId)
+                            .tenantId(tenantId)
+                            .build());
+
+                    // 2. Into target pond
+                    fishStockEventRepository.save(com.aquagrow.api.model.FishStockEvent.builder()
+                            .pondId(targetPondId)
+                            .batchId(savedBatch.getId())
+                            .date(LocalDate.now())
+                            .type(com.aquagrow.api.model.FishStockEventType.TRANSFER_IN)
+                            .fishType(sourceSeed.getType())
+                            .quantityDelta(moveQty)
+                            .avgWeightGram(sourceSeed.getSizeGrams())
+                            .referenceId(seedId)
+                            .tenantId(tenantId)
+                            .build());
 
                     // Update pond currentBatchId for target pond
                     pondRepository.findById(targetPondId).ifPresent(pond -> {

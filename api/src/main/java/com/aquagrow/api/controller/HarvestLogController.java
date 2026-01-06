@@ -21,6 +21,7 @@ public class HarvestLogController {
     private final HarvestLogRepository harvestLogRepository;
     private final BatchRepository batchRepository;
     private final PondRepository pondRepository;
+    private final com.aquagrow.api.repository.FishStockEventRepository fishStockEventRepository;
 
     @GetMapping
     public List<HarvestLog> getAllHarvestLogs(
@@ -39,6 +40,21 @@ public class HarvestLogController {
     public HarvestLog recordHarvest(@RequestBody HarvestLog log) {
         log.setTenantId(com.aquagrow.api.security.TenantContext.getTenantId());
         HarvestLog savedLog = harvestLogRepository.save(log);
+
+        // Create FishStockEvent for harvest (negative delta)
+        if (savedLog.getCount() != null && savedLog.getCount() > 0) {
+            fishStockEventRepository.save(com.aquagrow.api.model.FishStockEvent.builder()
+                    .pondId(savedLog.getPondId())
+                    .batchId(savedLog.getBatchId())
+                    .date(savedLog.getDate())
+                    .type(com.aquagrow.api.model.FishStockEventType.HARVEST)
+                    .fishType(savedLog.getFishType())
+                    .quantityDelta(-savedLog.getCount())
+                    .avgWeightGram(savedLog.getAvgWeightGrams())
+                    .referenceId(savedLog.getId())
+                    .tenantId(savedLog.getTenantId())
+                    .build());
+        }
 
         // Handle batch closure if final harvest
         // Handle batch closure if final harvest
