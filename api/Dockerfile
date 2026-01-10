@@ -13,7 +13,7 @@ RUN gradle dependencies --no-daemon
 
 # Copy source code and build the application
 COPY src src
-RUN gradle bootJar --no-daemon
+RUN gradle assemble --no-daemon
 
 # Run stage
 FROM amazoncorretto:21-alpine

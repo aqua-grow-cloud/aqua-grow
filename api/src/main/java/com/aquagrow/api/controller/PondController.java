@@ -44,6 +44,8 @@ public class PondController {
                     pond.setType(pondDetails.getType());
                     pond.setStatus(pondDetails.getStatus());
                     pond.setCurrentBatchId(pondDetails.getCurrentBatchId());
+                    pond.setLatitude(pondDetails.getLatitude());
+                    pond.setLongitude(pondDetails.getLongitude());
                     return ResponseEntity.ok(pondRepository.save(pond));
                 })
                 .orElse(ResponseEntity.notFound().build());
