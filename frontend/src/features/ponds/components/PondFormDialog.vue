@@ -53,6 +53,24 @@
                 density="compact"
               ></v-text-field>
             </v-col>
+            <v-col cols="12" sm="6">
+              <v-text-field
+                v-model.number="form.latitude"
+                label="Latitude"
+                type="number"
+                variant="outlined"
+                density="compact"
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="6">
+              <v-text-field
+                v-model.number="form.longitude"
+                label="Longitude"
+                type="number"
+                variant="outlined"
+                density="compact"
+              ></v-text-field>
+            </v-col>
           </v-row>
         </v-container>
       </v-card-text>
@@ -72,7 +90,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import type { Pond } from '../../../api/generated/model';
+import type { Pond } from '../../../types';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -92,6 +110,8 @@ const defaultForm: Pond = {
   status: 'Inactive',
   area: 0,
   depth: 0,
+  latitude: 0,
+  longitude: 0,
 };
 
 const form = ref({ ...defaultForm });

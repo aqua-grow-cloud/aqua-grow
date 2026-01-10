@@ -58,7 +58,7 @@ import { useAquaStore } from '../../stores/useAquaStore';
 import { usePonds } from './composables/usePonds';
 import { useBatches } from '../batches/composables/useBatches';
 import type { FishSeed } from '../../api/generated/model';
-import type { Pond } from '../../api/generated/model';
+import type { Pond } from '../../types';
 import PondCard from './components/PondCard.vue';
 import PondFormDialog from './components/PondFormDialog.vue';
 import BatchFormDialog from '../batches/components/BatchFormDialog.vue';

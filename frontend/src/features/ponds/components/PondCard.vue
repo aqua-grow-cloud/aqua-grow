@@ -35,6 +35,18 @@
       <div v-else class="text-caption text-grey mt-2">
         No active batches
       </div>
+      
+      <!-- Map Integration -->
+      <div v-if="pond.latitude && pond.longitude" class="mt-4 rounded-lg overflow-hidden border">
+        <iframe
+          width="100%"
+          height="150"
+          frameborder="0"
+          style="border:0"
+          :src="`https://maps.google.com/maps?q=${pond.latitude},${pond.longitude}&z=14&output=embed`"
+          allowfullscreen
+        ></iframe>
+      </div>
     </v-card-text>
 
     <v-divider></v-divider>
@@ -64,7 +76,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import type { Pond, Batch } from '../../../api/generated/model';
+import type { Batch } from '../../../api/generated/model';
+import type { Pond } from '../../../types';
 
 const props = defineProps<{
   pond: Pond;

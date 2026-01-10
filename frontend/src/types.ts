@@ -2,13 +2,15 @@ export type PondType = 'Earthen' | 'Lined' | 'Tank' | 'Biofloc';
 export type PondStatus = 'Active' | 'Inactive' | 'Maintenance';
 
 export interface Pond {
-    id: string;
-    name: string;
-    area: number; // in square meters
-    depth: number; // in meters
-    type: PondType;
-    status: PondStatus;
+    id?: string;
+    name?: string;
+    area?: number; // in square meters
+    depth?: number; // in meters
+    type?: PondType | string;
+    status?: PondStatus | string;
     currentBatchId?: string | null;
+    latitude?: number;
+    longitude?: number;
 }
 
 export type BatchStatus = 'Active' | 'Harvested' | 'Cancelled';
