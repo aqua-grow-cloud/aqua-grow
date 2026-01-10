@@ -32,4 +32,6 @@ public class Pond {
     private String status; // Active, Maintenance, Inactive
 
     private String currentBatchId;
+    private Double latitude;
+    private Double longitude;
 }

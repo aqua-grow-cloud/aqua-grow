@@ -13,15 +13,15 @@ RUN gradle dependencies --no-daemon
 
 # Copy source code and build the application
 COPY src src
-RUN gradle assemble --no-daemon
+RUN gradle bootJar --no-daemon
 
 # Run stage
-FROM amazoncorretto:21-alpine-jdk
+FROM amazoncorretto:21-alpine
 WORKDIR /app
 RUN mkdir logs
 
 # Copy the jar from the build stage
-COPY --from=build /app/build/libs/aqua-grow-api-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build /app/build/libs/*.jar app.jar
 
 # Expose the application port
 EXPOSE 8080
