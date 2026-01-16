@@ -32,7 +32,7 @@ public class FishStockEvent {
     @Column(nullable = false)
     private FishStockEventType type;
 
-    private String fishType;
+    private String fishTypeId;
 
     @Column(nullable = false)
     private Integer quantityDelta;

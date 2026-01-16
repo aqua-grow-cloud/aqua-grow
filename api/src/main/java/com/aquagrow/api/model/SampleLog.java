@@ -22,7 +22,7 @@ public class SampleLog {
     @Column(nullable = false)
     private String batchId;
 
-    private String fishType;
+    private String fishTypeId;
 
     @Column(nullable = false)
     private LocalDate date;

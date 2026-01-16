@@ -26,11 +26,11 @@ public class HarvestLogController {
     @GetMapping
     public List<HarvestLog> getAllHarvestLogs(
             @RequestParam(required = false) String batchId,
-            @RequestParam(required = false) String fishType,
+            @RequestParam(required = false) String fishTypeId,
             @RequestParam(required = false) String pondId) {
         HarvestLog probe = HarvestLog.builder()
                 .batchId(batchId)
-                .fishType(fishType)
+                .fishTypeId(fishTypeId)
                 .pondId(pondId)
                 .build();
         return harvestLogRepository.findAll(Example.of(probe));
@@ -48,7 +48,7 @@ public class HarvestLogController {
                     .batchId(savedLog.getBatchId())
                     .date(savedLog.getDate())
                     .type(com.aquagrow.api.model.FishStockEventType.HARVEST)
-                    .fishType(savedLog.getFishType())
+                    .fishTypeId(savedLog.getFishTypeId())
                     .quantityDelta(-savedLog.getCount())
                     .avgWeightGram(savedLog.getAvgWeightGrams())
                     .referenceId(savedLog.getId())
@@ -64,11 +64,11 @@ public class HarvestLogController {
                 // If log has a fishType, mark seeds of that type.
                 // If generic final harvest, mark ALL seeds (legacy behavior or full harvest).
 
-                String targetType = log.getFishType();
+                String targetTypeId = log.getFishTypeId();
 
                 if (batch.getFishSeeds() != null) {
                     batch.getFishSeeds().forEach(seed -> {
-                        boolean match = targetType == null || targetType.equalsIgnoreCase(seed.getType());
+                        boolean match = targetTypeId == null || targetTypeId.equalsIgnoreCase(seed.getFishTypeId());
                         if (match) {
                             seed.setStatus("Harvested");
                         }

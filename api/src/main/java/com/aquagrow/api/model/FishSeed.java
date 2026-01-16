@@ -22,7 +22,7 @@ public class FishSeed {
     private String pondId;
 
     private LocalDate date;
-    private String type;
+    private String fishTypeId;
     private Integer quantity;
     private Double sizeInches;
     private Double sizeGrams;

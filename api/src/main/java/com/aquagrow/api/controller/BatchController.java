@@ -26,7 +26,7 @@ public class BatchController {
     public List<Batch> getAllBatches(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String pondId,
-            @RequestParam(required = false) String fishType) {
+            @RequestParam(required = false) String fishTypeId) {
 
         return batchRepository.findAll((Specification<Batch>) (root, query, criteriaBuilder) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
@@ -41,12 +41,14 @@ public class BatchController {
                 predicates.add(criteriaBuilder.equal(seeds.get("pondId"), pondId));
             }
 
-            if (fishType != null && !fishType.isEmpty()) {
+            if (fishTypeId != null && !fishTypeId.isEmpty()) {
                 Join<Object, Object> seeds = root.join("fishSeeds");
-                predicates.add(criteriaBuilder.equal(seeds.get("type"), fishType));
+                predicates.add(criteriaBuilder.equal(seeds.get("fishTypeId"), fishTypeId));
             }
 
-            query.distinct(true);
+            if (query != null) {
+                query.distinct(true);
+            }
             return criteriaBuilder.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
         });
     }
@@ -66,7 +68,7 @@ public class BatchController {
                         .batchId(savedBatch.getId())
                         .date(seed.getDate())
                         .type(com.aquagrow.api.model.FishStockEventType.SEED)
-                        .fishType(seed.getType())
+                        .fishTypeId(seed.getFishTypeId())
                         .quantityDelta(seed.getQuantity())
                         .avgWeightGram(seed.getSizeGrams())
                         .referenceId(seed.getId())
@@ -153,7 +155,7 @@ public class BatchController {
 
                     // Find the saved seed (to get its generated ID)
                     com.aquagrow.api.model.FishSeed savedSeed = savedBatch.getFishSeeds().stream()
-                            .filter(s -> s.getType().equals(seed.getType())
+                            .filter(s -> s.getFishTypeId().equals(seed.getFishTypeId())
                                     && s.getQuantity().equals(seed.getQuantity()))
                             .findFirst()
                             .orElse(seed);
@@ -164,7 +166,7 @@ public class BatchController {
                             .batchId(savedBatch.getId())
                             .date(seed.getDate())
                             .type(com.aquagrow.api.model.FishStockEventType.SEED)
-                            .fishType(seed.getType())
+                            .fishTypeId(seed.getFishTypeId())
                             .quantityDelta(seed.getQuantity())
                             .avgWeightGram(seed.getSizeGrams())
                             .referenceId(savedSeed.getId())
@@ -251,7 +253,7 @@ public class BatchController {
                         com.aquagrow.api.model.FishSeed newSeed = com.aquagrow.api.model.FishSeed.builder()
                                 .pondId(targetPondId)
                                 .date(sourceSeed.getDate())
-                                .type(sourceSeed.getType())
+                                .fishTypeId(sourceSeed.getFishTypeId())
                                 .quantity(moveQty)
                                 .sizeInches(sourceSeed.getSizeInches())
                                 .sizeGrams(sourceSeed.getSizeGrams())
@@ -273,7 +275,7 @@ public class BatchController {
                             .batchId(savedBatch.getId())
                             .date(LocalDate.now()) // Transfer happens now
                             .type(com.aquagrow.api.model.FishStockEventType.TRANSFER_OUT)
-                            .fishType(sourceSeed.getType())
+                            .fishTypeId(sourceSeed.getFishTypeId())
                             .quantityDelta(-moveQty)
                             .avgWeightGram(sourceSeed.getSizeGrams())
                             .referenceId(seedId)
@@ -286,7 +288,7 @@ public class BatchController {
                             .batchId(savedBatch.getId())
                             .date(LocalDate.now())
                             .type(com.aquagrow.api.model.FishStockEventType.TRANSFER_IN)
-                            .fishType(sourceSeed.getType())
+                            .fishTypeId(sourceSeed.getFishTypeId())
                             .quantityDelta(moveQty)
                             .avgWeightGram(sourceSeed.getSizeGrams())
                             .referenceId(seedId)

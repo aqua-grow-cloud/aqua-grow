@@ -23,5 +23,7 @@
     <include file="db/changelog/changesets/16-separate-sampling-monitoring.xml"/>
     <include file="db/changelog/changesets/17-add-fish-stock-events-and-whatsapp.xml"/>
     <include file="db/changelog/changesets/18-add-coordinates-to-ponds.xml"/>
+    <include file="db/changelog/changesets/19-create-fish-types-table.xml"/>
+    <include file="db/changelog/changesets/20-migrate-fish-types-data.xml"/>
 
 </databaseChangeLog>

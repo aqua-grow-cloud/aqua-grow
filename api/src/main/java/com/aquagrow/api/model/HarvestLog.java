@@ -21,7 +21,7 @@ public class HarvestLog {
 
     private String batchId;
     private String pondId;
-    private String fishType;
+    private String fishTypeId;
     private LocalDate date;
     private Double biomassWeight;
     private Integer count;

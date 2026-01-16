@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+
+    <changeSet id="20-migrate-fish-types-data" author="antigravity">
+        <!-- 1. Add fish_type_id column to existing tables -->
+        <addColumn tableName="harvest_logs">
+            <column name="fish_type_id" type="VARCHAR(36)"/>
+        </addColumn>
+        <addColumn tableName="sample_logs">
+            <column name="fish_type_id" type="VARCHAR(36)"/>
+        </addColumn>
+        <addColumn tableName="fish_seeds">
+            <column name="fish_type_id" type="VARCHAR(36)"/>
+        </addColumn>
+        <addColumn tableName="fish_stock_events">
+            <column name="fish_type_id" type="VARCHAR(36)"/>
+        </addColumn>
+
+        <!-- 2. Populate fish_types table from existing distinct strings -->
+        <!-- Note: This uses a Liquibase extension or plain SQL depending on DB support, 
+             here we use SQL for broader compatibility and UUID generation -->
+        <sql>
+            INSERT INTO fish_types (id, name, tenant_id)
+            SELECT DISTINCT gen_random_uuid(), fish_type, tenant_id FROM harvest_logs WHERE fish_type IS NOT NULL
+            UNION
+            SELECT DISTINCT gen_random_uuid(), fish_type, tenant_id FROM sample_logs WHERE fish_type IS NOT NULL
+            UNION
+            SELECT DISTINCT gen_random_uuid(), type, tenant_id FROM fish_seeds WHERE type IS NOT NULL
+            UNION
+            SELECT DISTINCT gen_random_uuid(), fish_type, tenant_id FROM fish_stock_events WHERE fish_type IS NOT NULL;
+        </sql>
+
+        <!-- 3. Update existing records with the new IDs -->
+        <sql>
+            UPDATE harvest_logs h SET fish_type_id = (SELECT id FROM fish_types f WHERE f.name = h.fish_type AND f.tenant_id = h.tenant_id);
+            UPDATE sample_logs s SET fish_type_id = (SELECT id FROM fish_types f WHERE f.name = s.fish_type AND f.tenant_id = s.tenant_id);
+            UPDATE fish_seeds f SET fish_type_id = (SELECT id FROM fish_types ft WHERE ft.name = f.type AND ft.tenant_id = f.tenant_id);
+            UPDATE fish_stock_events f SET fish_type_id = (SELECT id FROM fish_types ft WHERE ft.name = f.fish_type AND ft.tenant_id = f.tenant_id);
+        </sql>
+
+        <!-- 4. Cleanup will be done in a separate changeset after model updates -->
+    </changeSet>
+
+</databaseChangeLog>

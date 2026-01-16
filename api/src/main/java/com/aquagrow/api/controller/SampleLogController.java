@@ -22,7 +22,7 @@ public class SampleLogController {
     public org.springframework.data.domain.Page<SampleLog> searchSampleLogs(
             @RequestParam(required = false) String batchId,
             @RequestParam(required = false) String pondId,
-            @RequestParam(required = false) String fishType,
+            @RequestParam(required = false) String fishTypeId,
             org.springframework.data.domain.Pageable pageable) {
 
         return sampleLogRepository
@@ -33,8 +33,8 @@ public class SampleLogController {
                         predicates.add(cb.equal(root.get("batchId"), batchId));
                     }
 
-                    if (fishType != null && !fishType.isEmpty()) {
-                        predicates.add(cb.equal(root.get("fishType"), fishType));
+                    if (fishTypeId != null && !fishTypeId.isEmpty()) {
+                        predicates.add(cb.equal(root.get("fishTypeId"), fishTypeId));
                     }
 
                     if (pondId != null && !pondId.isEmpty()) {
@@ -64,7 +64,7 @@ public class SampleLogController {
         // If the batch only has this fishType in one pond, we use that.
         String resolvedPondId = batchRepository.findById(savedLog.getBatchId())
                 .map(batch -> batch.getFishSeeds().stream()
-                        .filter(s -> s.getType().equals(savedLog.getFishType()))
+                        .filter(s -> s.getFishTypeId().equals(savedLog.getFishTypeId()))
                         .map(com.aquagrow.api.model.FishSeed::getPondId)
                         .distinct()
                         .toList())
@@ -77,7 +77,7 @@ public class SampleLogController {
                 .batchId(savedLog.getBatchId())
                 .date(savedLog.getDate())
                 .type(com.aquagrow.api.model.FishStockEventType.SAMPLING)
-                .fishType(savedLog.getFishType())
+                .fishTypeId(savedLog.getFishTypeId())
                 .quantityDelta(0) // Sampling usually doesn't change quantity
                 .avgWeightGram(savedLog.getAverageWeight())
                 .referenceId(savedLog.getId())
