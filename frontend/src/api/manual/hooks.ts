@@ -334,3 +334,60 @@ export const useGetFishStockEventsByPond = (pondId: string) => {
         enabled: !!pondId
     });
 };
+
+// --- Fish Types ---
+
+export interface FishType {
+    id?: string;
+    name: string;
+    scientificName?: string;
+    tenantId?: string;
+}
+
+export const useGetAllFishTypes = () => {
+    return useQuery({
+        queryKey: ['fish-types'],
+        queryFn: async () => {
+            const { data } = await AXIOS_INSTANCE.get<FishType[]>('/api/fish-types');
+            return data;
+        }
+    });
+};
+
+export const useCreateFishType = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (fishType: FishType) => {
+            const { data } = await AXIOS_INSTANCE.post<FishType>('/api/fish-types', fishType);
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['fish-types'] });
+        }
+    });
+};
+
+export const useUpdateFishType = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (payload: { id: string; data: FishType }) => {
+            const { data } = await AXIOS_INSTANCE.put<FishType>(`/api/fish-types/${payload.id}`, payload.data);
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['fish-types'] });
+        }
+    });
+};
+
+export const useDeleteFishType = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: string) => {
+            await AXIOS_INSTANCE.delete(`/api/fish-types/${id}`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['fish-types'] });
+        }
+    });
+};

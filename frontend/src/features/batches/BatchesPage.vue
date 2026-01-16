@@ -52,8 +52,8 @@
           </v-col>
           <v-col cols="12" sm="4" v-if="activeTab === 'seeds'">
             <v-select
-              v-model="speciesFilter"
-              :items="speciesFilterItems"
+              v-model="fishTypeIdFilter"
+              :items="fishTypeFilterItems"
               label="Filter by Species"
               variant="outlined"
               density="compact"
@@ -181,6 +181,7 @@ import PageHeader from '../../components/PageHeader.vue';
 import { useBatches } from './composables/useBatches';
 import { usePonds } from '../ponds/composables/usePonds';
 import { useSuppliers } from '../inventory/composables/useSuppliers';
+import { fishTypeService } from '../settings/api/fishTypeService';
 import type { Batch as ApiBatch, FishSeed as ApiFishSeed } from '../../api/generated/model';
 
 const router = useRouter();
@@ -193,16 +194,17 @@ const editedBatch = ref<ApiBatch | undefined>(undefined);
 const selectedSeed = ref<any | null>(null);
 const nameFilter = ref('');
 const pondFilter = ref<string | null>(null);
-const speciesFilter = ref<string | null>(null);
+const fishTypeIdFilter = ref<string | null>(null);
 
 // Use composables
 const { batches, create: createBatch, update: updateBatch, addSeed: addBatchSeed, moveSeed } = useBatches(computed(() => ({
     name: nameFilter.value || undefined,
     pondId: pondFilter.value || undefined,
-    fishType: speciesFilter.value || undefined
+    fishTypeId: fishTypeIdFilter.value || undefined
 })));
 const { ponds, getPondById } = usePonds();
 const { suppliers } = useSuppliers();
+const { data: fishTypes } = fishTypeService.useGetAll();
 
 const batchHeaders = [
   { title: 'Batch Name', key: 'name' },
@@ -217,7 +219,7 @@ const seedHeaders = [
   { title: 'Date', key: 'date' },
   { title: 'Batch', key: 'batchName' },
   { title: 'Pond', key: 'pondName' },
-  { title: 'Type', key: 'type' },
+  { title: 'Type', key: 'fishTypeName' },
   { title: 'Quantity', key: 'quantity' },
   { title: 'Size (inches)', key: 'sizeInches' },
   { title: 'Size (grams)', key: 'sizeGrams' },
@@ -234,7 +236,7 @@ const fishSeedList = computed(() => {
         batch.fishSeeds.forEach((seed: ApiFishSeed) => {
             // Client-side filtering to supplement server-side batch filtering
             if (pondFilter.value && seed.pondId !== pondFilter.value) return;
-            if (speciesFilter.value && seed.type !== speciesFilter.value) return;
+            if (fishTypeIdFilter.value && (seed as any).fishTypeId !== fishTypeIdFilter.value) return;
 
             const pond = getPondById(seed.pondId || '');
             list.push({
@@ -244,21 +246,21 @@ const fishSeedList = computed(() => {
                 date: seed.date || '',
                 batchName: batchDisplayName,
                 pondName: pond ? pond.name : 'Unknown',
-                type: seed.type || 'Unknown',
+                fishTypeName: getFishTypeName((seed as any).fishTypeId),
                 quantity: seed.quantity || 0,
                 sizeInches: seed.sizeInches || '-',
                 sizeGrams: seed.sizeGrams || '-',
                 status: seed.status || 'Active'
             });
         });
-    } else if (!pondFilter.value && !speciesFilter.value) {
+    } else if (!pondFilter.value && !fishTypeIdFilter.value) {
         // Fallback for batches without seeds - only if no specific filters are active
         list.push({
             id: batch.id,
             date: batch.stockingDate || '',
             batchName: batchDisplayName,
             pondName: 'N/A',
-            type: 'No Stock',
+            fishTypeName: 'No Stock',
             quantity: 0,
             sizeInches: '-',
             sizeGrams: '-'
@@ -276,26 +278,27 @@ const pondFilterItems = computed(() => {
     })).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 });
 
-const speciesFilterItems = computed(() => {
-    // We can extract all species from all batches or from seeds
-    // But since filtering is server-side, it might be better to have an explicit list
-    // For now we'll extract from current results or just use known common ones if available
-    const species = new Set<string>();
-    batches.value?.forEach(b => {
-        b.fishSeeds?.forEach(s => {
-            if (s.type) species.add(s.type);
-        });
-    });
-    return Array.from(species).sort();
+const fishTypeFilterItems = computed(() => {
+    if (!fishTypes.value) return [];
+    return fishTypes.value.map(t => ({
+        title: t.name,
+        value: t.id
+    })).sort((a, b) => a.title.localeCompare(b.title));
 });
+
+function getFishTypeName(id?: string) {
+    if (!id) return '-';
+    return fishTypes.value?.find(t => t.id === id)?.name || id;
+}
 
 function getBatchPonds(batch: ApiBatch): string {
   if (!batch.fishSeeds || batch.fishSeeds.length === 0) return 'No ponds';
   
   const pondIds = [...new Set(batch.fishSeeds.map(s => s.pondId).filter(Boolean))];
   const pondNames = pondIds.map(id => getPondById(id || '')?.name).filter(Boolean);
+  const speciesNames = [...new Set(batch.fishSeeds.map(s => getFishTypeName((s as any).fishTypeId)).filter(Boolean))];
   
-  return pondNames.join(', ') || 'Unknown';
+  return `${pondNames.join(', ') || 'Unknown'} (${speciesNames.join(', ') || 'Unknown'})`;
 }
 
 function viewBatchDetails(batch: ApiBatch) {

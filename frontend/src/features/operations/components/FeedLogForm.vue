@@ -106,6 +106,7 @@ import { useBatches } from '../../batches/composables/useBatches';
 import { usePonds } from '../../ponds/composables/usePonds';
 import { feedLogService } from '../api/feedLogService';
 import { feedStockService } from '../../inventory/api/feedStockService';
+import { fishTypeService } from '../../settings/api/fishTypeService';
 import type { Batch, FeedLog } from '../../../api/generated/model';
 import { useApiAction } from '../../../composables/useApiAction';
 
@@ -116,6 +117,7 @@ const { batches, getBatchById } = useBatches();
 const { getPondById } = usePonds();
 const { data: feedLogs } = feedLogService.useGetAll();
 const { data: feedStock } = feedStockService.useGetAll();
+const { data: fishTypes } = fishTypeService.useGetAll();
 const logFeedMutation = feedLogService.useLog();
 
 const { execute: executeLogFeed, isLoading: isLogging, error: logError } = useApiAction(
@@ -133,13 +135,18 @@ const displayAmount = ref(0);
 const activeBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
     const pondNames = [...new Set(b.fishSeeds?.map(s => getPondById(s.pondId || '')?.name).filter(Boolean))].join(', ') || 'Unknown';
-    const speciesList = [...new Set(b.fishSeeds?.map(s => s.type) || [])].join(', ') || 'Unknown';
+    const speciesList = [...new Set(b.fishSeeds?.map(s => getFishTypeName((s as any).fishTypeId)) || [])].join(', ') || 'Unknown';
     return {
       id: b.id,
       label: `${b.name} (${pondNames} - ${speciesList})`
     };
   }) || [];
 });
+
+function getFishTypeName(id?: string) {
+    if (!id) return '-';
+    return fishTypes.value?.find(t => t.id === id)?.name || id;
+}
 
 const defaultForm = {
   batchId: '',

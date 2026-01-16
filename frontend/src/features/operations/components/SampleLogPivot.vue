@@ -10,17 +10,17 @@
         <thead>
           <tr>
             <th class="text-left font-weight-bold">Batch</th>
-            <th v-for="species in allSpecies" :key="species" class="text-center font-weight-bold">
-              {{ species }} (g)
+            <th v-for="speciesId in allSpeciesIds" :key="speciesId" class="text-center font-weight-bold">
+              {{ getFishTypeName(speciesId) }} (g)
             </th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="row in pivotData" :key="row.batchId">
             <td class="font-weight-medium">{{ row.batchName }}</td>
-            <td v-for="species in allSpecies" :key="species" class="text-center">
-              <span v-if="row.metrics[species]" class="text-primary font-weight-bold">
-                {{ row.metrics[species].toFixed(2) }}
+            <td v-for="speciesId in allSpeciesIds" :key="speciesId" class="text-center">
+              <span v-if="row.metrics[speciesId]" class="text-primary font-weight-bold">
+                {{ row.metrics[speciesId].toFixed(2) }}
               </span>
               <span v-else class="text-grey-lighten-2">-</span>
             </td>
@@ -35,10 +35,12 @@
 import { computed } from 'vue';
 import { sampleLogService } from '../api/sampleLogService';
 import { useBatches } from '../../batches/composables/useBatches';
+import { fishTypeService } from '../../settings/api/fishTypeService';
 
 const { batches } = useBatches();
 // Fetch lots of logs to get good coverage. Ideally this is a specific backend aggregation.
 const { data: logsData, isLoading } = sampleLogService.useSearch(computed(() => ({ size: 100 })));
+const { data: fishTypes } = fishTypeService.useGetAll();
 
 const logs = computed(() => {
     const raw = logsData.value;
@@ -64,10 +66,10 @@ const pivotData = computed(() => {
         }
         
         const entry = batchMap.get(log.batchId);
-        const species = log.fishType || 'Unknown'; // Fallback if type missing
+        const speciesId = log.fishTypeId || 'Unknown'; // Fallback if type missing
 
-        if (!entry.speciesData[species]) {
-            entry.speciesData[species] = { totalWeight: 0, totalCount: 0 };
+        if (!entry.speciesData[speciesId]) {
+            entry.speciesData[speciesId] = { totalWeight: 0, totalCount: 0 };
         }
 
         // Weighted Average Calculation: Sum(TotalWeight) / Sum(Count)
@@ -75,17 +77,17 @@ const pivotData = computed(() => {
         const weight = log.totalSampleWeight || (log.averageWeight * log.sampleCount) || 0;
         const count = log.sampleCount || 0;
 
-        entry.speciesData[species].totalWeight += weight;
-        entry.speciesData[species].totalCount += count;
+        entry.speciesData[speciesId].totalWeight += weight;
+        entry.speciesData[speciesId].totalCount += count;
     });
 
     // Flatten to Row Structure
     return Array.from(batchMap.values()).map((entry: any) => {
         const metrics: Record<string, number> = {};
-        for (const [species, data] of Object.entries(entry.speciesData)) {
+        for (const [speciesId, data] of Object.entries(entry.speciesData)) {
             const d = data as any;
             if (d.totalCount > 0) {
-                metrics[species] = d.totalWeight / d.totalCount;
+                metrics[speciesId] = d.totalWeight / d.totalCount;
             }
         }
         return {
@@ -96,12 +98,17 @@ const pivotData = computed(() => {
     });
 });
 
-const allSpecies = computed(() => {
-    const species = new Set<string>();
+const allSpeciesIds = computed(() => {
+    const ids = new Set<string>();
     pivotData.value.forEach(row => {
-        Object.keys(row.metrics).forEach(s => species.add(s));
+        Object.keys(row.metrics).forEach(id => ids.add(id));
     });
-    return Array.from(species).sort();
+    return Array.from(ids).sort();
 });
+
+function getFishTypeName(id?: string) {
+    if (!id || id === 'Unknown') return 'Unknown';
+    return (fishTypes.value as any)?.find((t: any) => t.id === id)?.name || id;
+}
 
 </script>

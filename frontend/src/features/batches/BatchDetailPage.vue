@@ -95,6 +95,9 @@
                   {{ item.quantityDelta > 0 ? '+' : '' }}{{ item.quantityDelta.toLocaleString() }}
                 </span>
               </template>
+              <template v-slot:item.fishTypeId="{ item }">
+                {{ getFishTypeName((item as any).fishTypeId) }}
+              </template>
               <template v-slot:item.avgWeightGram="{ item }">
                 {{ item.avgWeightGram ? item.avgWeightGram.toFixed(1) + ' g' : '-' }}
               </template>
@@ -117,6 +120,7 @@ import { useBatches } from '../batches/composables/useBatches';
 import { useGetFishStockEventsByBatch } from '@/api/manual/hooks';
 import FishStockChart from '../batches/components/FishStockChart.vue';
 import PageHeader from '@/components/PageHeader.vue';
+import { fishTypeService } from '../settings/api/fishTypeService';
 import { FishStockEventType } from '@/api/manual/types';
 
 const route = useRoute();
@@ -127,15 +131,21 @@ const { batches, isLoading } = useBatches();
 const batch = computed(() => batches.value?.find(b => b.id === batchId));
 
 const { data: events, isLoading: eventsLoading } = useGetFishStockEventsByBatch(batchId);
+const { data: fishTypes } = fishTypeService.useGetAll();
 
 const headers = [
   { title: 'Date', key: 'date' },
   { title: 'Type', key: 'type' },
-  { title: 'Species', key: 'fishType' },
+  { title: 'Species', key: 'fishTypeId' },
   { title: 'Delta', key: 'quantityDelta', align: 'end' as const },
   { title: 'ABW', key: 'avgWeightGram', align: 'end' as const },
   { title: 'Note', key: 'referenceId' }
 ];
+
+function getFishTypeName(id?: string) {
+    if (!id) return '-';
+    return (fishTypes.value as any)?.find((t: any) => t.id === id)?.name || id;
+}
 
 const totalStocked = computed(() => {
   return events.value?.filter(e => e.type === FishStockEventType.SEED || e.type === FishStockEventType.TRANSFER_IN)

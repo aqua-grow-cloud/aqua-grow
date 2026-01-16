@@ -27,7 +27,7 @@
               <v-row dense>
                 <v-col cols="6">
                   <div class="text-caption text-grey">Type</div>
-                  <div class="font-weight-medium">{{ seed?.type }}</div>
+                  <div class="font-weight-medium">{{ seed?.fishTypeName }}</div>
                 </v-col>
                 <v-col cols="6">
                   <div class="text-caption text-grey">Current Quantity</div>

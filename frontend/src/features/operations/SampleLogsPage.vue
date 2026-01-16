@@ -81,6 +81,10 @@
            {{ item.sampleCount }} pcs
         </template>
 
+        <template v-slot:item.fishTypeId="{ item }">
+           {{ getFishTypeName(item.fishTypeId) }}
+        </template>
+
         <template v-slot:item.averageWeight="{ item }">
            {{ (item.averageWeight || 0).toFixed(2) }} g
         </template>
@@ -97,16 +101,17 @@ import { useRouter } from 'vue-router';
 import { usePonds } from '../ponds/composables/usePonds';
 import { useBatches } from '../batches/composables/useBatches';
 import { sampleLogService } from './api/sampleLogService';
+import { fishTypeService } from '../settings/api/fishTypeService';
 import type { SampleLog } from '@/api/generated/model';
 
 const router = useRouter();
 const { ponds } = usePonds();
 const { batches, getBatchById } = useBatches();
 
-const filters = ref({
+const filters = ref<any>({
   pondId: null,
   batchId: null,
-  fishType: null
+  fishTypeId: null
 });
 
 const itemsPerPage = ref(10);
@@ -120,21 +125,20 @@ const headers = [
   { title: 'Date', key: 'date', align: 'start' as const },
   { title: 'Batch', key: 'batchName', align: 'start' as const, sortable: false },
   { title: 'Pond', key: 'pondName', align: 'start' as const, sortable: false },
-  { title: 'Species', key: 'fishType', align: 'start' as const },
+  { title: 'Species', key: 'fishTypeId', align: 'start' as const },
   { title: 'Sample Count', key: 'sampleCount', align: 'end' as const },
   { title: 'Avg Weight', key: 'averageWeight', align: 'end' as const },
 ];
 
 const pondOptions = computed(() => ponds.value || []);
 const batchOptions = computed(() => batches.value?.map(b => ({ id: b.id, name: b.name })) || []);
-const speciesOptions = computed(() => {
-    // Collect unique species from all batches
-    const set = new Set<string>();
-    batches.value?.forEach(b => b.fishSeeds?.forEach((s: any) => {
-        if (s.type) set.add(s.type);
-    }));
-    return Array.from(set).sort();
-});
+const { data: fishTypes } = fishTypeService.useGetAll();
+const speciesOptions = computed(() => fishTypes.value || []);
+
+function getFishTypeName(id?: string) {
+    if (!id) return '-';
+    return (fishTypes.value as any)?.find((t: any) => t.id === id)?.name || id;
+}
 
 // Watch filters to reset page and reload
 watch(filters, () => {
@@ -177,7 +181,7 @@ function resetFilters() {
     filters.value = {
         pondId: null,
         batchId: null,
-        fishType: null
+        fishTypeId: null
     };
 }
 

@@ -133,6 +133,7 @@ import { useQueryClient } from '@tanstack/vue-query';
 import { useBatches } from '../../batches/composables/useBatches';
 import { usePonds } from '../../ponds/composables/usePonds';
 import { monitoringLogService } from '../api/monitoringLogService';
+import { fishTypeService } from '../../settings/api/fishTypeService';
 import type { Batch, MonitoringLog } from '../../../api/manual/types';
 import { useApiAction } from '../../../composables/useApiAction';
 
@@ -141,6 +142,7 @@ const { batches, getBatchById } = useBatches();
 const { getPondById } = usePonds();
 
 const { data: monitoringLogs } = monitoringLogService.useGetAll();
+const { data: fishTypes } = fishTypeService.useGetAll();
 const logMonitoringMutation = monitoringLogService.useLog();
 
 const { execute: executeLogMonitoring, isLoading, error } = useApiAction(
@@ -151,13 +153,18 @@ const { execute: executeLogMonitoring, isLoading, error } = useApiAction(
 const activeBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
     const pondNames = [...new Set(b.fishSeeds?.map(s => getPondById(s.pondId || '')?.name).filter(Boolean))].join(', ') || 'Unknown';
-    const speciesList = [...new Set(b.fishSeeds?.map(s => s.type) || [])].join(', ') || 'Unknown';
+    const speciesList = [...new Set(b.fishSeeds?.map(s => getFishTypeName((s as any).fishTypeId)) || [])].join(', ') || 'Unknown';
     return {
       id: b.id,
       label: `${pondNames} - ${speciesList}`
     };
   }) || [];
 });
+
+function getFishTypeName(id?: string) {
+    if (!id) return '-';
+    return fishTypes.value?.find(t => t.id === id)?.name || id;
+}
 
 const defaultForm = {
   batchId: '',

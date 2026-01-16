@@ -59,7 +59,7 @@ export interface FishSeed {
     id?: string;
     pondId?: string;
     date: string;
-    type: string;
+    fishTypeId: string;
     quantity: number;
     sizeInches?: number;
     sizeGrams?: number;
@@ -95,7 +95,7 @@ export interface MonitoringLog {
 export interface SampleLog {
     id?: string;
     batchId: string;
-    fishType?: string;
+    fishTypeId?: string;
     date: string;
     sampleCount?: number;
     totalSampleWeight?: number;
@@ -119,7 +119,7 @@ export interface FishStockEvent {
     batchId: string;
     date: string;
     type: FishStockEventType;
-    fishType?: string;
+    fishTypeId?: string;
     quantityDelta: number;
     avgWeightGram?: number;
     referenceId?: string;

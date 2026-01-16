@@ -11,7 +11,7 @@
            <v-alert v-if="existingBatch" type="info" variant="tonal" class="mb-4" density="compact">
              Selected: <strong>{{ existingBatch.name || 'Unnamed Batch' }}</strong> in {{ props.ponds.find(p => p.id === form.pondId)?.name }}.
              <br>
-             Stock: {{ [...new Set(existingBatch?.fishSeeds?.map(s => s.type) || [])].join(', ') }} ({{ existingBatch?.fishSeeds?.reduce((acc, s) => acc + (s.quantity ?? 0), 0) ?? 0 }})
+             Stock: {{ [...new Set(existingBatch?.fishSeeds?.map(s => getFishTypeName(s.fishTypeId)) || [])].join(', ') }} ({{ existingBatch?.fishSeeds?.reduce((acc, s) => acc + (s.quantity ?? 0), 0) ?? 0 }})
            </v-alert>
 
           <v-alert v-if="availablePonds.length === 0" type="warning" class="mb-4">
@@ -76,12 +76,17 @@
               ></v-text-field>
             </v-col>
             <v-col cols="12" sm="6">
-              <v-text-field
-                v-model="form.type"
+              <v-select
+                v-model="form.fishTypeId"
+                :items="fishTypes || []"
+                item-title="name"
+                item-value="id"
                 :label="isNewBatchMode ? 'Species' : 'Type (Species)'"
                 variant="outlined"
                 density="compact"
-              ></v-text-field>
+                placeholder="Select Species"
+                required
+              ></v-select>
             </v-col>
              <v-col cols="12" sm="6">
               <v-text-field
@@ -144,6 +149,7 @@
 import { ref, computed, watch } from 'vue';
 import type { Batch, FishSeed, Pond } from '../../../api/generated/model';
 import { supplierService } from '../../inventory/api/supplierService';
+import { fishTypeService } from '../../settings/api/fishTypeService';
 
 interface Props {
   modelValue: boolean;
@@ -164,6 +170,7 @@ const emit = defineEmits<{
 }>();
 
 const { data: suppliers } = supplierService.useGetAll();
+const { data: fishTypes } = fishTypeService.useGetAll();
 
 // Filter ponds that don't have an active batch and are active themselves
 // Show all active ponds, so we can add seeds to existing batches too
@@ -174,7 +181,7 @@ const availablePonds = computed(() => {
 const defaultForm = {
   name: '',
   pondId: '',
-  type: 'Catla',
+  fishTypeId: '',
   stockingDate: new Date().toISOString().substr(0, 10),
   estimatedHarvestDate: '',
   quantity: 0,
@@ -242,7 +249,7 @@ watch(() => props.modelValue, (val) => {
 });
 
 const isValid = computed(() => {
-  return form.value.pondId && form.value.type && form.value.quantity > 0;
+  return form.value.pondId && form.value.fishTypeId && form.value.quantity > 0;
 });
 
 function close() {
@@ -251,12 +258,17 @@ function close() {
   targetBatchId.value = 'NEW';
 }
 
+function getFishTypeName(id?: string) {
+    if (!id) return '-';
+    return (fishTypes.value as any)?.find((t: any) => t.id === id)?.name || id;
+}
+
 function save() {
-  const seed: FishSeed = {
+  const seed: any = {
       id: undefined,
       pondId: form.value.pondId,
       date: form.value.stockingDate,
-      type: form.value.type,
+      fishTypeId: form.value.fishTypeId,
       quantity: form.value.quantity,
       sizeInches: form.value.sizeInches || undefined,
       sizeGrams: form.value.sizeGrams || undefined,
@@ -276,7 +288,7 @@ function save() {
           fishSeeds: [{
               pondId: form.value.pondId,
               date: form.value.stockingDate,
-              type: form.value.type,
+              fishTypeId: form.value.fishTypeId,
               quantity: form.value.quantity,
               sizeInches: form.value.sizeInches || undefined,
               sizeGrams: form.value.sizeGrams || undefined,

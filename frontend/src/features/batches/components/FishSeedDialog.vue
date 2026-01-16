@@ -46,14 +46,17 @@
             </v-col>
 
             <v-col cols="12" sm="6">
-              <v-text-field
-                v-model="form.type"
+              <v-select
+                v-model="form.fishTypeId"
+                :items="fishTypes || []"
+                item-title="name"
+                item-value="id"
                 label="Species/Type *"
                 variant="outlined"
                 density="compact"
                 :rules="[v => !!v || 'Species is required']"
-                placeholder="e.g., Tilapia, Catfish"
-              ></v-text-field>
+                placeholder="Select Species"
+              ></v-select>
             </v-col>
 
             <v-col cols="12" sm="6">
@@ -133,6 +136,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import type { Batch, Pond, Supplier, FishSeed } from '../../../api/generated/model';
+import { fishTypeService } from '../../settings/api/fishTypeService';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -140,6 +144,8 @@ const props = defineProps<{
   ponds: Pond[];
   suppliers?: Supplier[];
 }>();
+
+const { data: fishTypes } = fishTypeService.useGetAll();
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
@@ -150,7 +156,7 @@ const defaultForm = {
   batchId: '',
   pondId: '',
   date: new Date().toISOString().substr(0, 10),
-  type: '',
+  fishTypeId: '',
   quantity: 0,
   sizeInches: undefined as number | undefined,
   sizeGrams: undefined as number | undefined,
@@ -177,17 +183,17 @@ const isValid = computed(() => {
   return !!form.value.batchId && 
          !!form.value.pondId && 
          !!form.value.date && 
-         !!form.value.type && 
+         !!form.value.fishTypeId && 
          form.value.quantity > 0;
 });
 
 function save() {
   if (!isValid.value) return;
 
-  const seed: FishSeed = {
+  const seed: any = {
     pondId: form.value.pondId,
     date: form.value.date,
-    type: form.value.type,
+    fishTypeId: form.value.fishTypeId,
     quantity: form.value.quantity,
     sizeInches: form.value.sizeInches,
     sizeGrams: form.value.sizeGrams,

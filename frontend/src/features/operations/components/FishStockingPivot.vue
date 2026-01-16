@@ -72,6 +72,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { Batch } from '../../../api/generated/model';
+import { fishTypeService } from '../../settings/api/fishTypeService';
 
 const props = defineProps<{
   batches: Batch[];
@@ -101,6 +102,8 @@ interface StatusGroup {
   totalRows: number;
 }
 
+const { data: fishTypes } = fishTypeService.useGetAll();
+
 const groupedData = computed<StatusGroup[]>(() => {
   if (!props.batches) return [];
 
@@ -110,7 +113,7 @@ const groupedData = computed<StatusGroup[]>(() => {
       batchId: string;
       batchName: string;
       stockingDate?: string;
-      type: string;
+      fishTypeId: string;
       quantity: number;
   }
 
@@ -123,7 +126,7 @@ const groupedData = computed<StatusGroup[]>(() => {
                   batchId: b.id || '',
                   batchName: b.name || '',
                   stockingDate: b.stockingDate,
-                  type: seed.type || 'Unknown',
+                  fishTypeId: (seed as any).fishTypeId || 'Unknown',
                   quantity: seed.quantity || 0
               });
           });
@@ -167,12 +170,13 @@ const groupedData = computed<StatusGroup[]>(() => {
         // Aggregate by type
         const typeMap: Record<string, number> = {};
         seeds.forEach(s => {
-            typeMap[s.type] = (typeMap[s.type] || 0) + s.quantity;
+            const key = (s as any).fishTypeId;
+            typeMap[key] = (typeMap[key] || 0) + s.quantity;
         });
 
-        const types: FishTypeSummary[] = Object.keys(typeMap).sort().map(typeName => ({
-            name: typeName,
-            quantity: typeMap[typeName] || 0
+        const types: FishTypeSummary[] = Object.keys(typeMap).sort().map(fishTypeId => ({
+            name: getFishTypeName(fishTypeId),
+            quantity: typeMap[fishTypeId] || 0
         }));
         
         const batchTotal = types.reduce((sum, t) => sum + t.quantity, 0);
@@ -218,6 +222,11 @@ function formatDate(dateStr?: string) {
   if (!dateStr) return '-';
   // Use simple ISO date like the user example "2024-07-11"
   return dateStr.substring(0, 10);
+}
+
+function getFishTypeName(id?: string) {
+    if (!id || id === 'Unknown') return 'Unknown';
+    return (fishTypes.value as any)?.find((t: any) => t.id === id)?.name || id;
 }
 </script>
 

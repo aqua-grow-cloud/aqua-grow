@@ -18,8 +18,10 @@
           </v-col>
            <v-col cols="12" sm="4">
             <v-select
-              v-model="form.fishType"
+              v-model="form.fishTypeId"
               :items="availableFishTypes"
+              item-title="name"
+              item-value="id"
               label="Fish Type"
               variant="outlined"
               density="compact"
@@ -111,7 +113,7 @@
           <tr v-for="log in recentLogs" :key="log.id">
             <td>{{ log.date }}</td>
             <td>{{ getPondName(log.batchId) }}</td>
-            <td class="font-weight-medium text-primary">{{ log.fishType || getSpecies(log.batchId) }}</td>
+            <td class="font-weight-medium text-primary">{{ getFishTypeName(log.fishTypeId) || getSpecies(log.batchId) }}</td>
             <td>{{ log.sampleCount }}</td>
             <td>{{ log.totalSampleWeight }} g</td>
             <td class="font-weight-bold">{{ (log.averageWeight || 0).toFixed(1) }} g</td>
@@ -131,6 +133,7 @@ import {useAquaStore} from '@/stores/useAquaStore.ts';
 import {useBatches} from '../../batches/composables/useBatches';
 import {usePonds} from '../../ponds/composables/usePonds';
 import {sampleLogService} from '../api/sampleLogService';
+import {fishTypeService} from '../../settings/api/fishTypeService';
 import type {Batch, SampleLog} from '@/api/manual/types.ts';
 import { useApiAction } from '@/composables/useApiAction.ts';
 
@@ -141,6 +144,7 @@ const queryClient = useQueryClient();
 const { batches, getBatchById } = useBatches();
 const { getPondById } = usePonds();
 const { data: sampleLogs } = sampleLogService.useGetAll();
+const { data: fishTypes } = fishTypeService.useGetAll();
 const logSampleMutation = sampleLogService.useLog();
 
 const { execute: executeLogSample, isLoading: isLogging, error: logError } = useApiAction(
@@ -151,7 +155,7 @@ const { execute: executeLogSample, isLoading: isLogging, error: logError } = use
 const activeBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
     const pondNames = [...new Set(b.fishSeeds?.map(s => getPondById(s.pondId || '')?.name).filter(Boolean))].join(', ') || 'Unknown';
-    const speciesList = [...new Set(b.fishSeeds?.map(s => s.type) || [])].join(', ') || 'Unknown';
+    const speciesList = [...new Set(b.fishSeeds?.map(s => getFishTypeName(s.fishTypeId)) || [])].join(', ') || 'Unknown';
     return {
       id: b.id,
       label: `${pondNames} - ${speciesList}`
@@ -162,7 +166,7 @@ const activeBatches = computed(() => {
 const defaultForm = {
   batchId: '',
   date: new Date().toISOString().substr(0, 10),
-  fishType: '',
+  fishTypeId: '',
   sampleCount: 0,
   totalSampleWeight: 0,
   averageWeight: 0,
@@ -185,9 +189,9 @@ watch(calculatedABW, (newVal) => {
     form.value.averageWeight = newVal;
 });
 
-// Watch batch changes to reset fishType
+// Watch batch changes to reset fishTypeId
 watch(() => form.value.batchId, () => {
-    form.value.fishType = '';
+    form.value.fishTypeId = '';
 });
 
 // Compute available fish types for selected batch
@@ -196,10 +200,14 @@ const availableFishTypes = computed(() => {
     const batch = getBatchById(form.value.batchId);
     if (!batch?.fishSeeds) return [];
 
-    return [...new Set(batch.fishSeeds.map((s: any) => s.type))];
+    const ids = [...new Set(batch.fishSeeds.map((s: any) => s.fishTypeId))];
+    return ids.map(id => ({
+        id,
+        name: getFishTypeName(id)
+    }));
 });
 
-const isValid = computed(() => form.value.batchId && form.value.fishType && form.value.sampleCount > 0);
+const isValid = computed(() => form.value.batchId && form.value.fishTypeId && form.value.sampleCount > 0);
 
 const recentLogs = computed(() => {
     const raw = sampleLogs.value;
@@ -212,6 +220,12 @@ const recentLogs = computed(() => {
     ).slice(0, 5);
 });
 
+function getFishTypeName(fishTypeId?: string) {
+    if (!fishTypeId) return '-';
+    const type = fishTypes.value?.find(t => t.id === fishTypeId);
+    return type?.name || fishTypeId;
+}
+
 function getPondName(batchId?: string) {
     if (!batchId) return '-';
     const batch = getBatchById(batchId);
@@ -222,7 +236,7 @@ function getPondName(batchId?: string) {
 function getSpecies(batchId?: string) {
     if (!batchId) return '-';
     const batch = getBatchById(batchId);
-    return [...new Set(batch?.fishSeeds?.map((s: any) => s.type) || [])].join(', ') || '-';
+    return [...new Set(batch?.fishSeeds?.map((s: any) => getFishTypeName(s.fishTypeId)) || [])].join(', ') || '-';
 }
 
 function getBatchDate(batchId?: string) {

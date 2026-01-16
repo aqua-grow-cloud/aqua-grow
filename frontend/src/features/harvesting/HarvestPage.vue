@@ -30,8 +30,10 @@
               <v-row dense v-if="form.batchId">
                 <v-col cols="12" sm="6">
                   <v-select
-                    v-model="form.fishType"
-                    :items="availableSpecies"
+                    v-model="form.fishTypeId"
+                    :items="availableSpeciesItems"
+                    item-title="name"
+                    item-value="id"
                     label="Fish Type"
                     variant="outlined"
                     density="compact"
@@ -192,10 +194,12 @@
                     </v-col>
                     <v-col cols="12" sm="4">
                         <v-select
-                            v-model="fishTypeFilter"
+                            v-model="fishTypeIdFilter"
                             :items="fishTypeFilterItems"
                             label="Filter by Fish Type"
                             variant="outlined"
+                            density="compact"
+                            hide-details
                             clearable
                             placeholder="All Types"
                         ></v-select>
@@ -237,7 +241,7 @@
                 <td class="text-no-wrap">{{ formatDateShort(log.date) }}</td>
                 <td class="text-no-wrap text-caption">{{ getBatchName(log.batchId) }}</td>
                 <td>{{ getPondName(log.pondId) }}</td>
-                <td>{{ log.fishType || '-' }}</td>
+                <td>{{ getFishTypeName(log.fishTypeId) }}</td>
                 <td>{{ log.count?.toLocaleString() || 0 }}</td>
                 <td class="text-error">{{ (log.discountWeight || 0).toFixed(1) }}</td>
                 <td class="font-weight-medium">{{ (log.biomassWeight || 0).toLocaleString() }}</td>
@@ -266,6 +270,7 @@ import PageHeader from '../../components/PageHeader.vue';
 import { useBatches } from '../batches/composables/useBatches';
 import { useHarvestLogs } from './composables/useHarvestLogs';
 import { usePonds } from '../ponds/composables/usePonds';
+import { fishTypeService } from '../settings/api/fishTypeService';
 import type { Batch, HarvestLog } from '../../api/generated/model';
 
 const store = useAquaStore();
@@ -274,22 +279,23 @@ const router = useRouter();
 // State
 const isFinal = ref(false);
 const batchFilter = ref<string | null>(null);
-const fishTypeFilter = ref<string | null>(null);
+const fishTypeIdFilter = ref<string | null>(null);
 const pondFilter = ref<string | null>(null);
 
 // Use composables
 const { batches, getBatchById } = useBatches();
 const { harvestLogs, recordHarvest } = useHarvestLogs(computed(() => ({
     batchId: batchFilter.value || undefined,
-    fishType: fishTypeFilter.value || undefined,
+    fishTypeId: fishTypeIdFilter.value || undefined,
     pondId: pondFilter.value || undefined
 })));
+const { data: fishTypes } = fishTypeService.useGetAll();
 const { getPondById } = usePonds();
 
 const activeBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active').map((b: Batch) => {
     const pondNames = [...new Set(b.fishSeeds?.map(s => getPondById(s.pondId || '')?.name).filter(Boolean))].join(', ') || 'Unknown';
-    const speciesList = [...new Set(b.fishSeeds?.map(s => s.type) || [])].join(', ') || 'Unknown';
+    const speciesList = [...new Set(b.fishSeeds?.map(s => getFishTypeName(s.fishTypeId)) || [])].join(', ') || 'Unknown';
     return {
       id: b.id,
       label: `${b.name || b.stockingDate} - ${pondNames} (${speciesList})`
@@ -299,7 +305,7 @@ const activeBatches = computed(() => {
 
 const defaultForm = {
   batchId: '',
-  fishType: '',
+  fishTypeId: '',
   date: new Date().toISOString().substr(0, 10),
   biomassWeight: 0,
   count: 0,
@@ -314,16 +320,16 @@ const form = ref({ ...defaultForm });
 // Auto-select fish type if only one species exists in batch
 watch(() => form.value.batchId, (newBatchId: string) => {
     if (!newBatchId) {
-        form.value.fishType = '';
+        form.value.fishTypeId = '';
         return;
     }
     const batch = getBatchById(newBatchId);
     if (batch && batch.fishSeeds && batch.fishSeeds.length > 0) {
-        const species = [...new Set(batch.fishSeeds.map(s => s.type).filter(Boolean))] as string[];
-        if (species.length === 1 && species[0]) {
-            form.value.fishType = species[0];
+        const speciesIds = [...new Set((batch.fishSeeds as any[]).map(s => s.fishTypeId).filter(Boolean))] as string[];
+        if (speciesIds.length === 1 && speciesIds[0]) {
+            form.value.fishTypeId = speciesIds[0];
         } else {
-            form.value.fishType = '';
+            form.value.fishTypeId = '';
         }
 
         const pondIds = [...new Set((batch.fishSeeds as any[]).map(s => s.pondId).filter(Boolean))];
@@ -335,16 +341,20 @@ watch(() => form.value.batchId, (newBatchId: string) => {
     }
 });
 
-const availableSpecies = computed(() => {
+const availableSpeciesItems = computed(() => {
     if (!form.value.batchId) return [];
     const batch = getBatchById(form.value.batchId);
-    let species: string[] = [];
+    let speciesIds: string[] = [];
     if (form.value.pondId) {
-        species = (batch?.fishSeeds as any[])?.filter(s => s.pondId === form.value.pondId).map(s => s.type || '') || [];
+        speciesIds = (batch?.fishSeeds as any[])?.filter((s: any) => s.pondId === form.value.pondId).map((s: any) => s.fishTypeId || '') || [];
     } else {
-        species = batch?.fishSeeds?.map(s => s.type || '') || [];
+        speciesIds = (batch?.fishSeeds as any[])?.map((s: any) => s.fishTypeId || '') || [];
     }
-    return [...new Set(species.filter(Boolean)), 'Mixed/All'];
+    const uniqueIds = [...new Set(speciesIds.filter(Boolean))];
+    return uniqueIds.map(id => ({
+        id,
+        name: getFishTypeName(id)
+    }));
 });
 
 const availablePonds = computed(() => {
@@ -407,8 +417,11 @@ const batchFilterItems = computed(() => {
 });
 
 const fishTypeFilterItems = computed(() => {
-    const types = [...new Set((harvestLogs.value || []).map(l => l.fishType).filter(Boolean))];
-    return types.sort();
+    const ids = [...new Set((harvestLogs.value || []).map(l => l.fishTypeId).filter(Boolean))];
+    return ids.map(id => ({
+        title: getFishTypeName(id),
+        value: id
+    })).sort((a, b) => a.title.localeCompare(b.title));
 });
 
 const pondFilterItems = computed(() => {
@@ -423,6 +436,12 @@ const pondFilterItems = computed(() => {
 });
 
 // getFishType removed as we now use log.fishType stored in the record
+
+function getFishTypeName(fishTypeId?: string) {
+    if (!fishTypeId) return '-';
+    const type = fishTypes.value?.find(t => t.id === fishTypeId);
+    return type?.name || fishTypeId;
+}
 
 function getPondName(pondId?: string) {
     if (!pondId) return '-';
@@ -450,7 +469,7 @@ async function save() {
       ...form.value,
       batchId: form.value.batchId,
       pondId: form.value.pondId,
-      fishType: form.value.fishType,
+      fishTypeId: form.value.fishTypeId,
       date: form.value.date,
       count: form.value.count,
       biomassWeight: form.value.biomassWeight,
