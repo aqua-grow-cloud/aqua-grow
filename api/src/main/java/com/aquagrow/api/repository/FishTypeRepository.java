@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface FishTypeRepository extends JpaRepository<FishType, String> {
     List<FishType> findByTenantId(String tenantId);
+
+    java.util.Optional<FishType> findByName(String name);
 }

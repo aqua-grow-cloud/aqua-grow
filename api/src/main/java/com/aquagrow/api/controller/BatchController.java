@@ -1,6 +1,5 @@
 package com.aquagrow.api.controller;
 
-import com.aquagrow.api.model.Batch;
 import com.aquagrow.api.repository.BatchRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
@@ -9,8 +8,22 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.persistence.criteria.Join;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import org.springframework.web.multipart.MultipartFile;
+import com.aquagrow.api.dto.CsvFishSeed;
+import com.aquagrow.api.model.Batch;
+import com.aquagrow.api.model.FishSeed;
+import com.aquagrow.api.model.Pond;
+import com.aquagrow.api.model.FishType;
+import com.opencsv.bean.CsvToBean;
+import com.opencsv.bean.CsvToBeanBuilder;
 
 @RestController
 @RequestMapping("/api/batches")
@@ -21,6 +34,7 @@ public class BatchController {
     private final BatchRepository batchRepository;
     private final com.aquagrow.api.repository.PondRepository pondRepository;
     private final com.aquagrow.api.repository.FishStockEventRepository fishStockEventRepository;
+    private final com.aquagrow.api.repository.FishTypeRepository fishTypeRepository;
 
     @GetMapping
     public List<Batch> getAllBatches(
@@ -304,5 +318,121 @@ public class BatchController {
                     return ResponseEntity.ok(savedBatch);
                 })
                 .orElse(ResponseEntity.notFound().<Batch>build());
+    }
+
+    @PostMapping("/import")
+    public List<Batch> importCsv(@RequestParam("file") MultipartFile file) throws Exception {
+        String tenantId = com.aquagrow.api.security.TenantContext.getTenantId();
+        List<Batch> updatedBatches = new ArrayList<>();
+
+        try (Reader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+            CsvToBean<CsvFishSeed> csvToBean = new CsvToBeanBuilder<CsvFishSeed>(reader)
+                    .withType(CsvFishSeed.class)
+                    .withIgnoreLeadingWhiteSpace(true)
+                    .build();
+
+            List<CsvFishSeed> csvSeeds = csvToBean.parse();
+            for (CsvFishSeed csv : csvSeeds) {
+                LocalDate eventDate = parseDate(csv.getDate());
+
+                // 1. Get or create Batch
+                Batch batch = batchRepository.findByName(csv.getBatchName())
+                        .orElseGet(() -> {
+                            Batch newBatch = Batch.builder()
+                                    .name(csv.getBatchName())
+                                    .tenantId(tenantId)
+                                    .stockingDate(eventDate)
+                                    .build();
+                            return batchRepository.save(newBatch);
+                        });
+
+                // 2. Get or create Pond
+                Pond pond = pondRepository.findByName(csv.getPondName())
+                        .orElseGet(() -> {
+                            Pond newPond = Pond.builder()
+                                    .name(csv.getPondName())
+                                    .tenantId(tenantId)
+                                    .status("Active")
+                                    .build();
+                            return pondRepository.save(newPond);
+                        });
+
+                // 3. Get or create FishType
+                FishType fishType = fishTypeRepository.findByName(csv.getType())
+                        .orElseGet(() -> {
+                            FishType newType = FishType.builder()
+                                    .name(csv.getType())
+                                    .tenantId(tenantId)
+                                    .build();
+                            return fishTypeRepository.save(newType);
+                        });
+
+                // 4. Create FishSeed
+                FishSeed seed = FishSeed.builder()
+                        .date(eventDate)
+                        .fishTypeId(fishType.getId())
+                        .pondId(pond.getId())
+                        .quantity(csv.getQuantity())
+                        .sizeInches(csv.getSizeInches())
+                        .sizeGrams(csv.getSizeGrams())
+                        .tenantId(tenantId)
+                        .status("Active")
+                        .build();
+
+                if (batch.getFishSeeds() == null) {
+                    batch.setFishSeeds(new ArrayList<>());
+                }
+                batch.getFishSeeds().add(seed);
+                Batch savedBatch = batchRepository.save(batch);
+
+                // Get the persisted seed to get its generated ID
+                FishSeed savedSeed = savedBatch.getFishSeeds().stream()
+                        .filter(s -> s.getFishTypeId().equals(seed.getFishTypeId())
+                                && s.getQuantity().equals(seed.getQuantity())
+                                && s.getDate().equals(seed.getDate()))
+                        .findFirst()
+                        .orElse(seed);
+
+                // 5. Create FishStockEvent
+                fishStockEventRepository.save(com.aquagrow.api.model.FishStockEvent.builder()
+                        .pondId(pond.getId())
+                        .batchId(savedBatch.getId())
+                        .date(seed.getDate())
+                        .type(com.aquagrow.api.model.FishStockEventType.SEED)
+                        .fishTypeId(fishType.getId())
+                        .quantityDelta(seed.getQuantity())
+                        .avgWeightGram(seed.getSizeGrams())
+                        .referenceId(savedSeed.getId())
+                        .tenantId(tenantId)
+                        .build());
+
+                // 6. Update pond currentBatchId
+                pond.setCurrentBatchId(savedBatch.getId());
+                pondRepository.save(pond);
+
+                if (updatedBatches.stream().noneMatch(b -> b.getId().equals(savedBatch.getId()))) {
+                    updatedBatches.add(savedBatch);
+                }
+            }
+        }
+        return updatedBatches;
+    }
+
+    private LocalDate parseDate(String dateStr) {
+        if (dateStr == null || dateStr.isEmpty()) {
+            return LocalDate.now();
+        }
+
+        String[] formats = {
+                "yyyy-MM-dd", "MM/dd/yyyy", "MMMM d, yyyy", "d-MMM-yyyy", "dd-MM-yyyy"
+        };
+
+        for (String format : formats) {
+            try {
+                return LocalDate.parse(dateStr.trim(), DateTimeFormatter.ofPattern(format, Locale.ENGLISH));
+            } catch (Exception ignored) {
+            }
+        }
+        return LocalDate.now();
     }
 }
