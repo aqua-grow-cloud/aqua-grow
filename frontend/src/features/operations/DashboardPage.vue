@@ -134,8 +134,16 @@
 
     <!-- Pivot Tables -->
     <v-row class="mt-4">
-        <v-col cols="12">
+        <v-col cols="12" md="6">
             <FishStockingPivot :batches="batches || []" />
+        </v-col>
+        <v-col cols="12" md="6">
+            <BiomassByFishType 
+              :batches="dashboardBatches" 
+              :fish-types="fishTypes || []"
+              :harvest-logs="harvestLogs || []"
+              :sample-logs="allSamples"
+            />
         </v-col>
     </v-row>
 
@@ -157,8 +165,10 @@ import { feedLogService } from './api/feedLogService';
 import { sampleLogService } from './api/sampleLogService';
 import { harvestLogService } from '../harvesting/api/harvestLogService';
 import { feedStockService } from '../inventory/api/feedStockService';
+import { fishTypeService } from '../settings/api/fishTypeService';
 import FishStockingPivot from './components/FishStockingPivot.vue';
 import SampleLogPivot from './components/SampleLogPivot.vue';
+import BiomassByFishType from './components/BiomassByFishType.vue';
 import type { Batch, FeedLog, Pond, HarvestLog, SampleLog } from '../../api/generated/model';
 
 const store = useAquaStore();
@@ -170,6 +180,13 @@ const { data: feedLogs } = feedLogService.useGetAll();
 const { data: lowStockItems } = feedStockService.useGetLowStock();
 const { data: harvestLogs } = harvestLogService.useGetAll();
 const { data: sampleLogs } = sampleLogService.useGetAll();
+const { data: fishTypes } = fishTypeService.useGetAll();
+
+const allSamples = computed(() => {
+    return Array.isArray(sampleLogs.value) 
+      ? sampleLogs.value 
+      : ((sampleLogs.value as any)?.content || []);
+});
 
 const referenceDate = ref(new Date().toISOString().substr(0, 10));
 
