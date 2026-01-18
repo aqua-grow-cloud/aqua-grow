@@ -158,7 +158,7 @@ const activeBatches = computed(() => {
     const speciesList = [...new Set(b.fishSeeds?.map(s => getFishTypeName(s.fishTypeId)) || [])].join(', ') || 'Unknown';
     return {
       id: b.id,
-      label: `${pondNames} - ${speciesList}`
+      label: b.name
     };
   }) || [];
 });
