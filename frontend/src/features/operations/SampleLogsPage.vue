@@ -36,8 +36,10 @@
           </v-col>
            <v-col cols="12" sm="3">
              <v-select
-              v-model="filters.fishType"
+              v-model="filters.fishTypeId"
               :items="speciesOptions"
+              item-title="name"
+              item-value="id"
               label="Filter by Species"
               variant="outlined"
               density="compact"

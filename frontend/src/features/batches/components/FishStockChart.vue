@@ -52,6 +52,7 @@ import {
 } from 'echarts/components';
 import VChart from 'vue-echarts';
 import { FishStockEventType, type FishStockEvent } from '@/api/manual/types';
+import type { FishType } from '../../settings/api/fishTypeService';
 
 // Register ECharts modules
 use([
@@ -67,10 +68,12 @@ use([
 
 const props = defineProps<{
   events: FishStockEvent[];
+  fishTypes: FishType[];
   loading?: boolean;
 }>();
 
 const timeRange = ref('all');
+const COLORS = ['#1867C0', '#4CAF50', '#FB8C00', '#F44336', '#9C27B0', '#00BCD4', '#FFEB3B', '#795548'];
 
 const chartData = computed(() => {
   if (!props.events || props.events.length === 0) return [];
@@ -80,25 +83,44 @@ const chartData = computed(() => {
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
+  // Track state per species
+  const speciesState = new Map<string, { quantity: number, lastABW: number }>();
+  
   // Group by date
   const dailyData = new Map<string, {
     seeds: number,
     harvests: number,
     mortality: number,
     remaining: number,
-    biomass: number
+    biomassByType: Record<string, number>,
+    totalBiomass: number
   }>();
 
-  let cumulativeStock = 0;
+  let cumulativeTotalStock = 0;
   
   sorted.forEach(event => {
     const date = event.date;
+    const typeId = event.fishTypeId || 'unknown';
+
     if (!dailyData.has(date)) {
-      dailyData.set(date, { seeds: 0, harvests: 0, mortality: 0, remaining: 0, biomass: 0 });
+      dailyData.set(date, { 
+        seeds: 0, 
+        harvests: 0, 
+        mortality: 0, 
+        remaining: 0, 
+        biomassByType: {}, 
+        totalBiomass: 0 
+      });
     }
     
+    if (!speciesState.has(typeId)) {
+      speciesState.set(typeId, { quantity: 0, lastABW: 0 });
+    }
+
     const day = dailyData.get(date)!;
+    const state = speciesState.get(typeId)!;
     
+    // Update quantity deltas for the day (for bar charts)
     if (event.type === FishStockEventType.SEED || event.type === FishStockEventType.TRANSFER_IN) {
       day.seeds += event.quantityDelta;
     } else if (event.type === FishStockEventType.HARVEST) {
@@ -106,17 +128,27 @@ const chartData = computed(() => {
     } else if (event.type === FishStockEventType.MORTALITY) {
       day.mortality += Math.abs(event.quantityDelta);
     } else if (event.type === FishStockEventType.TRANSFER_OUT) {
-      // For simplicity, treat transfer out like a removal
       day.mortality += Math.abs(event.quantityDelta);
     }
 
-    cumulativeStock += event.quantityDelta;
-    day.remaining = cumulativeStock;
+    // Update cumulative state
+    state.quantity += event.quantityDelta;
+    cumulativeTotalStock += event.quantityDelta;
     
-    // Calculate biomass if avgWeight is available
     if (event.avgWeightGram) {
-       day.biomass = (cumulativeStock * event.avgWeightGram) / 1000; // in kg
+      state.lastABW = event.avgWeightGram;
     }
+
+    // Capture snapshot for all species on this date
+    let currentTotalBiomass = 0;
+    speciesState.forEach((s, tid) => {
+       const b = (s.quantity * s.lastABW) / 1000;
+       day.biomassByType[tid] = b;
+       currentTotalBiomass += b;
+    });
+
+    day.remaining = cumulativeTotalStock;
+    day.totalBiomass = currentTotalBiomass;
   });
 
   return Array.from(dailyData.entries()).map(([date, data]) => ({
@@ -128,6 +160,69 @@ const chartData = computed(() => {
 const chartOption = computed(() => {
   const data = chartData.value;
   const dates = data.map(d => d.date);
+  
+  // Identify all species found in the data
+  const speciesInChart = new Set<string>();
+  data.forEach(d => Object.keys(d.biomassByType).forEach(id => speciesInChart.add(id)));
+  const sortedSpeciesIds = Array.from(speciesInChart).sort();
+
+  const series: any[] = [
+    {
+      name: 'Stocking',
+      type: 'bar',
+      barMaxWidth: 20,
+      itemStyle: { color: '#4CAF50', borderRadius: [4, 4, 0, 0] },
+      data: data.map(d => d.seeds)
+    },
+    {
+      name: 'Harvest',
+      type: 'bar',
+      barMaxWidth: 20,
+      itemStyle: { color: '#FF9800', borderRadius: [4, 4, 0, 0] },
+      data: data.map(d => d.harvests)
+    },
+    {
+      name: 'Remaining Stock',
+      type: 'line',
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 8,
+      lineStyle: { width: 3, color: '#2196F3' },
+      itemStyle: { color: '#2196F3' },
+      areaStyle: {
+        color: {
+          type: 'linear',
+          x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [{ offset: 0, color: 'rgba(33, 150, 243, 0.2)' }, { offset: 1, color: 'rgba(33, 150, 243, 0)' }]
+        }
+      },
+      data: data.map(d => d.remaining)
+    },
+    {
+      name: 'Total Biomass',
+      type: 'line',
+      yAxisIndex: 1,
+      smooth: true,
+      lineStyle: { width: 4, color: '#333' },
+      itemStyle: { color: '#333' },
+      data: data.map(d => d.totalBiomass),
+      z: 10 // Ensure total is on top
+    }
+  ];
+
+  // Add individual species biomass series
+  sortedSpeciesIds.forEach((id, index) => {
+    const speciesName = props.fishTypes.find(t => t.id === id)?.name || id;
+    series.push({
+      name: `Biomass (${speciesName})`,
+      type: 'line',
+      yAxisIndex: 1,
+      smooth: true,
+      lineStyle: { width: 2, type: 'dashed' },
+      itemStyle: { color: COLORS[index % COLORS.length] },
+      data: data.map(d => d.biomassByType[id] || 0)
+    });
+  });
 
   return {
     tooltip: {
@@ -140,8 +235,8 @@ const chartOption = computed(() => {
       formatter: (params: any) => {
         let res = `<div class="font-weight-bold mb-1">${params[0].name}</div>`;
         params.forEach((p: any) => {
-          const val = p.value.toLocaleString();
-          const unit = p.seriesName === 'Biomass' ? ' kg' : ' pcs';
+          const val = (p.value || 0).toLocaleString(undefined, { minimumFractionDigits: p.seriesName.includes('Biomass') ? 1 : 0 });
+          const unit = p.seriesName.includes('Biomass') ? ' kg' : ' pcs';
           res += `<div class="d-flex align-center">
             <span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${p.color};"></span>
             <span class="mr-4">${p.seriesName}:</span>
@@ -152,14 +247,15 @@ const chartOption = computed(() => {
       }
     },
     legend: {
-      data: ['Stocking', 'Harvest', 'Remaining Stock', 'Biomass'],
+      data: series.map(s => s.name),
       bottom: 10,
-      icon: 'circle'
+      icon: 'circle',
+      padding: [0, 50]
     },
     grid: {
       left: '3%',
       right: '4%',
-      bottom: '15%',
+      bottom: '20%',
       top: '10%',
       containLabel: true
     },
@@ -182,48 +278,7 @@ const chartOption = computed(() => {
         splitLine: { show: false }
       }
     ],
-    series: [
-      {
-        name: 'Stocking',
-        type: 'bar',
-        barMaxWidth: 20,
-        itemStyle: { color: '#4CAF50', borderRadius: [4, 4, 0, 0] },
-        data: data.map(d => d.seeds)
-      },
-      {
-        name: 'Harvest',
-        type: 'bar',
-        barMaxWidth: 20,
-        itemStyle: { color: '#FF9800', borderRadius: [4, 4, 0, 0] },
-        data: data.map(d => d.harvests)
-      },
-      {
-        name: 'Remaining Stock',
-        type: 'line',
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 8,
-        lineStyle: { width: 3, color: '#2196F3' },
-        itemStyle: { color: '#2196F3' },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [{ offset: 0, color: 'rgba(33, 150, 243, 0.2)' }, { offset: 1, color: 'rgba(33, 150, 243, 0)' }]
-          }
-        },
-        data: data.map(d => d.remaining)
-      },
-      {
-        name: 'Biomass',
-        type: 'line',
-        yAxisIndex: 1,
-        smooth: true,
-        lineStyle: { width: 2, type: 'dashed', color: '#9C27B0' },
-        itemStyle: { color: '#9C27B0' },
-        data: data.map(d => d.biomass)
-      }
-    ]
+    series
   };
 });
 </script>

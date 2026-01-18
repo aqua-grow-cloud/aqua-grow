@@ -21,7 +21,11 @@
       <v-row>
         <!-- Chart Section -->
         <v-col cols="12" lg="8">
-          <FishStockChart :events="events || []" :loading="eventsLoading" />
+          <FishStockChart 
+            :events="events || []" 
+            :fish-types="fishTypes || []"
+            :loading="eventsLoading" 
+          />
         </v-col>
 
         <!-- Summary Stats Section -->
