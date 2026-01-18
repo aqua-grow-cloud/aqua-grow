@@ -70,7 +70,8 @@
               <td class="text-center">{{ species.quantity.toLocaleString() }}</td>
               <td class="text-center">
                 <v-text-field
-                  v-model.number="species.targetABW"
+                  :model-value="speciesConfigs[species.configKey]?.targetABW"
+                  @update:model-value="(v: any) => updateConfig(species.configKey, 'targetABW', v)"
                   type="number"
                   variant="outlined"
                   density="compact"
@@ -82,7 +83,8 @@
               <td class="text-center font-weight-bold">{{ species.biomass.toLocaleString() }}</td>
               <td class="text-center">
                 <v-text-field
-                  v-model.number="species.baseRate"
+                  :model-value="speciesConfigs[species.configKey]?.baseRate"
+                  @update:model-value="(v: any) => updateConfig(species.configKey, 'baseRate', v)"
                   type="number"
                   variant="outlined"
                   density="compact"
@@ -135,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive } from 'vue';
+import { ref, computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useBatches } from '../batches/composables/useBatches';
 import { useHarvestLogs } from './composables/useHarvestLogs';
@@ -269,18 +271,15 @@ function resetSimulation() {
   Object.keys(speciesConfigs).forEach(key => delete speciesConfigs[key]);
 }
 
-// Watchers to update reactive configs from UI components
-watch(simulationData, (data) => {
-  data.forEach(batch => {
-    batch.species.forEach(s => {
-      const config = speciesConfigs[s.configKey];
-      if (config) {
-        config.targetABW = s.targetABW;
-        config.baseRate = s.baseRate;
-      }
-    });
-  });
-}, { deep: true });
+// Function to update config values from input fields
+function updateConfig(key: string, field: 'targetABW' | 'baseRate', value: string | number) {
+  if (!speciesConfigs[key]) return;
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  if (!isNaN(numValue)) {
+    speciesConfigs[key][field] = numValue;
+  }
+}
+
 
 </script>
 
