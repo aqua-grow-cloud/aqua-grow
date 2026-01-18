@@ -149,6 +149,23 @@ const { harvestLogs } = useHarvestLogs();
 const { data: sampleLogs } = sampleLogService.useGetAll();
 const { data: fishTypes } = fishTypeService.useGetAll();
 
+// Helpers to safely extract arrays from potentially paginated responses
+function getSampleLogsArray(): any[] {
+  const data = sampleLogs.value;
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (typeof data === 'object' && Array.isArray((data as any).content)) return (data as any).content;
+  return [];
+}
+
+function getHarvestLogsArray(): any[] {
+  const data = harvestLogs.value;
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (typeof data === 'object' && Array.isArray((data as any).content)) return (data as any).content;
+  return [];
+}
+
 // Reactive state for simulation parameters
 const speciesConfigs = reactive<Record<string, { targetABW: number, baseRate: number }>>({});
 
@@ -165,14 +182,14 @@ const simulationData = computed(() => {
         
         // Calculate current quantity
         const totalStocked = seed.quantity || 0;
-        const totalHarvested = (harvestLogs.value || [])
+        const totalHarvested = getHarvestLogsArray()
           .filter(h => h.batchId === batch.id && h.fishTypeId === typeId)
           .reduce((sum, h) => sum + (h.count || 0), 0);
         
         let currentQuantity = Math.max(0, totalStocked - totalHarvested);
 
         // ABW from latest sample
-        const latestSample = (sampleLogs.value || [])
+        const latestSample = getSampleLogsArray()
           .filter((s: any) => s.batchId === (batch.id || '') && s.fishTypeId === typeId)
           .sort((a: any, b: any) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime())[0];
 
