@@ -44,6 +44,11 @@ const router = createRouter({
             component: () => import('../features/harvesting/HarvestPage.vue')
         },
         {
+            path: '/harvest/simulation',
+            name: 'harvest-simulation',
+            component: () => import('../features/harvesting/HarvestSimulationPage.vue')
+        },
+        {
             path: '/payroll',
             name: 'payroll',
             component: () => import('../features/payroll/PayrollPage.vue')

@@ -1,6 +1,18 @@
 <template>
   <v-container fluid>
-    <PageHeader title="Harvest & Output Tracking" />
+    <PageHeader title="Harvest & Output Tracking">
+      <template #actions>
+        <v-btn
+          prepend-icon="mdi-calculator"
+          color="primary"
+          variant="outlined"
+          :to="{ name: 'harvest-simulation' }"
+          class="text-capitalize"
+        >
+          Harvest Simulation
+        </v-btn>
+      </template>
+    </PageHeader>
 
     <v-row>
       <!-- Harvest Entry Form -->
