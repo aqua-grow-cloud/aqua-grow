@@ -6,7 +6,21 @@ import com.aquagrow.api.repository.SampleLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import org.springframework.web.multipart.MultipartFile;
+import com.aquagrow.api.dto.CsvSampleLog;
+import com.aquagrow.api.model.Batch;
+import com.aquagrow.api.model.FishType;
+import com.aquagrow.api.model.Pond;
+import com.opencsv.bean.CsvToBean;
+import com.opencsv.bean.CsvToBeanBuilder;
 
 @RestController
 @RequestMapping("/api/sample-logs")
@@ -16,6 +30,8 @@ public class SampleLogController {
 
     private final BatchRepository batchRepository;
     private final SampleLogRepository sampleLogRepository;
+    private final com.aquagrow.api.repository.PondRepository pondRepository;
+    private final com.aquagrow.api.repository.FishTypeRepository fishTypeRepository;
     private final com.aquagrow.api.repository.FishStockEventRepository fishStockEventRepository;
 
     @GetMapping
@@ -90,5 +106,92 @@ public class SampleLogController {
     @GetMapping("/batch/{batchId}")
     public List<SampleLog> getSampleLogsByBatch(@PathVariable String batchId) {
         return sampleLogRepository.findByBatchId(batchId);
+    }
+
+    @PostMapping("/import")
+    public List<SampleLog> importCsv(@RequestParam("file") MultipartFile file) throws Exception {
+        String tenantId = com.aquagrow.api.security.TenantContext.getTenantId();
+        List<SampleLog> savedLogs = new ArrayList<>();
+
+        try (Reader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
+            CsvToBean<CsvSampleLog> csvToBean = new CsvToBeanBuilder<CsvSampleLog>(reader)
+                    .withType(CsvSampleLog.class)
+                    .withIgnoreLeadingWhiteSpace(true)
+                    .build();
+
+            List<CsvSampleLog> csvLogs = csvToBean.parse();
+            for (CsvSampleLog csv : csvLogs) {
+                LocalDate eventDate = parseDate(csv.getDate());
+
+                // 1. Resolve Batch
+                Batch batch = batchRepository.findByName(csv.getBatchName())
+                        .orElseGet(() -> batchRepository.save(Batch.builder()
+                                .name(csv.getBatchName())
+                                .tenantId(tenantId)
+                                .stockingDate(eventDate)
+                                .build()));
+
+                // 2. Resolve Pond
+                Pond pond = pondRepository.findByName(csv.getPondName())
+                        .orElseGet(() -> pondRepository.save(Pond.builder()
+                                .name(csv.getPondName())
+                                .tenantId(tenantId)
+                                .status("Active")
+                                .build()));
+
+                // 3. Resolve FishType
+                FishType fishType = fishTypeRepository.findByName(csv.getFishType())
+                        .orElseGet(() -> fishTypeRepository.save(FishType.builder()
+                                .name(csv.getFishType())
+                                .tenantId(tenantId)
+                                .build()));
+
+                // 4. Create SampleLog
+                SampleLog log = SampleLog.builder()
+                        .batchId(batch.getId())
+                        .fishTypeId(fishType.getId())
+                        .date(eventDate)
+                        .sampleCount(csv.getPieces())
+                        .totalSampleWeight(csv.getTotalWeight())
+                        .averageWeight(csv.getWeightPerUnit())
+                        .tenantId(tenantId)
+                        .build();
+
+                SampleLog savedLog = sampleLogRepository.save(log);
+                savedLogs.add(savedLog);
+
+                // 5. Create FishStockEvent (SAMPLING)
+                fishStockEventRepository.save(com.aquagrow.api.model.FishStockEvent.builder()
+                        .pondId(pond.getId())
+                        .batchId(batch.getId())
+                        .date(eventDate)
+                        .type(com.aquagrow.api.model.FishStockEventType.SAMPLING)
+                        .fishTypeId(fishType.getId())
+                        .quantityDelta(0)
+                        .avgWeightGram(savedLog.getAverageWeight())
+                        .referenceId(savedLog.getId())
+                        .tenantId(tenantId)
+                        .build());
+            }
+        }
+        return savedLogs;
+    }
+
+    private LocalDate parseDate(String dateStr) {
+        if (dateStr == null || dateStr.isEmpty()) {
+            return LocalDate.now();
+        }
+
+        String[] formats = {
+                "yyyy-MM-dd", "MM/dd/yyyy", "MMMM d, yyyy", "d-MMM-yyyy", "MMM d, yyyy", "dd-MM-yyyy"
+        };
+
+        for (String format : formats) {
+            try {
+                return LocalDate.parse(dateStr.trim(), DateTimeFormatter.ofPattern(format, Locale.ENGLISH));
+            } catch (Exception ignored) {
+            }
+        }
+        return LocalDate.now();
     }
 }
