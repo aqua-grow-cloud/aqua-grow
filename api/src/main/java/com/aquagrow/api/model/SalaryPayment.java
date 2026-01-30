@@ -27,6 +27,8 @@ public class SalaryPayment {
     private Double advanceDeduction;
     private Double bonus;
     private Double netAmount;
+    
+    @Column(name = "\"month\"") // Quoted because 'month' is a reserved keyword in H2
     private String month; // e.g., "2023-11"
 
     @Column(name = "tenant_id", nullable = false)
