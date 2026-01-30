@@ -69,8 +69,16 @@
 
       <v-card-actions class="px-6 pb-6">
         <v-spacer></v-spacer>
-        <v-btn variant="text" @click="$emit('update:modelValue', false)">Cancel</v-btn>
-        <v-btn color="primary" variant="flat" :disabled="netSalary < 0" @click="confirmPay">Process Payment</v-btn>
+        <v-btn variant="text" @click="$emit('update:modelValue', false)" :disabled="isProcessing">Cancel</v-btn>
+        <v-btn 
+          color="primary" 
+          variant="flat" 
+          :disabled="netSalary < 0 || isProcessing" 
+          :loading="isProcessing"
+          @click="confirmPay"
+        >
+          Process Payment
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -79,7 +87,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import type { Employee } from '../../../api/generated/model';
-import type { SalaryPayment } from '../../../types';
+import { useSalaryPayments } from '../composables/useSalaryPayments';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -88,8 +96,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void;
-  (e: 'pay', payment: Omit<SalaryPayment, 'id'>): void;
+  (e: 'success'): void;
 }>();
+
+const { createPayment, calculateNetAmount, isProcessing } = useSalaryPayments();
 
 const month = ref(new Date().toISOString().substr(0, 7));
 const deduction = ref(0);
@@ -97,7 +107,11 @@ const bonus = ref(0);
 
 const netSalary = computed(() => {
     if (!props.employee) return 0;
-    return (props.employee.salary || 0) - (deduction.value || 0) + (bonus.value || 0);
+    return calculateNetAmount(
+      props.employee.salary || 0,
+      deduction.value || 0,
+      bonus.value || 0
+    );
 });
 
 watch(() => props.modelValue, (val) => {
@@ -109,18 +123,35 @@ watch(() => props.modelValue, (val) => {
     }
 });
 
-function confirmPay() {
-    if (!props.employee) return;
+async function confirmPay() {
+    if (!props.employee?.id) return;
 
-    emit('pay', {
-        employeeId: props.employee.id || '',
-        date: new Date().toISOString().split('T')[0] as string,
-        month: month.value,
+    const paymentDate = new Date().toISOString().split('T')[0];
+    
+    // Create payment data object with explicit types
+    const paymentData = {
+        employeeId: props.employee.id,
+        date: paymentDate,
         baseSalary: props.employee.salary || 0,
         advanceDeduction: deduction.value,
-        bonus: bonus.value,
-        netAmount: netSalary.value
-    });
-    emit('update:modelValue', false);
+        bonus: bonus.value
+    } as {
+        employeeId: string
+        date: string
+        baseSalary: number
+        advanceDeduction: number
+        bonus: number
+    };
+
+    try {
+        await createPayment(paymentData);
+
+        // Success - no notification needed, just emit success
+        emit('success');
+        emit('update:modelValue', false);
+    } catch (error) {
+        console.error('Failed to process salary payment:', error);
+        // Error handling - could add a snackbar or alert here
+    }
 }
 </script>

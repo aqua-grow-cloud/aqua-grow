@@ -1,7 +1,7 @@
 import {
-    useGetAllSampleLogs,
+    useSearchSampleLogs,
     useLogSample,
-    type GetAllSampleLogsQueryResult,
+    type SearchSampleLogsQueryResult,
     type LogSampleMutationResult
 } from '../../../api/generated/sample-log-controller/sample-log-controller';
 import type { SampleLog } from '../../../api/generated/model';
@@ -18,20 +18,14 @@ export const sampleLogService = {
      * Search sample logs hook
      */
     useSearch(params: any) {
-        return useQuery({
-            queryKey: ['sample-logs', 'search', params],
-            queryFn: async () => {
-                const { data } = await axios.get('/api/sample-logs', { params: params.value });
-                return data;
-            }
-        });
+        return useSearchSampleLogs(params);
     },
 
     /**
-     * Get all sample logs hook (legacy/simple)
+     * Get all sample logs hook (legacy - now uses search with default pagination)
      */
     useGetAll() {
-        return useGetAllSampleLogs();
+        return useSearchSampleLogs({ pageable: { page: 0, size: 1000 } });
     },
 
     /**
@@ -45,6 +39,6 @@ export const sampleLogService = {
 // Type exports for convenience
 export type {
     SampleLog,
-    GetAllSampleLogsQueryResult,
+    SearchSampleLogsQueryResult,
     LogSampleMutationResult
 };
