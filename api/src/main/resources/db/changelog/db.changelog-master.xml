@@ -25,5 +25,6 @@
     <include file="db/changelog/changesets/18-add-coordinates-to-ponds.xml"/>
     <include file="db/changelog/changesets/19-create-fish-types-table.xml"/>
     <include file="db/changelog/changesets/20-migrate-fish-types-data.xml"/>
+    <include file="db/changelog/changesets/21-add-telegram-chat-id-to-employee.xml"/>
 
 </databaseChangeLog>

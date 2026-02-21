@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface EmployeeRepository extends JpaRepository<Employee, String> {
+    java.util.Optional<Employee> findByTelegramChatId(String telegramChatId);
 }
