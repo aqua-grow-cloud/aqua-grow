@@ -26,7 +26,19 @@ public class TelegramDataEntryService {
     private final SampleService sampleService;
     private final TelegramMessageService telegramMessageService;
 
-    // F [BatchName] [FeedType] [Amount]
+    // Enhanced Feed Pattern: [Date] [BatchName] [FeedType] [Amount] [Unit] [Time]
+    // Example: 2026-02-10 2025-11-28 King Fish Feed 480 kg 07:00
+    // Date: (\d{4}-\d{2}-\d{2})?
+    // Batch: (\S+)
+    // FeedType: (.+?)
+    // Amount: (\d+(?:\.\d+)?)
+    // Unit: (kg|g)
+    // Time: (\d{2}:\d{2})?
+    private static final Pattern ENHANCED_FEED_PATTERN = Pattern.compile(
+            "^(?:(\\d{4}-\\d{2}-\\d{2})\\s+)?(\\S+)\\s+(.+?)\\s+(\\d+(?:\\.\\d+)?)\\s*(kg|g|KG|G)(?:\\s+(\\d{2}:\\d{2}))?$",
+            Pattern.CASE_INSENSITIVE);
+
+    // Old Feed Pattern (kept for backward compatibility or simple entries)
     private static final Pattern FEED_PATTERN = Pattern.compile("^F\\s+(\\S+)\\s+(\\S+)\\s+(\\d+(\\.\\d+)?)$",
             Pattern.CASE_INSENSITIVE);
     // S [BatchName] [FishType] [Count] [TotalWeight]
@@ -55,12 +67,17 @@ public class TelegramDataEntryService {
             String cleanText = text.trim();
             if (cleanText.equalsIgnoreCase("/help")) {
                 telegramMessageService.sendMessage(chatId, "📖 <b>Available Commands</b>:\n\n" +
-                        "- <b>Feed</b>: <code>F [BatchName] [FeedType] [Amount]</code>\n" +
+                        "- <b>Feed (Detailed)</b>: <code>[Date] [BatchName] [FeedType] [Amount] [Unit] [Time]</code>\n"
+                        +
+                        "  <i>Example: 2026-02-10 2025-11-28 King Fish Feed 480 kg 07:00</i>\n\n" +
+                        "- <b>Feed (Quick)</b>: <code>F [BatchName] [FeedType] [Amount]</code>\n" +
                         "  <i>Example: F B1 Grow1 50</i>\n\n" +
                         "- <b>Sample</b>: <code>S [BatchName] [FishType] [Pieces] [TotalWeight]</code>\n" +
                         "  <i>Example: S B1 Tilapia 10 2.5</i>");
             } else if (cleanText.startsWith("F") || cleanText.startsWith("f")) {
                 handleFeed(chatId, cleanText);
+            } else if (ENHANCED_FEED_PATTERN.matcher(cleanText).matches()) {
+                handleEnhancedFeed(chatId, cleanText);
             } else if (cleanText.startsWith("S") || cleanText.startsWith("s")) {
                 handleSample(chatId, cleanText);
             } else {
@@ -103,6 +120,47 @@ public class TelegramDataEntryService {
         feedService.createFeedLog(feedLog);
         telegramMessageService.sendMessage(chatId,
                 String.format("✅ Logged %.1f kg of %s for batch %s", amount, feedType, batchName));
+    }
+
+    private void handleEnhancedFeed(String chatId, String text) {
+        Matcher matcher = ENHANCED_FEED_PATTERN.matcher(text.trim());
+        if (!matcher.matches()) {
+            return; // Should not happen if pre-checked
+        }
+
+        String dateStr = matcher.group(1);
+        String batchName = matcher.group(2);
+        String feedType = matcher.group(3);
+        double amount = Double.parseDouble(matcher.group(4));
+        String unit = matcher.group(5);
+        String timeStr = matcher.group(6);
+
+        // Convert amount to kg
+        if (unit.equalsIgnoreCase("g")) {
+            amount = amount / 1000.0;
+        }
+
+        LocalDate date = (dateStr != null) ? LocalDate.parse(dateStr) : LocalDate.now();
+
+        Optional<Batch> batchOpt = batchRepository.findByName(batchName);
+        if (batchOpt.isEmpty()) {
+            telegramMessageService.sendMessage(chatId, "❌ Batch not found: " + batchName);
+            return;
+        }
+
+        FeedLog feedLog = FeedLog.builder()
+                .batchId(batchOpt.get().getId())
+                .date(date)
+                .feedType(feedType)
+                .amount(amount)
+                .time(timeStr)
+                .tenantId(TenantContext.getTenantId())
+                .build();
+
+        feedService.createFeedLog(feedLog);
+        telegramMessageService.sendMessage(chatId,
+                String.format("✅ Logged %.1f kg of %s for batch %s on %s%s",
+                        amount, feedType, batchName, date, (timeStr != null ? " at " + timeStr : "")));
     }
 
     private void handleSample(String chatId, String text) {
