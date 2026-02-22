@@ -28,16 +28,20 @@ public class TelegramMessageService {
 
         String url = String.format("https://api.telegram.org/bot%s/sendMessage", botToken);
 
-        Map<String, String> body = new HashMap<>();
-        body.put("chat_id", chatId);
-        body.put("text", text);
-        body.put("parse_mode", "HTML");
+        Map<String, String> payload = new HashMap<>();
+        payload.put("chat_id", chatId);
+        payload.put("text", text);
+        payload.put("parse_mode", "HTML");
 
         try {
             @SuppressWarnings("null")
-            org.springframework.http.ResponseEntity<String> response = restTemplate.postForEntity(url, body,
+            org.springframework.http.ResponseEntity<String> response = restTemplate.postForEntity(url, payload,
                     String.class);
-            log.info("Successfully sent Telegram message to {}", chatId);
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("Successfully sent Telegram message to {}", chatId);
+            } else {
+                log.warn("Failed to send Telegram message to {}. Status: {}", chatId, response.getStatusCode());
+            }
         } catch (Exception e) {
             log.error("Failed to send Telegram message to {}", chatId, e);
         }

@@ -46,15 +46,18 @@ public class FeedOrderService {
     public Optional<FeedOrder> confirmOrder(String id) {
         return feedOrderRepository.findById(id)
                 .map(order -> {
+                    String tenantId = order.getTenantId();
                     order.setStatus(OrderStatus.CONFIRMED);
                     order.setConfirmationDate(LocalDateTime.now());
-                    log.info("Confirmed order: {} for tenant: {}", id, order.getTenantId());
+                    log.info("Confirmed order: {} for tenant: {}", id, tenantId);
                     return feedOrderRepository.save(order);
                 });
     }
 
     @Transactional
     public Optional<FeedOrder> receiveOrder(String id) {
+        if (id == null)
+            return Optional.empty();
         return feedOrderRepository.findById(id)
                 .map(order -> {
                     if (order.getStatus() == OrderStatus.RECEIVED) {
@@ -82,6 +85,8 @@ public class FeedOrderService {
 
     @Transactional
     public Optional<FeedOrder> updatePaymentStatus(String id, PaymentStatus status) {
+        if (id == null)
+            return Optional.empty();
         return feedOrderRepository.findById(id)
                 .map(order -> {
                     order.setPaymentStatus(status);
@@ -91,6 +96,8 @@ public class FeedOrderService {
 
     @Transactional
     public Optional<Void> cancelOrder(String id) {
+        if (id == null)
+            return Optional.empty();
         return feedOrderRepository.findById(id)
                 .map(order -> {
                     order.setStatus(OrderStatus.CANCELLED);

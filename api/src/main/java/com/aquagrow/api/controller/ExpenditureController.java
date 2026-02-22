@@ -7,6 +7,7 @@ import com.aquagrow.api.model.Batch;
 import com.aquagrow.api.model.Expenditure;
 import com.aquagrow.api.repository.BatchRepository;
 import com.aquagrow.api.repository.ExpenditureRepository;
+import com.aquagrow.api.service.ExpenditureService;
 import com.opencsv.bean.CsvToBean;
 import com.opencsv.bean.CsvToBeanBuilder;
 import com.opencsv.bean.StatefulBeanToCsv;
@@ -29,18 +30,18 @@ import java.util.stream.Collectors;
 @CrossOrigin(origins = "*")
 public class ExpenditureController {
 
+    private final ExpenditureService expenditureService;
     private final ExpenditureRepository expenditureRepository;
     private final BatchRepository batchRepository;
 
     @GetMapping
     public List<Expenditure> getAllExpenditures() {
-        return expenditureRepository.findAll();
+        return expenditureService.getAllExpenditures();
     }
 
     @PostMapping
     public Expenditure logExpenditure(@RequestBody Expenditure expenditure) {
-        expenditure.setTenantId(com.aquagrow.api.security.TenantContext.getTenantId());
-        return expenditureRepository.save(expenditure);
+        return expenditureService.logExpenditure(expenditure);
     }
 
     @GetMapping("/batch/{batchId}")
