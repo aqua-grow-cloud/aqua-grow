@@ -36,8 +36,8 @@ public class FeedCommandHandler implements TelegramCommandHandler {
     @Override
     public boolean canHandle(String text) {
         String cleanText = text.trim();
-        return cleanText.startsWith("F") || cleanText.startsWith("f")
-                || ENHANCED_FEED_PATTERN.matcher(cleanText).matches();
+        String upperText = cleanText.toUpperCase();
+        return upperText.startsWith("F ") || ENHANCED_FEED_PATTERN.matcher(cleanText).matches();
     }
 
     @Override

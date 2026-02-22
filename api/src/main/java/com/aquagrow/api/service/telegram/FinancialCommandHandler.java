@@ -49,11 +49,11 @@ public class FinancialCommandHandler implements TelegramCommandHandler {
 
     @Override
     public boolean canHandle(String text) {
-        String cleanText = text.trim();
-        return cleanText.startsWith("EX") || cleanText.startsWith("ex") ||
-                cleanText.startsWith("PAY") || cleanText.startsWith("pay") ||
-                cleanText.startsWith("FIN") || cleanText.startsWith("fin") ||
-                RAW_EXPENDITURE_PATTERN.matcher(cleanText).matches();
+        String cleanText = text.trim().toUpperCase();
+        return cleanText.startsWith("EX ") ||
+                cleanText.startsWith("PAY ") ||
+                cleanText.equals("FIN") || cleanText.startsWith("FIN ") ||
+                RAW_EXPENDITURE_PATTERN.matcher(text.trim()).matches();
     }
 
     @Override

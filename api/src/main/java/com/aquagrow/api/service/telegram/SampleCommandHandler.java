@@ -33,8 +33,8 @@ public class SampleCommandHandler implements TelegramCommandHandler {
 
     @Override
     public boolean canHandle(String text) {
-        String cleanText = text.trim();
-        return cleanText.startsWith("S") || cleanText.startsWith("s");
+        String upperText = text.trim().toUpperCase();
+        return upperText.startsWith("S ");
     }
 
     @Override

@@ -39,11 +39,11 @@ public class FeedOrderCommandHandler implements TelegramCommandHandler {
 
     @Override
     public boolean canHandle(String text) {
-        String cleanText = text.trim();
-        return cleanText.startsWith("FI") || cleanText.startsWith("fi") ||
-                cleanText.startsWith("FO") || cleanText.startsWith("fo") ||
-                cleanText.startsWith("FC") || cleanText.startsWith("fc") ||
-                cleanText.startsWith("FR") || cleanText.startsWith("fr");
+        String cleanText = text.trim().toUpperCase();
+        return cleanText.equals("FI") || cleanText.startsWith("FI ") ||
+                cleanText.startsWith("FO ") ||
+                cleanText.startsWith("FC ") ||
+                cleanText.startsWith("FR ");
     }
 
     @Override
