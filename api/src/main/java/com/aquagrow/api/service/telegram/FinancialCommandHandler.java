@@ -31,8 +31,16 @@ public class FinancialCommandHandler implements TelegramCommandHandler {
 
     private static final DateTimeFormatter MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
 
-    // Expenditure: EX [BatchName] [Category] [Amount] [Description]
-    private static final Pattern EXPENDITURE_PATTERN = Pattern
+    // Extended Expenditure: EX [Date?] [BatchName] [Amount] [Macro] [Type]
+    // [SubType] [Description?]
+    // Date is optional (YYYY-MM-DD); Description is optional
+    private static final Pattern EXPENDITURE_EXTENDED_PATTERN = Pattern.compile(
+            "^EX\\s+(?:(\\d{4}-\\d{2}-\\d{2})\\s+)?(\\S+)\\s+(\\d+(?:\\.\\d+)?)\\s+(\\S+)\\s+(\\S+)\\s+(\\S+)(?:\\s+(.+))?$",
+            Pattern.CASE_INSENSITIVE);
+
+    // Simple Expenditure (backward compat): EX [BatchName] [Category] [Amount]
+    // [Description?]
+    private static final Pattern EXPENDITURE_SIMPLE_PATTERN = Pattern
             .compile("^EX\\s+(\\S+)\\s+(\\S+)\\s+(\\d+(?:\\.\\d+)?)(?:\\s+(.+))?$", Pattern.CASE_INSENSITIVE);
 
     // Salary: PAY [EmployeeName] [Base] [Bonus] [Description]
@@ -71,21 +79,45 @@ public class FinancialCommandHandler implements TelegramCommandHandler {
     }
 
     private void handleExpenditure(String chatId, String text) {
-        Matcher matcher = EXPENDITURE_PATTERN.matcher(text.trim());
-        if (!matcher.matches()) {
+        // Try extended format first: EX [Date?] [Batch] [Amount] [Macro] [Type]
+        // [SubType] [Desc?]
+        Matcher extended = EXPENDITURE_EXTENDED_PATTERN.matcher(text.trim());
+        if (extended.matches()) {
+            String dateStr = extended.group(1);
+            String batchName = extended.group(2);
+            double amount = Double.parseDouble(extended.group(3));
+            String macro = extended.group(4);
+            String type = extended.group(5);
+            String subType = extended.group(6);
+            String description = extended.group(7);
+            LocalDate date = (dateStr != null) ? LocalDate.parse(dateStr) : LocalDate.now();
+
+            expenditureService.logExpenditureExtended(date, batchName, amount, macro, type, subType, description);
             telegramMessageService.sendMessage(chatId,
-                    "❌ Invalid format. Use: <code>EX [Batch] [Category] [Amount] [Description]</code>");
+                    String.format("✅ Expense of ₹%.2f logged for %s [%s / %s / %s] on %s.",
+                            amount, batchName, macro, type, subType, date));
             return;
         }
 
-        String batchName = matcher.group(1);
-        String category = matcher.group(2);
-        double amount = Double.parseDouble(matcher.group(3));
-        String description = matcher.group(4);
+        // Fall back to simple format: EX [Batch] [Category] [Amount] [Desc?]
+        Matcher simple = EXPENDITURE_SIMPLE_PATTERN.matcher(text.trim());
+        if (simple.matches()) {
+            String batchName = simple.group(1);
+            String category = simple.group(2);
+            double amount = Double.parseDouble(simple.group(3));
+            String description = simple.group(4);
 
-        expenditureService.logExpenditureByName(batchName, category, amount, description);
+            expenditureService.logExpenditureByName(batchName, category, amount, description);
+            telegramMessageService.sendMessage(chatId,
+                    String.format("✅ Expense of ₹%.2f logged for %s (%s).", amount, batchName, category));
+            return;
+        }
+
         telegramMessageService.sendMessage(chatId,
-                String.format("✅ Expense of ₹%.2f logged for %s (%s).", amount, batchName, category));
+                "❌ Invalid format.\n" +
+                        "• Simple: <code>EX [Batch] [Category] [Amount] [Desc?]</code>\n" +
+                        "• Extended: <code>EX [Date?] [Batch] [Amount] [Macro] [Type] [SubType] [Desc?]</code>\n" +
+                        "<i>Ex: EX 2026-02-23 Batch1 3250 NO_RETURN NoReturn Preparation \"Kalupu mandu\"</i>");
     }
 
     private void handleSalary(String chatId, String text) {

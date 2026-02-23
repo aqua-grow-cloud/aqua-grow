@@ -91,4 +91,34 @@ public class ExpenditureService {
 
         return logExpenditure(expenditure);
     }
+
+    @Transactional
+    public Expenditure logExpenditureExtended(
+            LocalDate date,
+            String batchName,
+            Double amount,
+            String macro,
+            String category,
+            String subType,
+            String description) {
+
+        String batchId = null;
+        if (batchName != null && !batchName.equalsIgnoreCase("Unallocated") && !batchName.equalsIgnoreCase("None")) {
+            batchId = batchRepository.findByName(batchName)
+                    .map(Batch::getId)
+                    .orElseThrow(() -> new BusinessException("Batch not found: " + batchName));
+        }
+
+        Expenditure expenditure = Expenditure.builder()
+                .batchId(batchId)
+                .date(date != null ? date : LocalDate.now())
+                .category(category)
+                .macroInvestment(macro)
+                .subType(subType)
+                .amount(amount)
+                .description(description)
+                .build();
+
+        return logExpenditure(expenditure);
+    }
 }
