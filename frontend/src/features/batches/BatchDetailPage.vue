@@ -21,10 +21,10 @@
       <v-row>
         <!-- Chart Section -->
         <v-col cols="12" lg="8">
-          <FishStockChart 
-            :events="events || []" 
+          <FishStockChart
+            :events="events || []"
             :fish-types="fishTypes || []"
-            :loading="eventsLoading" 
+            :loading="eventsLoading"
           />
         </v-col>
 
@@ -48,7 +48,7 @@
                   </v-card-text>
                 </v-card>
              </v-col>
-             
+
              <v-col cols="12">
                 <v-card class="rounded-lg" elevation="2">
                   <v-card-text>
@@ -69,7 +69,7 @@
           </v-row>
         </v-col>
       </v-row>
-      
+
       <!-- Event Ledger Table -->
       <v-row class="mt-4">
         <v-col cols="12">
@@ -118,14 +118,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { useBatches } from '../batches/composables/useBatches';
-import { useGetFishStockEventsByBatch } from '@/api/manual/hooks';
+import {computed} from 'vue';
+import {useRoute, useRouter} from 'vue-router';
+import {useBatches} from '../batches/composables/useBatches';
+import {useGetFishStockEventsByBatch} from '@/api/manual/hooks';
 import FishStockChart from '../batches/components/FishStockChart.vue';
-import PageHeader from '@/components/PageHeader.vue';
-import { fishTypeService } from '../settings/api/fishTypeService';
-import { FishStockEventType } from '@/api/manual/types';
+import {fishTypeService} from '../settings/api/fishTypeService';
+import {FishStockEventType} from '@/api/manual/types';
 
 const route = useRoute();
 const router = useRouter();
@@ -167,8 +166,24 @@ const currentStock = computed(() => {
 
 const latestABW = computed(() => {
     if (!events.value || events.value.length === 0) return 0;
-    const withWeight = events.value.filter(e => e.avgWeightGram).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return withWeight[0]?.avgWeightGram || 0;
+
+    // Filter events with weight data and sort by date (newest first)
+    const withWeight = events.value
+        .filter(e => e.avgWeightGram && e.avgWeightGram > 0)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    if (withWeight.length === 0) return 0;
+
+    // Get the most recent date
+    const mostRecentDate = withWeight[0].date;
+
+    // Get all samples from the most recent date
+    const sameDaySamples = withWeight.filter(e => e.date === mostRecentDate);
+
+    // Calculate average of all same-day samples
+    const avgWeight = sameDaySamples.reduce((sum, e) => sum + (e.avgWeightGram || 0), 0) / sameDaySamples.length;
+
+    return avgWeight;
 });
 
 const currentBiomass = computed(() => {
