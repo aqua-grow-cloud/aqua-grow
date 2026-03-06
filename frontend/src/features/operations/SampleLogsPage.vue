@@ -8,7 +8,7 @@
     <v-card class="mb-4">
       <v-card-text>
         <v-row dense>
-          <v-col cols="12" sm="3">
+          <v-col cols="12" sm="6" md="3">
             <v-select
               v-model="filters.pondId"
               :items="pondOptions"
@@ -21,7 +21,7 @@
               hide-details
             ></v-select>
           </v-col>
-          <v-col cols="12" sm="3">
+          <v-col cols="12" sm="6" md="3">
              <v-select
               v-model="filters.batchId"
               :items="batchOptions"
@@ -34,7 +34,7 @@
               hide-details
             ></v-select>
           </v-col>
-           <v-col cols="12" sm="3">
+           <v-col cols="12" sm="6" md="3">
              <v-select
               v-model="filters.fishTypeId"
               :items="speciesOptions"
@@ -47,7 +47,29 @@
               hide-details
             ></v-select>
           </v-col>
-           <v-col cols="12" sm="3" class="d-flex align-center">
+           <v-col cols="12" sm="6" md="3">
+             <v-text-field
+              v-model="filters.startDate"
+              type="date"
+              label="From Date"
+              variant="outlined"
+              density="compact"
+              clearable
+              hide-details
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" sm="6" md="3">
+             <v-text-field
+              v-model="filters.endDate"
+              type="date"
+              label="To Date"
+              variant="outlined"
+              density="compact"
+              clearable
+              hide-details
+            ></v-text-field>
+          </v-col>
+           <v-col cols="12" sm="6" md="3" class="d-flex align-center">
              <v-btn color="primary" variant="tonal" @click="resetFilters" prepend-icon="mdi-refresh">
                Reset Filters
              </v-btn>
@@ -98,13 +120,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { usePonds } from '../ponds/composables/usePonds';
-import { useBatches } from '../batches/composables/useBatches';
-import { sampleLogService } from './api/sampleLogService';
-import { fishTypeService } from '../settings/api/fishTypeService';
-import type { SampleLog } from '@/api/generated/model';
+import {computed, ref, watch} from 'vue';
+import {useRouter} from 'vue-router';
+import {usePonds} from '../ponds/composables/usePonds';
+import {useBatches} from '../batches/composables/useBatches';
+import {sampleLogService} from './api/sampleLogService';
+import {fishTypeService} from '../settings/api/fishTypeService';
+import type {SampleLog} from '@/api/generated/model';
 
 const router = useRouter();
 const { ponds } = usePonds();
@@ -113,7 +135,9 @@ const { batches, getBatchById } = useBatches();
 const filters = ref<any>({
   pondId: null,
   batchId: null,
-  fishTypeId: null
+  fishTypeId: null,
+  startDate: null,
+  endDate: null
 });
 
 const itemsPerPage = ref(10);
@@ -183,7 +207,9 @@ function resetFilters() {
     filters.value = {
         pondId: null,
         batchId: null,
-        fishTypeId: null
+        fishTypeId: null,
+        startDate: null,
+        endDate: null
     };
 }
 

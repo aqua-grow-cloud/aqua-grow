@@ -5,7 +5,7 @@
       <span>Biomass Distribution</span>
     </v-card-title>
     <v-divider></v-divider>
-    
+
     <v-card-text>
       <v-row>
         <v-col cols="12" md="6">
@@ -17,7 +17,7 @@
             <div>No biomass data available</div>
           </div>
         </v-col>
-        
+
         <v-col cols="12" md="6">
           <v-table density="compact">
             <thead>
@@ -49,18 +49,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { use } from 'echarts/core';
-import { CanvasRenderer } from 'echarts/renderers';
-import { PieChart } from 'echarts/charts';
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-} from 'echarts/components';
+import {computed} from 'vue';
+import {use} from 'echarts/core';
+import {CanvasRenderer} from 'echarts/renderers';
+import {PieChart} from 'echarts/charts';
+import {LegendComponent, TitleComponent, TooltipComponent,} from 'echarts/components';
 import VChart from 'vue-echarts';
-import type { Batch, HarvestLog, SampleLog } from '../../../api/generated/model';
-import type { FishType } from '../../settings/api/fishTypeService';
+import type {Batch, HarvestLog, SampleLog} from '../../../api/generated/model';
+import type {FishType} from '../../settings/api/fishTypeService';
 
 use([
   CanvasRenderer,
@@ -94,32 +90,42 @@ const biomassByType = computed(() => {
       }
 
       const stats = result.get(typeId)!;
-      
+
       // Calculate current quantity for this type in this batch
       const totalStocked = seed.quantity || 0;
       const totalHarvested = props.harvestLogs
         .filter(h => h.batchId === batch.id && h.fishTypeId === typeId)
         .reduce((sum, h) => sum + (h.count || 0), 0);
-      
+
       let currentQuantity = Math.max(0, totalStocked - totalHarvested);
 
-      // Get latest sampling for this batch and type
-      const latestSample = props.sampleLogs
-        .filter(s => s.batchId === batch.id && s.fishTypeId === typeId)
-        .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime())[0];
+      // Get latest sampling for this batch and type with same-day averaging
+      const samplesForBatchType = props.sampleLogs
+        .filter(s => s.batchId === batch.id && s.fishTypeId === typeId && s.averageWeight && s.averageWeight > 0)
+        .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime());
 
-      if (latestSample?.survivalEstimate !== undefined) {
-        currentQuantity = currentQuantity * (latestSample.survivalEstimate / 100);
+      // Calculate average ABW from same-day samples (most recent date)
+      let abw = seed.sizeGrams || 0; // Default to seed size
+      let latestSurvivalEstimate: number | undefined;
+
+      if (samplesForBatchType.length > 0) {
+        const mostRecentDate = samplesForBatchType[0]?.date;
+        const sameDaySamples = samplesForBatchType.filter(s => s.date === mostRecentDate);
+
+        // Average ABW from all samples on the most recent date
+        const totalWeight = sameDaySamples.reduce((sum, s) => sum + (s.averageWeight || 0), 0);
+        abw = totalWeight / sameDaySamples.length;
+
+        // Use survival estimate from the most recent sample (if available)
+        latestSurvivalEstimate = sameDaySamples[0]?.survivalEstimate;
       }
 
-      // ABW (Average Body Weight)
-      let abw = latestSample?.averageWeight;
-      if (!abw) {
-        abw = seed.sizeGrams || 0;
+      if (latestSurvivalEstimate !== undefined) {
+        currentQuantity = currentQuantity * (latestSurvivalEstimate / 100);
       }
 
       const biomass = (currentQuantity * abw) / 1000;
-      
+
       stats.biomass += biomass;
       stats.quantity += currentQuantity;
       stats.totalWeight += (currentQuantity * abw);
@@ -135,7 +141,7 @@ const summaryData = computed(() => {
     .map(([typeId, stats], index) => {
       const type = props.fishTypes.find(t => t.id === typeId);
       const avgWeight = stats.quantity > 0 ? stats.totalWeight / stats.quantity : 0;
-      
+
       return {
         id: typeId,
         name: type?.name || 'Unknown',
