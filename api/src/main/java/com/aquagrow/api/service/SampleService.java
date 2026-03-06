@@ -83,10 +83,10 @@ public class SampleService {
     }
 
     /**
-     * Search sample logs with filters (batch, pond, fishType)
+     * Search sample logs with filters (batch, pond, fishType, date range)
      */
     @Transactional(readOnly = true)
-    public Page<SampleLog> searchSampleLogs(String batchId, String pondId, String fishTypeId, Pageable pageable) {
+    public Page<SampleLog> searchSampleLogs(String batchId, String pondId, String fishTypeId, LocalDate startDate, LocalDate endDate, Pageable pageable) {
         Specification<SampleLog> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -111,6 +111,14 @@ public class SampleService {
                 } else {
                     predicates.add(root.get("batchId").in(batchIds));
                 }
+            }
+
+            if (startDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("date"), startDate));
+            }
+
+            if (endDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("date"), endDate));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

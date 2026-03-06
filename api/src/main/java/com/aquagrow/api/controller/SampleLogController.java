@@ -27,8 +27,10 @@ public class SampleLogController {
             @RequestParam(required = false) String batchId,
             @RequestParam(required = false) String pondId,
             @RequestParam(required = false) String fishTypeId,
+            @RequestParam(required = false) LocalDate startDate,
+            @RequestParam(required = false) LocalDate endDate,
             Pageable pageable) {
-        return sampleService.searchSampleLogs(batchId, pondId, fishTypeId, pageable);
+        return sampleService.searchSampleLogs(batchId, pondId, fishTypeId, startDate, endDate, pageable);
     }
 
     @PostMapping
