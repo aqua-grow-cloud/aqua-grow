@@ -5,16 +5,22 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
 
-    <changeSet id="22-add-cultivation-type-to-fish-types" author="system">
+    <changeSet id="22-add-cultivation-type-column" author="system">
         <addColumn tableName="fish_types">
             <column name="cultivation_type" type="VARCHAR(20)">
                 <constraints nullable="true"/>
             </column>
         </addColumn>
+    </changeSet>
 
-        <addCheckConstraint tableName="fish_types"
-                           constraintName="chk_cultivation_type"
-                           checkConstraint="cultivation_type IN ('FISH', 'SHRIMP', 'OTHER')"/>
+    <changeSet id="22-add-cultivation-type-constraint" author="system">
+        <sql>
+            ALTER TABLE fish_types ADD CONSTRAINT chk_cultivation_type 
+            CHECK (cultivation_type IN ('FISH', 'SHRIMP', 'OTHER'))
+        </sql>
+        <rollback>
+            ALTER TABLE fish_types DROP CONSTRAINT chk_cultivation_type
+        </rollback>
     </changeSet>
 
 </databaseChangeLog>
