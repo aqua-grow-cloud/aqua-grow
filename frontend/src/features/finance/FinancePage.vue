@@ -28,6 +28,10 @@
           <v-icon start icon="mdi-scale-balance"></v-icon>
           Balance Sheet
         </v-tab>
+        <v-tab value="pivot">
+          <v-icon start icon="mdi-table-pivot"></v-icon>
+          Expenditure Pivot
+        </v-tab>
       </v-tabs>
 
       <v-window v-model="tab">
@@ -76,6 +80,39 @@
                             class="w-32"
                             @update:model-value="onFilterChange"
                         ></v-select>
+                        <v-select
+                            v-model="filters.subType"
+                            :items="subTypeOptions"
+                            label="Sub-Type"
+                            density="compact"
+                            variant="outlined"
+                            hide-details
+                            clearable
+                            class="w-40"
+                            @update:model-value="onFilterChange"
+                        ></v-select>
+                        <v-text-field
+                            v-model="filters.startDate"
+                            type="date"
+                            label="From Date"
+                            density="compact"
+                            variant="outlined"
+                            hide-details
+                            clearable
+                            class="w-40"
+                            @update:model-value="onFilterChange"
+                        ></v-text-field>
+                        <v-text-field
+                            v-model="filters.endDate"
+                            type="date"
+                            label="To Date"
+                            density="compact"
+                            variant="outlined"
+                            hide-details
+                            clearable
+                            class="w-40"
+                            @update:model-value="onFilterChange"
+                        ></v-text-field>
                         <v-btn
                             variant="outlined"
                             prepend-icon="mdi-download"
@@ -192,6 +229,11 @@
         <v-window-item value="balance">
           <BalancePivotTable />
         </v-window-item>
+
+        <!-- Expenditure Pivot Tab -->
+        <v-window-item value="pivot">
+          <ExpenditurePivotTable />
+        </v-window-item>
       </v-window>
     </template>
 
@@ -205,15 +247,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive, useTemplateRef } from 'vue';
-import { useAquaStore } from '../../stores/useAquaStore';
+import {computed, reactive, ref} from 'vue';
+import {useAquaStore} from '@/stores/useAquaStore.ts';
 import PageHeader from '../../components/PageHeader.vue';
 import ExpenditureDialog from './components/ExpenditureDialog.vue';
 import BalancePivotTable from './components/BalancePivotTable.vue';
-import { expenditureService } from './api/expenditureService';
-import { useHarvestLogs } from '../harvesting/composables/useHarvestLogs';
-import { useBatches } from '../batches/composables/useBatches';
-import type { Expenditure, HarvestLog } from '../../api/generated/model';
+import ExpenditurePivotTable from './components/ExpenditurePivotTable.vue';
+import {expenditureService} from './api/expenditureService';
+import {useHarvestLogs} from '../harvesting/composables/useHarvestLogs';
+import {useBatches} from '../batches/composables/useBatches';
+import type {Expenditure, HarvestLog} from '@/api/generated/model';
 
 const store = useAquaStore();
 const dialog = ref(false);
@@ -232,6 +275,17 @@ const batchOptions = computed(() => {
         id: b.id,
         label: b.name || `Batch ${b.stockingDate}`
     })) || [];
+});
+
+// SubType options - dynamically populated from loaded expenditures
+const subTypeOptions = computed(() => {
+    const uniqueSubTypes = new Set<string>();
+    serverItems.value.forEach(item => {
+        if (item.subType) {
+            uniqueSubTypes.add(item.subType);
+        }
+    });
+    return Array.from(uniqueSubTypes).sort();
 });
 
 async function handleSaveExpenditure(payload: Omit<Expenditure, 'id'>) {
@@ -260,7 +314,10 @@ const loading = ref(false);
 const filters = reactive({
     batchId: null as string | null,
     macroInvestment: null as string | null,
-    category: null as string | null
+    category: null as string | null,
+    subType: null as string | null,
+    startDate: null as string | null,
+    endDate: null as string | null
 });
 
 function onFilterChange() {
@@ -273,11 +330,14 @@ async function loadItems({ page, itemsPerPage, sortBy }: { page?: number, itemsP
     try {
         const p = page || 1;
         const size = itemsPerPage || 10;
-        
+
         const response = await expenditureService.search({
             batchId: filters.batchId || undefined,
             macroInvestment: filters.macroInvestment || undefined,
             category: filters.category || undefined,
+            subType: filters.subType || undefined,
+            startDate: filters.startDate || undefined,
+            endDate: filters.endDate || undefined,
             page: p - 1, // Spring Boot is 0-indexed
             size: size,
             // sort not implemented yet

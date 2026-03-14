@@ -1,11 +1,11 @@
 import {
-    useGetAllExpenditures,
-    useLogExpenditure,
     type GetAllExpendituresQueryResult,
-    type LogExpenditureMutationResult
-} from '../../../api/generated/expenditure-controller/expenditure-controller';
-import { customInstance } from '../../../api/axios-instance';
-import type { Expenditure } from '../../../api/generated/model';
+    type LogExpenditureMutationResult,
+    useGetAllExpenditures,
+    useLogExpenditure
+} from '@/api/generated/expenditure-controller/expenditure-controller.ts';
+import {customInstance} from '@/api/axios-instance.ts';
+import type {Expenditure} from '@/api/generated/model';
 
 /**
  * Expenditure Service
@@ -85,6 +85,9 @@ export interface ExpenditureSearchParams {
     batchId?: string;
     macroInvestment?: string;
     category?: string;
+    subType?: string;
+    startDate?: string;
+    endDate?: string;
     page?: number;
     size?: number;
     sort?: string;
