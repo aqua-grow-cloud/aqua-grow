@@ -54,6 +54,9 @@ public class ExpenditureController {
             @RequestParam(required = false) String batchId,
             @RequestParam(required = false) String macroInvestment,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String subType,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
             org.springframework.data.domain.Pageable pageable) {
 
         return expenditureRepository.findAll((root, query, cb) -> {
@@ -67,6 +70,15 @@ public class ExpenditureController {
             }
             if (category != null && !category.isEmpty()) {
                 predicates.add(cb.equal(root.get("category"), category));
+            }
+            if (subType != null && !subType.isEmpty()) {
+                predicates.add(cb.equal(root.get("subType"), subType));
+            }
+            if (startDate != null && !startDate.isEmpty()) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("date"), java.time.LocalDate.parse(startDate)));
+            }
+            if (endDate != null && !endDate.isEmpty()) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("date"), java.time.LocalDate.parse(endDate)));
             }
 
             return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
