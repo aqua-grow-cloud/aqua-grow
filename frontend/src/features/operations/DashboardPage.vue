@@ -93,12 +93,12 @@
                   {{ getBatchHarvestedQty(batch).toLocaleString() }}
                 </td>
                 <td class="text-center font-weight-bold">
-                  <v-tooltip 
+                  <v-tooltip
                     :text="(batch.status as string) === 'Completed' ? 'Final Loss' : 'Remaining Balance'"
                     location="top"
                   >
                     <template v-slot:activator="{ props }">
-                      <span 
+                      <span
                         v-bind="props"
                         :class="(batch.status as string) === 'Completed' && getBatchDiff(batch) > 0 ? 'text-error' : ''"
                       >
@@ -138,8 +138,8 @@
             <FishStockingPivot :batches="batches || []" />
         </v-col>
         <v-col cols="12" md="6">
-            <BiomassByFishType 
-              :batches="dashboardBatches" 
+            <BiomassByFishType
+              :batches="dashboardBatches"
               :fish-types="fishTypes || []"
               :harvest-logs="harvestLogs || []"
               :sample-logs="allSamples"
@@ -157,19 +157,20 @@
 
 <script setup lang="ts">
 import {computed, ref} from 'vue';
-import { useAquaStore } from '../../stores/useAquaStore';
+import {useQueries} from '@tanstack/vue-query';
+import {useAquaStore} from '../../stores/useAquaStore';
 import PageHeader from '../../components/PageHeader.vue';
-import { usePonds } from '../ponds/composables/usePonds';
-import { useBatches } from '../batches/composables/useBatches';
-import { feedLogService } from './api/feedLogService';
-import { sampleLogService } from './api/sampleLogService';
-import { harvestLogService } from '../harvesting/api/harvestLogService';
-import { feedStockService } from '../inventory/api/feedStockService';
-import { fishTypeService } from '../settings/api/fishTypeService';
+import {usePonds} from '../ponds/composables/usePonds';
+import {useBatches} from '../batches/composables/useBatches';
+import {feedLogService} from './api/feedLogService';
+import {harvestLogService} from '../harvesting/api/harvestLogService';
+import {feedStockService} from '../inventory/api/feedStockService';
+import {fishTypeService} from '../settings/api/fishTypeService';
+import {getGetSampleLogsByBatchQueryOptions} from '../../api/generated/sample-log-controller/sample-log-controller';
 import FishStockingPivot from './components/FishStockingPivot.vue';
 import SampleLogPivot from './components/SampleLogPivot.vue';
 import BiomassByFishType from './components/BiomassByFishType.vue';
-import type { Batch, FeedLog, Pond, HarvestLog, SampleLog } from '../../api/generated/model';
+import type {Batch, FeedLog, Pond, SampleLog} from '../../api/generated/model';
 
 const store = useAquaStore();
 
@@ -179,14 +180,7 @@ const { batches } = useBatches();
 const { data: feedLogs } = feedLogService.useGetAll();
 const { data: lowStockItems } = feedStockService.useGetLowStock();
 const { data: harvestLogs } = harvestLogService.useGetAll();
-const { data: sampleLogs } = sampleLogService.useGetAll();
 const { data: fishTypes } = fishTypeService.useGetAll();
-
-const allSamples = computed(() => {
-    return Array.isArray(sampleLogs.value) 
-      ? sampleLogs.value 
-      : ((sampleLogs.value as any)?.content || []);
-});
 
 const referenceDate = ref(new Date().toISOString().substr(0, 10));
 
@@ -200,6 +194,31 @@ const activePondsCount = computed(() => {
 
 const dashboardBatches = computed(() => {
   return batches.value?.filter((b: Batch) => b.status === 'Active' || b.status === 'Completed') || [];
+});
+
+// Fetch sample logs for all dashboard batches using unpaginated endpoint
+// This avoids the 100-element pagination limit
+const batchSampleQueries = computed(() => {
+    return dashboardBatches.value.map(batch =>
+        getGetSampleLogsByBatchQueryOptions(batch.id || '')
+    );
+});
+
+const sampleQueriesResults = useQueries({
+    queries: batchSampleQueries,
+    combine: (results) => {
+        const allSamples: SampleLog[] = [];
+        results.forEach(result => {
+            if (result.data) {
+                allSamples.push(...result.data);
+            }
+        });
+        return allSamples;
+    }
+});
+
+const allSamples = computed(() => {
+    return sampleQueriesResults.value || [];
 });
 
 const sortedDashboardBatches = computed(() => {
@@ -223,25 +242,38 @@ const feedToday = computed(() => {
 });
 
 const avgFCR = computed(() => {
+    // Only calculate average FCR for ACTIVE batches
     const batchesWithFCR = dashboardBatches.value
+        .filter(b => b.status === 'Active')
         .map(b => parseFloat(calculateBatchFCR(b)))
         .filter(fcr => !isNaN(fcr) && fcr > 0);
-    
+
     if (batchesWithFCR.length === 0) return '-';
     const sum = batchesWithFCR.reduce((a, b) => a + b, 0);
-    return (sum / batchesWithFCR.length).toFixed(2);
+    const avg = (sum / batchesWithFCR.length).toFixed(2);
+    return avg;
 });
 
 function calculateBatchFCR(batch: Batch): string {
     const totalFeed = feedLogs.value
         ?.filter(l => l.batchId === batch.id)
         .reduce((sum, l) => sum + (l.amount || 0), 0) || 0;
-    
-    if (totalFeed === 0) return '-';
+
+    if (totalFeed === 0) {
+        return '-';
+    }
 
     // 1. Initial Biomass (at stocking)
     const initialBiomass = batch.fishSeeds?.reduce((sum, s) => {
-        return sum + ((s.quantity || 0) * (s.sizeGrams || 0)) / 1000;
+        let weightGrams = s.sizeGrams || 0;
+
+        // If sizeGrams not available but sizeInches is, convert
+        // Using approximate conversion: 1 inch ≈ 18 grams (typical for prawns/shrimp)
+        if (!weightGrams && s.sizeInches) {
+            weightGrams = s.sizeInches * 18;
+        }
+
+        return sum + ((s.quantity || 0) * weightGrams) / 1000;
     }, 0) || 0;
 
     // 2. Current Biomass Estimate (or final weight if harvested)
@@ -272,34 +304,92 @@ function calculateBatchBiomass(batch: Batch): number {
     const totalHarvested = harvestLogs.value
       ?.filter(l => l.batchId === batch.id)
       .reduce((sum, l) => sum + (l.count || 0), 0) || 0;
-    
+
     let currentQuantity = Math.max(0, totalStocked - totalHarvested);
 
-    // 3. Get latest sampling data
-    const allSamples = Array.isArray(sampleLogs.value) 
-      ? sampleLogs.value 
-      : ((sampleLogs.value as any)?.content || []);
-    
-    const batchSamples = [...allSamples]
-      .filter(l => l.batchId === batch.id)
-      .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime());
-    
-    const latestSample = batchSamples[0];
-    
+    // 3. Get latest sampling data - average by day first
+    const batchSamples = allSamples.value.filter(l => l.batchId === batch.id);
+
+    if (batchSamples.length === 0) {
+        // No samples, use stocking data for biomass estimation
+        let currentABW = 0;
+        if (batch.fishSeeds && batch.fishSeeds.length > 0) {
+            const totalStockWeight = batch.fishSeeds.reduce((sum, s) => {
+                let weightGrams = s.sizeGrams || 0;
+                if (!weightGrams && s.sizeInches) {
+                    weightGrams = s.sizeInches * 18;
+                }
+                return sum + ((s.quantity || 0) * weightGrams);
+            }, 0);
+            currentABW = totalStockWeight / totalStocked;
+        }
+        return currentABW ? (currentQuantity * currentABW) / 1000 : 0;
+    }
+
+    // Group samples by date and calculate daily averages
+    const samplesByDate = batchSamples.reduce((acc, sample) => {
+        const date = sample.date || '';
+        if (!acc[date]) {
+            acc[date] = [];
+        }
+        acc[date].push(sample);
+        return acc;
+    }, {} as Record<string, SampleLog[]>);
+
+    // Get the latest date
+    const dates = Object.keys(samplesByDate);
+    if (dates.length === 0) {
+        return 0;
+    }
+
+    const sortedDates = dates.sort((a, b) =>
+        new Date(b).getTime() - new Date(a).getTime()
+    );
+
+    const latestDate = sortedDates[0];
+    if (!latestDate) {
+        return 0;
+    }
+
+    const latestDaySamples = samplesByDate[latestDate];
+    if (!latestDaySamples || latestDaySamples.length === 0) {
+        return 0;
+    }
+
+    // Calculate average weight for the latest day
+    let currentABW = 0;
+    let latestSurvivalEstimate: number | undefined;
+
+    const weights: number[] = [];
+    latestDaySamples.forEach((s: SampleLog) => {
+        if (s.averageWeight !== undefined && s.averageWeight !== null) {
+            weights.push(s.averageWeight);
+        }
+    });
+
+    if (weights.length > 0) {
+        const sum = weights.reduce((acc: number, w: number) => acc + w, 0);
+        currentABW = sum / weights.length;
+    }
+
+    // Use the latest survival estimate from the latest day
+    const survivalEstimates: number[] = [];
+    latestDaySamples.forEach((s: SampleLog) => {
+        if (s.survivalEstimate !== undefined && s.survivalEstimate !== null) {
+            survivalEstimates.push(s.survivalEstimate);
+        }
+    });
+
+    if (survivalEstimates.length > 0) {
+        latestSurvivalEstimate = survivalEstimates[survivalEstimates.length - 1];
+    }
+
     // Apply survival estimate if available
-    if (latestSample?.survivalEstimate !== undefined) {
-        currentQuantity = currentQuantity * (latestSample.survivalEstimate / 100);
+    if (latestSurvivalEstimate !== undefined) {
+        currentQuantity = currentQuantity * (latestSurvivalEstimate / 100);
     }
 
-    // 4. Determine current average weight (ABW)
-    let currentABW = latestSample?.averageWeight;
-    
-    // Fallback: If no sample, use stocking ABW
-    if (!currentABW && batch.fishSeeds && batch.fishSeeds.length > 0) {
-        const totalStockWeight = batch.fishSeeds.reduce((sum, s) => sum + ((s.quantity || 0) * (s.sizeGrams || 0)), 0);
-        currentABW = totalStockWeight / totalStocked;
-    }
-
+    // 5. Return calculated biomass
     if (currentABW) {
         return (currentQuantity * currentABW) / 1000;
     }

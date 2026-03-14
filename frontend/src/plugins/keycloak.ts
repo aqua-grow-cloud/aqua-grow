@@ -11,7 +11,9 @@ export default {
         try {
             await keycloak.init({
                 onLoad: 'login-required',
-                checkLoginIframe: false
+                checkLoginIframe: false,
+                enableLogging: true,
+                pkceMethod: 'S256'
             })
             app.config.globalProperties.$keycloak = keycloak
             app.provide('keycloak', keycloak)

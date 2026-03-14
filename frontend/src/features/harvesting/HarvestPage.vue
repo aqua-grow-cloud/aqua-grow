@@ -24,7 +24,7 @@
           </v-card-title>
           <v-card-text class="pt-6">
             <v-alert type="info" variant="tonal" class="mb-6" density="compact">
-              Biomass below 1KG/pc uses sliding scale pricing. A 5% discount is applied to total weight.
+              Biomass below 1KG/pc uses sliding scale pricing. Discount: {{ calculated.discountPercentage }}% for {{ calculated.cultivationType || 'Fish' }}.
             </v-alert>
 
             <v-form @submit.prevent="save">
@@ -92,12 +92,14 @@
                   <v-col cols="12" sm="4">
                     <v-text-field
                         v-model.number="form.commissionRate"
-                        label="Commission Rate (%)"
+                        :label="calculated.cultivationType === 'SHRIMP' ? 'Commission Rate (Optional %)' : 'Commission Rate (%)'"
                         type="number"
                         step="0.01"
                         variant="outlined"
                         density="compact"
                         suffix="%"
+                        :hint="calculated.cultivationType === 'SHRIMP' ? 'Optional for Shrimp' : ''"
+                        persistent-hint
                     ></v-text-field>
                   </v-col>
               </v-row>
@@ -186,9 +188,9 @@
                 <v-spacer></v-spacer>
                 <v-chip size="small" color="primary">All values in KG / ₹</v-chip>
             </v-card-title>
-            
+
             <v-divider></v-divider>
-            
+
             <!-- Filters Row -->
             <v-card-text class="bg-slate-50 border-b py-3 px-6">
                 <v-row dense align="center">
@@ -239,7 +241,7 @@
                 <th class="text-caption font-weight-bold">Pond</th>
                 <th class="text-caption font-weight-bold">Fish Type</th>
                 <th class="text-caption font-weight-bold">Count</th>
-                <th class="text-caption font-weight-bold">Discount (5%)</th>
+                <th class="text-caption font-weight-bold">Discount ({{ calculated.discountPercentage }}%)</th>
                 <th class="text-caption font-weight-bold">Tonne (KG)</th>
                 <th class="text-caption font-weight-bold">Net Wt.</th>
                 <th class="text-caption font-weight-bold">Comm.</th>
@@ -275,15 +277,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { useAquaStore } from '../../stores/useAquaStore';
-import { useRouter } from 'vue-router';
+import {computed, ref, watch} from 'vue';
+import {useAquaStore} from '../../stores/useAquaStore';
+import {useRouter} from 'vue-router';
 import PageHeader from '../../components/PageHeader.vue';
-import { useBatches } from '../batches/composables/useBatches';
-import { useHarvestLogs } from './composables/useHarvestLogs';
-import { usePonds } from '../ponds/composables/usePonds';
-import { fishTypeService } from '../settings/api/fishTypeService';
-import type { Batch, HarvestLog } from '../../api/generated/model';
+import {useBatches} from '../batches/composables/useBatches';
+import {useHarvestLogs} from './composables/useHarvestLogs';
+import {usePonds} from '../ponds/composables/usePonds';
+import {fishTypeService} from '../settings/api/fishTypeService';
+import type {Batch, HarvestLog} from '../../api/generated/model';
 
 const store = useAquaStore();
 const router = useRouter();
@@ -353,6 +355,17 @@ watch(() => form.value.batchId, (newBatchId: string) => {
     }
 });
 
+// Auto-adjust commission rate based on cultivation type
+watch(() => form.value.fishTypeId, (newFishTypeId: string) => {
+    if (!newFishTypeId) return;
+    const selectedFishType = fishTypes.value?.find(ft => ft.id === newFishTypeId);
+    if (selectedFishType?.cultivationType === 'SHRIMP') {
+        form.value.commissionRate = 0; // Default to 0 for Shrimp
+    } else if (selectedFishType?.cultivationType === 'FISH') {
+        form.value.commissionRate = 0.2; // Default to 0.2% for Fish
+    }
+});
+
 const availableSpeciesItems = computed(() => {
     if (!form.value.batchId) return [];
     const batch = getBatchById(form.value.batchId);
@@ -384,7 +397,13 @@ const calculated = computed(() => {
     const avgWeight = count > 0 ? biomass / count : 0;
     const avgWeightGrams = avgWeight * 1000;
 
-    const discountWeight = biomass * 0.05;
+    // Get selected fish type to determine cultivation type
+    const selectedFishType = fishTypes.value?.find(ft => ft.id === form.value.fishTypeId);
+    const cultivationType = selectedFishType?.cultivationType;
+
+    // Apply discount based on cultivation type: 5% for Fish, 0% for Shrimp
+    const discountPercentage = cultivationType === 'SHRIMP' ? 0 : 0.05;
+    const discountWeight = biomass * discountPercentage;
     const actualWeight = biomass - discountWeight;
 
     // Logic: applicableSalePrice(basicPrice, forWeight) { return (basicPrice-(1000-forWeight)*0.02) }
@@ -404,7 +423,9 @@ const calculated = computed(() => {
         actualWeight,
         finalRate,
         commission,
-        revenue
+        revenue,
+        cultivationType,
+        discountPercentage: discountPercentage * 100 // Return as percentage for display
     };
 });
 

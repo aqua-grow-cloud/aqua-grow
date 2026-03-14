@@ -1,13 +1,12 @@
 import {
-    useSearchSampleLogs,
-    useLogSample,
-    type SearchSampleLogsQueryResult,
-    type LogSampleMutationResult
+	type LogSampleMutationResult,
+	type SearchSampleLogsQueryResult,
+	useGetSampleLogsByBatch,
+	useLogSample,
+	useSearchSampleLogs
 } from '../../../api/generated/sample-log-controller/sample-log-controller';
-import type { SampleLog } from '../../../api/generated/model';
-
-import { useQuery } from '@tanstack/vue-query';
-import { AXIOS_INSTANCE as axios } from '../../../api/axios-instance';
+import type {SampleLog} from '../../../api/generated/model';
+import type {MaybeRef} from 'vue';
 
 /**
  * Sample Log Service
@@ -22,10 +21,17 @@ export const sampleLogService = {
     },
 
     /**
-     * Get all sample logs hook (legacy - now uses search with default pagination)
+     * Get all sample logs hook (legacy - now uses search with large page size)
      */
     useGetAll() {
-        return useSearchSampleLogs({ pageable: { page: 0, size: 1000 } });
+        return useSearchSampleLogs({ pageable: { page: 0, size: 10000 } });
+    },
+
+    /**
+     * Get sample logs for a specific batch (unpaginated)
+     */
+    useGetByBatch(batchId: MaybeRef<string>) {
+        return useGetSampleLogsByBatch(batchId);
     },
 
     /**

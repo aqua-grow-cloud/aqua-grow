@@ -128,7 +128,7 @@
       <ul class="text-caption">
         <li><strong>Projected Biomass</strong> = (Quantity × Target ABW) / 1000.</li>
         <li><strong>Sliding Scale Rate</strong> = Applied if Target ABW is below 1000g: <code>Base Rate - (1000 - Target ABW) × 0.02</code>.</li>
-        <li><strong>Net Revenue</strong> = <code>Projected Biomass × 0.95 (5% weight discount) × Final Rate</code>.</li>
+        <li><strong>Net Revenue</strong> = <code>Projected Biomass × Discount Multiplier × Final Rate</code>. Discount: 5% for Fish, 0% for Shrimp.</li>
         <li><strong>Available Quantity</strong> is calculated based on stocking minus actual harvests, multiplied by the latest survival estimate if available.</li>
       </ul>
     </v-alert>
@@ -137,13 +137,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue';
-import { useRouter } from 'vue-router';
-import { useBatches } from '../batches/composables/useBatches';
-import { useHarvestLogs } from './composables/useHarvestLogs';
-import { sampleLogService } from '../operations/api/sampleLogService';
-import { fishTypeService } from '../settings/api/fishTypeService';
-import type { Batch } from '../../api/generated/model';
+import {computed, reactive} from 'vue';
+import {useRouter} from 'vue-router';
+import {useBatches} from '../batches/composables/useBatches';
+import {useHarvestLogs} from './composables/useHarvestLogs';
+import {sampleLogService} from '../operations/api/sampleLogService';
+import {fishTypeService} from '../settings/api/fishTypeService';
+import type {Batch} from '../../api/generated/model';
 
 const router = useRouter();
 const { batches, getBatchById } = useBatches();
@@ -181,13 +181,13 @@ const simulationData = computed(() => {
         const typeId = seed.fishTypeId || 'unknown';
         const type = fishTypes.value?.find(t => t.id === typeId);
         const name = type?.name || typeId;
-        
+
         // Calculate current quantity
         const totalStocked = seed.quantity || 0;
         const totalHarvested = getHarvestLogsArray()
           .filter(h => h.batchId === batch.id && h.fishTypeId === typeId)
           .reduce((sum, h) => sum + (h.count || 0), 0);
-        
+
         let currentQuantity = Math.max(0, totalStocked - totalHarvested);
 
         // ABW from latest sample
@@ -200,7 +200,7 @@ const simulationData = computed(() => {
         }
 
         const currentABW = latestSample?.averageWeight || seed.sizeGrams || 0;
-        
+
         // Use reactive config if exists, otherwise default
         const configKey = `${batch.id}-${typeId}`;
         if (!speciesConfigs[configKey]) {
@@ -212,13 +212,15 @@ const simulationData = computed(() => {
 
         const config = speciesConfigs[configKey];
         const biomass = (currentQuantity * config.targetABW) / 1000;
-        
+
         let finalRate = config.baseRate;
         if (config.targetABW > 0 && config.targetABW < 1000) {
           finalRate = config.baseRate - (1000 - config.targetABW) * 0.02;
         }
 
-        const revenue = (biomass * 0.95) * finalRate;
+        // Apply discount based on cultivation type: 0% for Shrimp, 5% for Fish
+        const discountMultiplier = type?.cultivationType === 'SHRIMP' ? 1.0 : 0.95;
+        const revenue = (biomass * discountMultiplier) * finalRate;
 
         return {
           id: typeId,
@@ -263,7 +265,7 @@ const totalProjectedRevenue = computed(() => {
 });
 
 const totalQuantity = computed(() => {
-  return simulationData.value.reduce((sum, b) => 
+  return simulationData.value.reduce((sum, b) =>
     sum + b.species.reduce((sSum, s) => sSum + s.quantity, 0), 0);
 });
 

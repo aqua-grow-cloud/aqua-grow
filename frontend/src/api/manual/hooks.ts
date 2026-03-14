@@ -1,8 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
-import { AXIOS_INSTANCE } from '../axios-instance';
-import type { Supplier, FeedStock, FeedOrder, OrderMessageResponse, Batch } from './types';
-import type { GetAllBatchesParams } from '../generated/model';
-import { computed, unref, type MaybeRef } from 'vue';
+import {useMutation, useQuery, useQueryClient} from '@tanstack/vue-query';
+import {AXIOS_INSTANCE} from '../axios-instance';
+import type {Batch, FeedOrder, FeedStock, OrderMessageResponse, Supplier} from './types';
+import type {GetAllBatchesParams} from '../generated/model';
+import {computed, type MaybeRef, unref} from 'vue';
 
 // --- Suppliers ---
 
@@ -342,6 +342,7 @@ export interface FishType {
     name: string;
     scientificName?: string;
     tenantId?: string;
+    cultivationType?: 'FISH' | 'SHRIMP' | 'OTHER';
 }
 
 export const useGetAllFishTypes = () => {
