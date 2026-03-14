@@ -23,6 +23,10 @@ public class FishType {
 
     private String scientificName;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cultivation_type", length = 20)
+    private CultivationType cultivationType;
+
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 }

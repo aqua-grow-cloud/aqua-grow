@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="22-add-cultivation-type-to-fish-types" author="system">
+        <addColumn tableName="fish_types">
+            <column name="cultivation_type" type="VARCHAR(20)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addCheckConstraint tableName="fish_types"
+                           constraintName="chk_cultivation_type"
+                           checkConstraint="cultivation_type IN ('FISH', 'SHRIMP', 'OTHER')"/>
+    </changeSet>
+
+</databaseChangeLog>

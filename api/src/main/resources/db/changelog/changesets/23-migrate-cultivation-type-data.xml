@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="23-migrate-cultivation-type-data" author="system">
+        <!-- Set SHRIMP for fish types with name containing 'shrimp' (case insensitive) -->
+        <sql>
+            UPDATE fish_types
+            SET cultivation_type = 'SHRIMP'
+            WHERE LOWER(name) LIKE '%shrimp%'
+               OR LOWER(scientific_name) LIKE '%shrimp%';
+        </sql>
+
+        <!-- Set FISH as default for all other existing records -->
+        <sql>
+            UPDATE fish_types
+            SET cultivation_type = 'FISH'
+            WHERE cultivation_type IS NULL;
+        </sql>
+
+        <rollback>
+            <sql>
+                UPDATE fish_types SET cultivation_type = NULL;
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

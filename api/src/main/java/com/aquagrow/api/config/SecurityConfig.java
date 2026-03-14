@@ -94,10 +94,11 @@ public class SecurityConfig {
         // Parse comma-separated origins and trim whitespace
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
-                .peek(origin -> log.info("Adding Allowed Origin: {}", origin))
+                .peek(origin -> log.info("Adding Allowed Origin Pattern: {}", origin))
                 .toList();
 
-        configuration.setAllowedOrigins(origins);
+        // Use allowedOriginPatterns instead of allowedOrigins to support "*" with credentials
+        configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization"));

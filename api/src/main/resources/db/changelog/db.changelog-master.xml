@@ -26,5 +26,7 @@
     <include file="db/changelog/changesets/19-create-fish-types-table.xml"/>
     <include file="db/changelog/changesets/20-migrate-fish-types-data.xml"/>
     <include file="db/changelog/changesets/21-add-telegram-chat-id-to-employee.xml"/>
+    <include file="db/changelog/changesets/22-add-cultivation-type-to-fish-types.xml"/>
+    <include file="db/changelog/changesets/23-migrate-cultivation-type-data.xml"/>
 
 </databaseChangeLog>
