@@ -159,7 +159,7 @@ function formatDateGroup(dateStr?: string, groupType: string = 'month'): string 
 const pivotRows = computed(() => {
   if (!expenditures.value || expenditures.value.length === 0) return [];
 
-  const groupMap: Record<string, { items: Expenditure[], subGroups?: Record<string, Expenditure[]> }> = {};
+  const groupMap: Record<string, { items: Expenditure[], subGroups?: Record<string, Expenditure[]>, subGroupLabels?: Record<string, string>, groupLabel?: string }> = {};
   const total = grandTotal.value;
 
   expenditures.value.forEach((exp: Expenditure) => {
@@ -214,7 +214,7 @@ const pivotRows = computed(() => {
     }
 
     if (!groupMap[groupKey]) {
-      groupMap[groupKey] = { items: [], subGroups: {} };
+      groupMap[groupKey] = { items: [], subGroups: {}, subGroupLabels: {}, groupLabel: groupLabel };
     }
     groupMap[groupKey]!.items.push(exp);
 
@@ -222,9 +222,12 @@ const pivotRows = computed(() => {
     if (subGroupKey && groupMap[groupKey]) {
       const group = groupMap[groupKey]!;
       if (!group.subGroups) group.subGroups = {};
+      if (!group.subGroupLabels) group.subGroupLabels = {};
       if (!group.subGroups[subGroupKey]) {
         group.subGroups[subGroupKey] = [];
       }
+      // Store the label for this subGroupKey
+      group.subGroupLabels[subGroupKey] = subGroupLabel;
       group.subGroups[subGroupKey]!.push(exp);
     }
   });
@@ -239,9 +242,11 @@ const pivotRows = computed(() => {
         ? Object.entries(data.subGroups).map(([subKey, subItems]) => {
             const subTotal = subItems.reduce((sum, item) => sum + (item.amount || 0), 0);
             const subCount = subItems.length;
+            // Use the stored label instead of the key
+            const subLabel = data.subGroupLabels?.[subKey] || subKey;
             return {
               key: `${key}-${subKey}`,
-              label: subKey === 'unallocated' ? 'General / Unallocated' : subKey,
+              label: subLabel,
               total: subTotal,
               count: subCount,
               avg: subTotal / subCount,
@@ -253,7 +258,7 @@ const pivotRows = computed(() => {
 
       return {
         key,
-        label: key === 'unallocated' ? 'General / Unallocated' : key,
+        label: data.groupLabel || key,
         total: rowTotal,
         count: rowCount,
         avg: rowTotal / rowCount,
