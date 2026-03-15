@@ -5,7 +5,19 @@
        <h1 class="text-h5 font-weight-bold">Sample Logs History</h1>
     </div>
 
-    <v-card class="mb-4">
+    <v-card>
+      <v-tabs
+        v-model="tab"
+        color="primary"
+        align-tabs="start"
+      >
+        <v-tab value="history">Sample History</v-tab>
+        <v-tab value="analysis">Growth Analysis</v-tab>
+      </v-tabs>
+
+      <v-window v-model="tab">
+        <v-window-item value="history">
+          <v-card class="mb-4" variant="flat">
       <v-card-text>
         <v-row dense>
           <v-col cols="12" sm="6" md="3">
@@ -78,7 +90,7 @@
       </v-card-text>
     </v-card>
 
-    <v-card>
+    <v-card variant="flat">
       <v-data-table-server
         v-model:items-per-page="itemsPerPage"
         :headers="headers"
@@ -116,6 +128,15 @@
 
       </v-data-table-server>
     </v-card>
+        </v-window-item>
+
+        <v-window-item value="analysis">
+          <v-container fluid>
+            <SampleLogPivotTable />
+          </v-container>
+        </v-window-item>
+      </v-window>
+    </v-card>
   </v-container>
 </template>
 
@@ -126,11 +147,14 @@ import {usePonds} from '../ponds/composables/usePonds';
 import {useBatches} from '../batches/composables/useBatches';
 import {sampleLogService} from './api/sampleLogService';
 import {fishTypeService} from '../settings/api/fishTypeService';
+import SampleLogPivotTable from './components/SampleLogPivotTable.vue';
 import type {SampleLog} from '@/api/generated/model';
 
 const router = useRouter();
 const { ponds } = usePonds();
 const { batches, getBatchById } = useBatches();
+
+const tab = ref('history');
 
 const filters = ref<any>({
   pondId: null,
