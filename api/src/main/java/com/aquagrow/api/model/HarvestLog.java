@@ -30,6 +30,7 @@ public class HarvestLog {
     private Double finalRate;
     private Double discountWeight;
     private Double actualWeight;
+    private Double commissionRate; // Commission rate as percentage (e.g., 0.2 for 0.2%)
     private Double commission;
     private Double revenue;
     private String buyer;

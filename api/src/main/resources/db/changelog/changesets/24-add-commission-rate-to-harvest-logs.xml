@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="24-add-commission-rate-to-harvest-logs" author="aquagrow">
+        <comment>Add commission_rate column to harvest_logs table to store the commission percentage</comment>
+
+        <addColumn tableName="harvest_logs">
+            <column name="commission_rate" type="DOUBLE PRECISION">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="harvest_logs" columnName="commission_rate"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -28,5 +28,6 @@
     <include file="db/changelog/changesets/21-add-telegram-chat-id-to-employee.xml"/>
     <include file="db/changelog/changesets/22-add-cultivation-type-to-fish-types.xml"/>
     <include file="db/changelog/changesets/23-migrate-cultivation-type-data.xml"/>
+    <include file="db/changelog/changesets/24-add-commission-rate-to-harvest-logs.xml"/>
 
 </databaseChangeLog>
