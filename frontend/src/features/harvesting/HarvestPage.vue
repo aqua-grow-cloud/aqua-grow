@@ -278,14 +278,14 @@
 
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue';
-import {useAquaStore} from '../../stores/useAquaStore';
+import {useAquaStore} from '@/stores/useAquaStore.ts';
 import {useRouter} from 'vue-router';
 import PageHeader from '../../components/PageHeader.vue';
 import {useBatches} from '../batches/composables/useBatches';
 import {useHarvestLogs} from './composables/useHarvestLogs';
 import {usePonds} from '../ponds/composables/usePonds';
 import {fishTypeService} from '../settings/api/fishTypeService';
-import type {Batch, HarvestLog} from '../../api/generated/model';
+import type {Batch, HarvestLog} from '@/api/generated/model';
 
 const store = useAquaStore();
 const router = useRouter();
@@ -369,7 +369,7 @@ watch(() => form.value.fishTypeId, (newFishTypeId: string) => {
 const availableSpeciesItems = computed(() => {
     if (!form.value.batchId) return [];
     const batch = getBatchById(form.value.batchId);
-    let speciesIds: string[] = [];
+    let speciesIds: string[];
     if (form.value.pondId) {
         speciesIds = (batch?.fishSeeds as any[])?.filter((s: any) => s.pondId === form.value.pondId).map((s: any) => s.fishTypeId || '') || [];
     } else {
@@ -406,11 +406,11 @@ const calculated = computed(() => {
     const discountWeight = biomass * discountPercentage;
     const actualWeight = biomass - discountWeight;
 
+    // For Shrimp: Use basic rate directly (no applicable rate calculation)
+    // For Fish: Apply rate adjustment based on average weight
     // Logic: applicableSalePrice(basicPrice, forWeight) { return (basicPrice-(1000-forWeight)*0.02) }
-    // Applicable if biomass is above KG? "108 is the rate if the fish biomass is above KG"
-    // Usually means average weight above 1KG.
     let finalRate = basicRate;
-    if (avgWeightGrams > 0 && avgWeightGrams < 1000) {
+    if (cultivationType !== 'SHRIMP' && avgWeightGrams > 0 && avgWeightGrams < 1000) {
         finalRate = basicRate - (1000 - avgWeightGrams) * 0.02;
     }
 

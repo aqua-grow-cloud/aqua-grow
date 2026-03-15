@@ -143,7 +143,7 @@ import {useBatches} from '../batches/composables/useBatches';
 import {useHarvestLogs} from './composables/useHarvestLogs';
 import {sampleLogService} from '../operations/api/sampleLogService';
 import {fishTypeService} from '../settings/api/fishTypeService';
-import type {Batch} from '../../api/generated/model';
+import type {Batch} from '@/api/generated/model';
 
 const router = useRouter();
 const { batches, getBatchById } = useBatches();
@@ -213,8 +213,10 @@ const simulationData = computed(() => {
         const config = speciesConfigs[configKey];
         const biomass = (currentQuantity * config.targetABW) / 1000;
 
+        // For Shrimp: Use base rate directly (no applicable rate calculation)
+        // For Fish: Apply rate adjustment based on target ABW
         let finalRate = config.baseRate;
-        if (config.targetABW > 0 && config.targetABW < 1000) {
+        if (type?.cultivationType !== 'SHRIMP' && config.targetABW > 0 && config.targetABW < 1000) {
           finalRate = config.baseRate - (1000 - config.targetABW) * 0.02;
         }
 
