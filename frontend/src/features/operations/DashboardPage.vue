@@ -34,8 +34,17 @@
       <v-col cols="12" sm="6" md="3">
          <v-card color="info" variant="tonal" class="rounded-lg">
           <v-card-item>
-             <div class="text-overline mb-1">Average FCR</div>
+             <div class="text-overline mb-1">Avg FCR (Active)</div>
              <div class="text-h4 mb-1 font-weight-bold">{{ avgFCR }}</div>
+          </v-card-item>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" sm="6" md="3">
+         <v-card color="secondary" variant="tonal" class="rounded-lg">
+          <v-card-item>
+             <div class="text-overline mb-1">Avg FCR (Harvested)</div>
+             <div class="text-h4 mb-1 font-weight-bold">{{ avgHarvestedFCR }}</div>
           </v-card-item>
         </v-card>
       </v-col>
@@ -158,7 +167,7 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue';
 import {useQueries} from '@tanstack/vue-query';
-import {useAquaStore} from '../../stores/useAquaStore';
+import {useAquaStore} from '@/stores/useAquaStore.ts';
 import PageHeader from '../../components/PageHeader.vue';
 import {usePonds} from '../ponds/composables/usePonds';
 import {useBatches} from '../batches/composables/useBatches';
@@ -166,11 +175,11 @@ import {feedLogService} from './api/feedLogService';
 import {harvestLogService} from '../harvesting/api/harvestLogService';
 import {feedStockService} from '../inventory/api/feedStockService';
 import {fishTypeService} from '../settings/api/fishTypeService';
-import {getGetSampleLogsByBatchQueryOptions} from '../../api/generated/sample-log-controller/sample-log-controller';
+import {getGetSampleLogsByBatchQueryOptions} from '@/api/generated/sample-log-controller/sample-log-controller.ts';
 import FishStockingPivot from './components/FishStockingPivot.vue';
 import SampleLogPivot from './components/SampleLogPivot.vue';
 import BiomassByFishType from './components/BiomassByFishType.vue';
-import type {Batch, FeedLog, Pond, SampleLog} from '../../api/generated/model';
+import type {Batch, FeedLog, Pond, SampleLog} from '@/api/generated/model';
 
 const store = useAquaStore();
 
@@ -193,7 +202,8 @@ const activePondsCount = computed(() => {
 });
 
 const dashboardBatches = computed(() => {
-  return batches.value?.filter((b: Batch) => b.status === 'Active' || b.status === 'Completed') || [];
+  return batches.value?.filter((b: Batch) =>
+    b.status === 'Active' || (b.status as string) === 'Completed') || [];
 });
 
 // Fetch sample logs for all dashboard batches using unpaginated endpoint
@@ -250,8 +260,19 @@ const avgFCR = computed(() => {
 
     if (batchesWithFCR.length === 0) return '-';
     const sum = batchesWithFCR.reduce((a, b) => a + b, 0);
-    const avg = (sum / batchesWithFCR.length).toFixed(2);
-    return avg;
+  return (sum / batchesWithFCR.length).toFixed(2);
+});
+
+const avgHarvestedFCR = computed(() => {
+    // Calculate average FCR for COMPLETED/HARVESTED batches
+    const batchesWithFCR = dashboardBatches.value
+        .filter((b: Batch) => (b.status as string) === 'Completed')
+        .map(b => parseFloat(calculateBatchFCR(b)))
+        .filter(fcr => !isNaN(fcr) && fcr > 0);
+
+    if (batchesWithFCR.length === 0) return '-';
+    const sum = batchesWithFCR.reduce((a, b) => a + b, 0);
+  return (sum / batchesWithFCR.length).toFixed(2);
 });
 
 function calculateBatchFCR(batch: Batch): string {
@@ -289,7 +310,7 @@ function calculateBatchFCR(batch: Batch): string {
 
 function calculateBatchBiomass(batch: Batch): number {
     // If completed, use actual harvested actualWeight
-    if (batch.status === 'Completed') {
+    if ((batch.status as string) === 'Completed') {
         return harvestLogs.value
           ?.filter(l => l.batchId === batch.id)
           .reduce((sum, l) => sum + (l.actualWeight || l.biomassWeight || 0), 0) || 0;
