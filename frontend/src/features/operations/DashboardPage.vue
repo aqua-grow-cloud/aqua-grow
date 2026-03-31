@@ -297,11 +297,20 @@ function calculateBatchFCR(batch: Batch): string {
         return sum + ((s.quantity || 0) * weightGrams) / 1000;
     }, 0) || 0;
 
-    // 2. Current Biomass Estimate (or final weight if harvested)
+    // 2. Current Biomass Estimate (for active) or Total Harvested Weight (for completed)
     const currentBiomass = calculateBatchBiomass(batch);
 
-    // 3. Weight Gained
-    const weightGained = currentBiomass - initialBiomass;
+    // 3. For active batches with partial harvests, add harvested weight to account for total production
+    let totalBiomassProduced = currentBiomass;
+    if (batch.status === 'Active') {
+        const harvestedWeight = harvestLogs.value
+            ?.filter(l => l.batchId === batch.id)
+            .reduce((sum, l) => sum + (l.actualWeight || l.biomassWeight || 0), 0) || 0;
+        totalBiomassProduced = currentBiomass + harvestedWeight;
+    }
+
+    // 4. Weight Gained = Total Biomass Produced - Initial Biomass
+    const weightGained = totalBiomassProduced - initialBiomass;
 
     if (weightGained <= 0) return '-';
 
