@@ -44,6 +44,21 @@ public class ExpenditureController {
         return expenditureService.logExpenditure(expenditure);
     }
 
+    @GetMapping("/macro-investments")
+    public List<String> getMacroInvestments() {
+        return expenditureService.getDistinctMacroInvestments();
+    }
+
+    @PutMapping("/{id}")
+    public Expenditure updateExpenditure(@PathVariable String id, @RequestBody Expenditure expenditure) {
+        return expenditureService.updateExpenditure(id, expenditure);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteExpenditure(@PathVariable String id) {
+        expenditureService.deleteExpenditure(id);
+    }
+
     @GetMapping("/batch/{batchId}")
     public List<Expenditure> getExpendituresByBatch(@PathVariable String batchId) {
         return expenditureRepository.findByBatchId(batchId);

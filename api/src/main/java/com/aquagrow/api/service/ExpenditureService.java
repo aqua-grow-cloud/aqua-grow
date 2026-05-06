@@ -92,6 +92,41 @@ public class ExpenditureService {
         return logExpenditure(expenditure);
     }
 
+    @Transactional(readOnly = true)
+    public List<String> getDistinctMacroInvestments() {
+        return expenditureRepository.findDistinctMacroInvestmentsByTenantId(TenantContext.getTenantId());
+    }
+
+    @Transactional
+    public Expenditure updateExpenditure(String id, Expenditure updated) {
+        String tenantId = TenantContext.getTenantId();
+        Expenditure existing = expenditureRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Expenditure not found: " + id));
+        if (!existing.getTenantId().equals(tenantId)) {
+            throw new BusinessException("Expenditure not found: " + id);
+        }
+        existing.setBatchId(updated.getBatchId());
+        existing.setDate(updated.getDate() != null ? updated.getDate() : existing.getDate());
+        existing.setCategory(updated.getCategory());
+        existing.setMacroInvestment(updated.getMacroInvestment());
+        existing.setSubType(updated.getSubType());
+        existing.setAmount(updated.getAmount());
+        existing.setDescription(updated.getDescription());
+        return expenditureRepository.save(existing);
+    }
+
+    @Transactional
+    public void deleteExpenditure(String id) {
+        String tenantId = TenantContext.getTenantId();
+        Expenditure existing = expenditureRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Expenditure not found: " + id));
+        if (!existing.getTenantId().equals(tenantId)) {
+            throw new BusinessException("Expenditure not found: " + id);
+        }
+        expenditureRepository.delete(existing);
+        log.info("Deleted expenditure: {} for tenant: {}", id, tenantId);
+    }
+
     @Transactional
     public Expenditure logExpenditureExtended(
             LocalDate date,

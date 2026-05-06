@@ -13,4 +13,7 @@ public interface ExpenditureRepository extends JpaRepository<Expenditure, String
     @org.springframework.data.jpa.repository.Query("SELECT e FROM Expenditure e WHERE e.tenantId = :tenantId AND e.date BETWEEN :startDate AND :endDate")
     List<Expenditure> findByTenantIdAndDateBetween(String tenantId, java.time.LocalDate startDate,
             java.time.LocalDate endDate);
+
+    @org.springframework.data.jpa.repository.Query("SELECT DISTINCT e.macroInvestment FROM Expenditure e WHERE e.tenantId = :tenantId AND e.macroInvestment IS NOT NULL ORDER BY e.macroInvestment")
+    List<String> findDistinctMacroInvestmentsByTenantId(String tenantId);
 }
