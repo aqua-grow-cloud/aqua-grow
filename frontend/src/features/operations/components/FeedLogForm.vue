@@ -100,15 +100,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useQueryClient } from '@tanstack/vue-query';
-import { useBatches } from '../../batches/composables/useBatches';
-import { usePonds } from '../../ponds/composables/usePonds';
-import { feedLogService } from '../api/feedLogService';
-import { feedStockService } from '../../inventory/api/feedStockService';
-import { fishTypeService } from '../../settings/api/fishTypeService';
-import type { Batch, FeedLog } from '../../../api/generated/model';
-import { useApiAction } from '../../../composables/useApiAction';
+import {computed, ref, watch} from 'vue';
+import {useQueryClient} from '@tanstack/vue-query';
+import {useBatches} from '../../batches/composables/useBatches';
+import {usePonds} from '../../ponds/composables/usePonds';
+import {feedLogService} from '../api/feedLogService';
+import {feedStockService} from '../../inventory/api/feedStockService';
+import {fishTypeService} from '../../settings/api/fishTypeService';
+import type {Batch, FeedLog} from '@/api/generated/model';
+import {useApiAction} from '@/composables/useApiAction.ts';
 
 const queryClient = useQueryClient();
 
@@ -128,6 +128,19 @@ const { execute: executeLogFeed, isLoading: isLogging, error: logError } = useAp
 const inventoryItems = computed(() => {
   return feedStock.value?.map(s => s.feedType).filter(Boolean) || [];
 });
+
+const latestActiveBatchId = computed(() => {
+  const active = batches.value?.filter((b: Batch) => b.status === 'Active') || [];
+  if (active.length === 0) return '';
+  const sorted = active.length === 1
+    ? active
+    : [...active].sort((a, b) => (b.stockingDate || '').localeCompare(a.stockingDate || ''));
+  return sorted.find(() => true)?.id ?? '';
+});
+
+const defaultFeedType = computed(() =>
+  inventoryItems.value.length === 1 ? inventoryItems.value[0] : ''
+);
 
 const unit = ref<'kg' | 'bags'>('kg');
 const displayAmount = ref(0);
@@ -158,10 +171,20 @@ const defaultForm = {
 
 const form = ref({ ...defaultForm });
 
+// Set batch default once batches load (or immediately if already loaded)
+watch(latestActiveBatchId, (id) => {
+  if (id && !form.value.batchId) form.value.batchId = id;
+}, { immediate: true });
+
+// Auto-select feed type when there is only one option
+watch(defaultFeedType, (ft) => {
+  if (ft && !form.value.feedType) form.value.feedType = ft;
+}, { immediate: true });
+
 const isValid = computed(() => form.value.batchId && displayAmount.value > 0 && form.value.feedType);
 
 const recentLogs = computed(() => {
-  return [...(feedLogs.value || [])].sort((a: FeedLog, b: FeedLog) => 
+  return [...(feedLogs.value || [])].sort((a: FeedLog, b: FeedLog) =>
     new Date(b.date || '').getTime() - new Date(a.date || '').getTime()
   ).slice(0, 5);
 });
@@ -177,14 +200,14 @@ function getBatchLabel(batchId?: string) {
 async function save() {
   // Convert bags to kg if needed (1 bag = 40kg)
   form.value.amount = unit.value === 'bags' ? displayAmount.value * 40 : displayAmount.value;
-  
+
   await executeLogFeed();
-  
+
   if (!logError.value) {
     // Invalidate queries regardless of success/fail to be safe, but usually on success
     queryClient.invalidateQueries({ queryKey: ['api', 'feed-logs'] });
     queryClient.invalidateQueries({ queryKey: ['api', 'feed-stock'] });
-    
+
     // Reset amount
     displayAmount.value = 0;
     form.value.amount = 0;

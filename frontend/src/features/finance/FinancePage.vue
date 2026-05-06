@@ -3,7 +3,7 @@
     <PageHeader
         title="Finance Dashboard"
         :action-label="store.isManager ? 'Log Entry' : undefined"
-        @action="dialog = true"
+        @action="() => { editingExpenditure = null; dialog = true; }"
     />
 
     <v-row v-if="!store.isManager">
@@ -161,7 +161,13 @@
                     {{ getBatchName(item.batchId) }}
                 </template>
                 <template v-slot:item.amount="{ item }">
-                    <span class="font-weight-bold">₹{{ (item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                    <span :class="['font-weight-bold', (item.amount || 0) < 0 ? 'text-success' : '']">
+                        ₹{{ (item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                    </span>
+                </template>
+                <template v-slot:item.actions="{ item }">
+                    <v-btn icon="mdi-pencil" variant="text" size="small" density="compact" @click="openEditDialog(item)"></v-btn>
+                    <v-btn icon="mdi-delete" variant="text" size="small" density="compact" color="error" @click="openDeleteConfirm(item)"></v-btn>
                 </template>
             </v-data-table-server>
           </v-card>
@@ -240,8 +246,25 @@
     <!-- Entry Dialog -->
     <ExpenditureDialog
       v-model="dialog"
+      :expenditure="editingExpenditure"
       @save="handleSaveExpenditure"
+      @update="handleUpdateExpenditure"
     />
+
+    <!-- Delete Confirmation Dialog -->
+    <v-dialog v-model="deleteDialog" max-width="400px">
+      <v-card class="rounded-lg">
+        <v-card-title class="bg-error text-white px-6 py-4">Delete Expenditure</v-card-title>
+        <v-card-text class="pt-4">
+          Are you sure you want to delete this expenditure entry? This action cannot be undone.
+        </v-card-text>
+        <v-card-actions class="px-6 pb-6">
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="deleteDialog = false">Cancel</v-btn>
+          <v-btn color="error" variant="flat" @click="confirmDelete">Delete</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
   </v-container>
 </template>
@@ -260,6 +283,9 @@ import type {Expenditure, HarvestLog} from '@/api/generated/model';
 
 const store = useAquaStore();
 const dialog = ref(false);
+const editingExpenditure = ref<Expenditure | null>(null);
+const deleteDialog = ref(false);
+const deletingExpenditure = ref<Expenditure | null>(null);
 const tab = ref('expenditure');
 const fileInput = ref<HTMLInputElement | null>(null);
 
@@ -269,6 +295,35 @@ const { batches, getBatchById } = useBatches(); // Need batches list for filter
 
 // Instantiate mutation at setup level
 const createMutation = expenditureService.useCreate();
+
+function openEditDialog(item: Expenditure) {
+    editingExpenditure.value = item;
+    dialog.value = true;
+}
+
+function openDeleteConfirm(item: Expenditure) {
+    deletingExpenditure.value = item;
+    deleteDialog.value = true;
+}
+
+async function confirmDelete() {
+    if (!deletingExpenditure.value?.id) return;
+    try {
+        await expenditureService.delete(deletingExpenditure.value.id);
+        deleteDialog.value = false;
+        deletingExpenditure.value = null;
+        loadItems({ page: 1, itemsPerPage: itemsPerPage.value, sortBy: [] });
+    } catch (e) {
+        console.error('Failed to delete expenditure', e);
+    }
+}
+
+async function handleUpdateExpenditure(payload: Expenditure) {
+    if (!payload.id) return;
+    await expenditureService.update(payload.id, payload);
+    editingExpenditure.value = null;
+    loadItems({ page: 1, itemsPerPage: itemsPerPage.value, sortBy: [] });
+}
 
 const batchOptions = computed(() => {
     return batches.value?.map(b => ({
@@ -293,6 +348,7 @@ async function handleSaveExpenditure(payload: Omit<Expenditure, 'id'>) {
     // We should probably still call the service create.
     await createMutation.mutateAsync({ data: payload as Expenditure });
     dialog.value = false;
+    editingExpenditure.value = null;
     loadItems({ page: 1, itemsPerPage: itemsPerPage.value, sortBy: [] });
 }
 
@@ -306,6 +362,7 @@ const headers: any[] = [
     { title: 'Sub-Type', key: 'subType', sortable: false },
     { title: 'Description', key: 'description', sortable: false },
     { title: 'Amount', key: 'amount', align: 'end', sortable: false },
+    { title: '', key: 'actions', sortable: false, align: 'end', width: '80px' },
 ];
 const serverItems = ref<Expenditure[]>([]);
 const totalItems = ref(0);

@@ -27,6 +27,37 @@ export const expenditureService = {
     },
 
     /**
+     * Get distinct macroInvestment values used by this tenant
+     */
+    getMacroInvestments() {
+        return customInstance<string[]>({
+            url: '/api/expenditures/macro-investments',
+            method: 'get'
+        });
+    },
+
+    /**
+     * Update an existing expenditure
+     */
+    update(id: string, data: Expenditure) {
+        return customInstance<Expenditure>({
+            url: `/api/expenditures/${id}`,
+            method: 'put',
+            data
+        });
+    },
+
+    /**
+     * Delete an expenditure
+     */
+    delete(id: string) {
+        return customInstance<void>({
+            url: `/api/expenditures/${id}`,
+            method: 'delete'
+        });
+    },
+
+    /**
      * Search expenditures with pagination
      */
     search(params: ExpenditureSearchParams) {
