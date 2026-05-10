@@ -125,6 +125,10 @@
            {{ (item.averageWeight || 0).toFixed(2) }} g
         </template>
 
+        <template v-slot:item.actions="{ item }">
+          <v-btn icon="mdi-pencil" variant="text" size="small" density="compact" color="primary" @click.stop="openEditDialog(item)"></v-btn>
+          <v-btn icon="mdi-delete" variant="text" size="small" density="compact" color="error" @click.stop="openDeleteDialog(item)"></v-btn>
+        </template>
 
       </v-data-table-server>
     </v-card>
@@ -138,6 +142,28 @@
       </v-window>
     </v-card>
   </v-container>
+
+  <!-- Edit Sample Log Dialog -->
+  <SampleLogDialog
+    v-model="editDialog"
+    :log="editingLog"
+    @update="handleUpdate"
+  />
+
+  <!-- Delete Confirmation Dialog -->
+  <v-dialog v-model="deleteDialog" max-width="400px">
+    <v-card class="rounded-lg">
+      <v-card-title class="bg-error text-white px-6 py-4">Delete Sample Log</v-card-title>
+      <v-card-text class="pt-4">
+        Are you sure you want to delete this sample log entry? This action cannot be undone.
+      </v-card-text>
+      <v-card-actions class="px-6 pb-6">
+        <v-spacer></v-spacer>
+        <v-btn variant="text" @click="deleteDialog = false">Cancel</v-btn>
+        <v-btn color="error" variant="flat" @click="confirmDelete">Delete</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -148,6 +174,7 @@ import {useBatches} from '../batches/composables/useBatches';
 import {sampleLogService} from './api/sampleLogService';
 import {fishTypeService} from '../settings/api/fishTypeService';
 import SampleLogPivotTable from './components/SampleLogPivotTable.vue';
+import SampleLogDialog from './components/SampleLogDialog.vue';
 import type {SampleLog} from '@/api/generated/model';
 
 const router = useRouter();
@@ -155,6 +182,45 @@ const { ponds } = usePonds();
 const { batches, getBatchById } = useBatches();
 
 const tab = ref('history');
+
+// Edit / delete state
+const editDialog = ref(false);
+const editingLog = ref<SampleLog | null>(null);
+const deleteDialog = ref(false);
+const deletingLog = ref<SampleLog | null>(null);
+
+function openEditDialog(log: SampleLog) {
+  editingLog.value = log;
+  editDialog.value = true;
+}
+
+function openDeleteDialog(log: SampleLog) {
+  deletingLog.value = log;
+  deleteDialog.value = true;
+}
+
+async function handleUpdate(payload: SampleLog) {
+  if (!payload.id) return;
+  try {
+    await sampleLogService.update(payload.id, payload);
+    editingLog.value = null;
+    refetch();
+  } catch (e) {
+    console.error('Failed to update sample log', e);
+  }
+}
+
+async function confirmDelete() {
+  if (!deletingLog.value?.id) return;
+  try {
+    await sampleLogService.delete(deletingLog.value.id);
+    deleteDialog.value = false;
+    deletingLog.value = null;
+    refetch();
+  } catch (e) {
+    console.error('Failed to delete sample log', e);
+  }
+}
 
 const filters = ref<any>({
   pondId: null,
@@ -178,6 +244,7 @@ const headers = [
   { title: 'Species', key: 'fishTypeId', align: 'start' as const },
   { title: 'Sample Count', key: 'sampleCount', align: 'end' as const },
   { title: 'Avg Weight', key: 'averageWeight', align: 'end' as const },
+  { title: '', key: 'actions', sortable: false, align: 'end' as const, width: '80px' },
 ];
 
 const pondOptions = computed(() => ponds.value || []);

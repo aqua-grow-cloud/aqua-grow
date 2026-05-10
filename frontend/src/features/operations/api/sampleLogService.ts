@@ -5,6 +5,7 @@ import {
 	useLogSample,
 	useSearchSampleLogs
 } from '../../../api/generated/sample-log-controller/sample-log-controller';
+import {customInstance} from '../../../api/axios-instance';
 import type {SampleLog} from '../../../api/generated/model';
 import type {MaybeRef} from 'vue';
 
@@ -40,6 +41,27 @@ export const sampleLogService = {
     useLog() {
         return useLogSample();
     },
+
+    /**
+     * Update an existing sample log
+     */
+    update(id: string, data: SampleLog) {
+        return customInstance<SampleLog>({
+            url: `/api/sample-logs/${id}`,
+            method: 'put',
+            data,
+        });
+    },
+
+    /**
+     * Delete a sample log
+     */
+    delete(id: string) {
+        return customInstance<void>({
+            url: `/api/sample-logs/${id}`,
+            method: 'delete',
+        });
+    },
 };
 
 // Type exports for convenience
@@ -48,3 +70,4 @@ export type {
     SearchSampleLogsQueryResult,
     LogSampleMutationResult
 };
+

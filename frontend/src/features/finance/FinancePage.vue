@@ -190,6 +190,7 @@
                   <th class="text-subtitle-2 font-weight-bold">Source / Buyer</th>
                   <th class="text-subtitle-2 font-weight-bold">Harvest Details</th>
                   <th class="text-subtitle-2 font-weight-bold text-right">Amount Received</th>
+                  <th class="text-subtitle-2 font-weight-bold" style="width: 80px"></th>
                 </tr>
               </thead>
               <tbody>
@@ -203,12 +204,17 @@
                   <td class="text-right font-weight-bold text-success text-h6">
                       ₹{{ (log.revenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                   </td>
+                  <td class="text-right">
+                      <v-btn icon="mdi-pencil" variant="text" size="small" density="compact" color="primary" @click="openEditHarvestLog(log)"></v-btn>
+                      <v-btn icon="mdi-delete" variant="text" size="small" density="compact" color="error" @click="openDeleteHarvestLog(log)"></v-btn>
+                  </td>
                 </tr>
               </tbody>
               <tfoot class="bg-slate-100 font-weight-bold">
                   <tr>
                       <td colspan="3" class="text-right text-uppercase text-caption">Total Incomings:</td>
                       <td class="text-right text-h5 text-success">₹{{ grandTotalInc.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                      <td></td>
                   </tr>
               </tfoot>
             </v-table>
@@ -266,6 +272,28 @@
       </v-card>
     </v-dialog>
 
+    <!-- Harvest Log Edit Dialog -->
+    <HarvestLogDialog
+      v-model="harvestLogDialog"
+      :log="editingHarvestLog"
+      @update="handleUpdateHarvestLog"
+    />
+
+    <!-- Harvest Log Delete Confirmation Dialog -->
+    <v-dialog v-model="harvestDeleteDialog" max-width="400px">
+      <v-card class="rounded-lg">
+        <v-card-title class="bg-error text-white px-6 py-4">Delete Incoming Payment</v-card-title>
+        <v-card-text class="pt-4">
+          Are you sure you want to delete this harvest payment record? This action cannot be undone.
+        </v-card-text>
+        <v-card-actions class="px-6 pb-6">
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="harvestDeleteDialog = false">Cancel</v-btn>
+          <v-btn color="error" variant="flat" @click="confirmDeleteHarvestLog">Delete</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
   </v-container>
 </template>
 
@@ -274,9 +302,11 @@ import {computed, reactive, ref} from 'vue';
 import {useAquaStore} from '@/stores/useAquaStore.ts';
 import PageHeader from '../../components/PageHeader.vue';
 import ExpenditureDialog from './components/ExpenditureDialog.vue';
+import HarvestLogDialog from './components/HarvestLogDialog.vue';
 import BalancePivotTable from './components/BalancePivotTable.vue';
 import ExpenditurePivotTable from './components/ExpenditurePivotTable.vue';
 import {expenditureService} from './api/expenditureService';
+import {harvestLogService} from '../harvesting/api/harvestLogService';
 import {useHarvestLogs} from '../harvesting/composables/useHarvestLogs';
 import {useBatches} from '../batches/composables/useBatches';
 import type {Expenditure, HarvestLog} from '@/api/generated/model';
@@ -289,8 +319,14 @@ const deletingExpenditure = ref<Expenditure | null>(null);
 const tab = ref('expenditure');
 const fileInput = ref<HTMLInputElement | null>(null);
 
+// Harvest log edit/delete state
+const harvestLogDialog = ref(false);
+const editingHarvestLog = ref<HarvestLog | null>(null);
+const harvestDeleteDialog = ref(false);
+const deletingHarvestLog = ref<HarvestLog | null>(null);
+
 // Use composables
-const { harvestLogs } = useHarvestLogs();
+const { harvestLogs, refetch: refetchHarvestLogs } = useHarvestLogs();
 const { batches, getBatchById } = useBatches(); // Need batches list for filter
 
 // Instantiate mutation at setup level
@@ -323,6 +359,40 @@ async function handleUpdateExpenditure(payload: Expenditure) {
     await expenditureService.update(payload.id, payload);
     editingExpenditure.value = null;
     loadItems({ page: 1, itemsPerPage: itemsPerPage.value, sortBy: [] });
+}
+
+// Harvest log handlers
+function openEditHarvestLog(log: HarvestLog) {
+    editingHarvestLog.value = log;
+    harvestLogDialog.value = true;
+}
+
+function openDeleteHarvestLog(log: HarvestLog) {
+    deletingHarvestLog.value = log;
+    harvestDeleteDialog.value = true;
+}
+
+async function handleUpdateHarvestLog(payload: HarvestLog) {
+    if (!payload.id) return;
+    try {
+        await harvestLogService.update(payload.id, payload);
+        editingHarvestLog.value = null;
+        refetchHarvestLogs();
+    } catch (e) {
+        console.error('Failed to update harvest log', e);
+    }
+}
+
+async function confirmDeleteHarvestLog() {
+    if (!deletingHarvestLog.value?.id) return;
+    try {
+        await harvestLogService.delete(deletingHarvestLog.value.id);
+        harvestDeleteDialog.value = false;
+        deletingHarvestLog.value = null;
+        refetchHarvestLogs();
+    } catch (e) {
+        console.error('Failed to delete harvest log', e);
+    }
 }
 
 const batchOptions = computed(() => {

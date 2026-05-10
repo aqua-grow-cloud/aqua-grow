@@ -1,10 +1,11 @@
 import {
-    useGetAllHarvestLogs,
-    useRecordHarvest,
-    type GetAllHarvestLogsQueryResult,
-    type RecordHarvestMutationResult
+	type GetAllHarvestLogsQueryResult,
+	type RecordHarvestMutationResult,
+	useGetAllHarvestLogs,
+	useRecordHarvest
 } from '../../../api/generated/harvest-log-controller/harvest-log-controller';
-import type { HarvestLog, GetAllHarvestLogsParams } from '../../../api/generated/model';
+import {customInstance} from '../../../api/axios-instance';
+import type {GetAllHarvestLogsParams, HarvestLog} from '../../../api/generated/model';
 
 /**
  * Harvest Log Service
@@ -24,6 +25,27 @@ export const harvestLogService = {
     useRecord() {
         return useRecordHarvest();
     },
+
+    /**
+     * Update an existing harvest log
+     */
+    update(id: string, data: HarvestLog) {
+        return customInstance<HarvestLog>({
+            url: `/api/harvest-logs/${id}`,
+            method: 'put',
+            data,
+        });
+    },
+
+    /**
+     * Delete a harvest log
+     */
+    delete(id: string) {
+        return customInstance<void>({
+            url: `/api/harvest-logs/${id}`,
+            method: 'delete',
+        });
+    },
 };
 
 // Type exports for convenience
@@ -33,3 +55,4 @@ export type {
     GetAllHarvestLogsQueryResult,
     RecordHarvestMutationResult
 };
+
