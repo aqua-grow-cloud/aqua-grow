@@ -34,6 +34,16 @@ public class HarvestLogController {
         return harvestService.recordHarvest(log);
     }
 
+    @PutMapping("/{id}")
+    public HarvestLog updateHarvestLog(@PathVariable String id, @RequestBody HarvestLog log) {
+        return harvestService.updateHarvestLog(id, log);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteHarvestLog(@PathVariable String id) {
+        harvestService.deleteHarvestLog(id);
+    }
+
     @GetMapping("/batch/{batchId}")
     public List<HarvestLog> getHarvestLogsByBatch(@PathVariable String batchId) {
         return harvestService.getHarvestLogsByBatch(batchId);

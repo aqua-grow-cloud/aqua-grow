@@ -81,6 +81,49 @@ public class HarvestService {
         return savedLog;
     }
 
+    /**
+     * Update an existing harvest log.
+     * Re-validates and recalculates rates from the submitted values.
+     */
+    @Transactional
+    public HarvestLog updateHarvestLog(String id, HarvestLog updated) {
+        String tenantId = TenantContext.getTenantId();
+        HarvestLog existing = harvestLogRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Harvest log not found: " + id));
+
+        if (!existing.getTenantId().equals(tenantId)) {
+            throw new BusinessException("Access denied for harvest log: " + id);
+        }
+
+        // Preserve identity fields
+        updated.setId(id);
+        updated.setTenantId(tenantId);
+
+        // Re-validate and recalculate financials
+        validateAndRecalculateHarvest(updated);
+
+        HarvestLog saved = harvestLogRepository.save(updated);
+        log.info("Updated harvest log: {} for tenant: {}", id, tenantId);
+        return saved;
+    }
+
+    /**
+     * Delete a harvest log by ID.
+     */
+    @Transactional
+    public void deleteHarvestLog(String id) {
+        String tenantId = TenantContext.getTenantId();
+        HarvestLog existing = harvestLogRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Harvest log not found: " + id));
+
+        if (!existing.getTenantId().equals(tenantId)) {
+            throw new BusinessException("Access denied for harvest log: " + id);
+        }
+
+        harvestLogRepository.deleteById(id);
+        log.info("Deleted harvest log: {} for tenant: {}", id, tenantId);
+    }
+
     // ========== Private Helper Methods ==========
 
     /**
