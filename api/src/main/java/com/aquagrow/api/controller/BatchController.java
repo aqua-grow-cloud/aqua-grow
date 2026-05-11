@@ -3,6 +3,7 @@ package com.aquagrow.api.controller;
 import com.aquagrow.api.model.Batch;
 import com.aquagrow.api.model.FishSeed;
 import com.aquagrow.api.service.BatchService;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -87,6 +88,19 @@ public class BatchController {
             @RequestParam String targetPondId,
             @RequestParam(required = false) Integer quantity) {
         return batchService.moveFishSeed(id, seedId, targetPondId, quantity)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{id}/seeds/{seedId}/mortality")
+    public ResponseEntity<Batch> logMortality(
+            @PathVariable String id,
+            @PathVariable String seedId,
+            @RequestParam int quantity,
+            @RequestParam(required = false) String date,
+            @RequestParam(required = false) String note) {
+        LocalDate eventDate = (date != null && !date.isEmpty()) ? LocalDate.parse(date) : null;
+        return batchService.logMortality(id, seedId, quantity, eventDate, note)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }

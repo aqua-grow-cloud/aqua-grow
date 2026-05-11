@@ -213,6 +213,44 @@ public class BatchService {
     }
 
     /**
+     * Log a mortality event for a specific fish seed.
+     * Creates a MORTALITY stock event with a negative quantityDelta.
+     */
+    @Transactional
+    public Optional<Batch> logMortality(String batchId, String seedId, int quantity, LocalDate date, String note) {
+        return batchRepository.findById(batchId)
+                .map(batch -> {
+                    FishSeed seed = batch.getFishSeeds().stream()
+                            .filter(s -> s.getId() != null && s.getId().equals(seedId))
+                            .findFirst()
+                            .orElseThrow(() -> new BusinessException("Fish seed not found: " + seedId));
+
+                    if (quantity <= 0) {
+                        throw new BusinessException("Mortality quantity must be positive");
+                    }
+
+                    String tenantId = TenantContext.getTenantId();
+                    LocalDate eventDate = (date != null) ? date : LocalDate.now();
+
+                    FishStockEvent event = FishStockEvent.builder()
+                            .pondId(seed.getPondId())
+                            .batchId(batchId)
+                            .date(eventDate)
+                            .type(FishStockEventType.MORTALITY)
+                            .fishTypeId(seed.getFishTypeId())
+                            .quantityDelta(-quantity)
+                            .avgWeightGram(seed.getSizeGrams())
+                            .referenceId(seedId)  // store seedId for front-end aggregation
+                            .tenantId(tenantId)
+                            .build();
+
+                    fishStockEventRepository.save(event);
+                    log.info("Logged mortality of {} fish for seed {} in batch {}", quantity, seedId, batchId);
+                    return batch;
+                });
+    }
+
+    /**
      * Move fish seed to a different pond.
      * Supports full or partial moves, creates transfer events.
      */
