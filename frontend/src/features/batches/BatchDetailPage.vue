@@ -70,6 +70,53 @@
         </v-col>
       </v-row>
 
+      <!-- Fish Seeds Table -->
+      <v-row class="mt-4">
+        <v-col cols="12">
+          <v-card class="rounded-lg" elevation="2">
+            <v-card-title class="py-4 px-6 d-flex align-center">
+              <v-icon color="primary" class="mr-2">mdi-fish</v-icon>
+              Fish Seeds
+            </v-card-title>
+            <v-divider></v-divider>
+            <v-data-table
+              :headers="seedHeaders"
+              :items="batch.fishSeeds || []"
+              class="elevation-0"
+              density="compact"
+            >
+              <template v-slot:item.fishTypeId="{ item }">
+                {{ getFishTypeName((item as any).fishTypeId) }}
+              </template>
+              <template v-slot:item.date="{ item }">
+                {{ formatDate(item.date) }}
+              </template>
+              <template v-slot:item.status="{ item }">
+                <v-chip size="x-small" :color="item.status === 'Active' ? 'success' : 'grey'" variant="tonal">
+                  {{ item.status }}
+                </v-chip>
+              </template>
+              <template v-slot:item.mortality="{ item }">
+                <span class="text-error font-weight-bold">
+                  {{ getMortalityForSeed((item as any).id).toLocaleString() }}
+                </span>
+              </template>
+              <template v-slot:item.actions="{ item }">
+                <v-btn
+                  size="x-small"
+                  color="error"
+                  variant="tonal"
+                  prepend-icon="mdi-skull-outline"
+                  @click="openMortalityDialog(item as any)"
+                >
+                  Log Mortality
+                </v-btn>
+              </template>
+            </v-data-table>
+          </v-card>
+        </v-col>
+      </v-row>
+
       <!-- Event Ledger Table -->
       <v-row class="mt-4">
         <v-col cols="12">
@@ -115,22 +162,35 @@
       Batch not found or failed to load.
     </v-alert>
   </v-container>
+
+  <!-- Mortality Dialog -->
+  <SeedMortalityDialog
+    v-model="mortalityDialog"
+    :batch-id="batchId"
+    :seed="selectedSeed"
+    :fish-types="(fishTypes as any) || []"
+    @saved="handleMortalitySaved"
+  />
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue';
+import {computed, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {useBatches} from '../batches/composables/useBatches';
 import {useGetFishStockEventsByBatch} from '@/api/manual/hooks';
 import FishStockChart from '../batches/components/FishStockChart.vue';
+import SeedMortalityDialog from '../batches/components/SeedMortalityDialog.vue';
 import {fishTypeService} from '../settings/api/fishTypeService';
 import {FishStockEventType} from '@/api/manual/types';
+import type {FishSeed} from '@/api/generated/model';
+import {useAquaStore} from '@/stores/useAquaStore';
 
 const route = useRoute();
 const router = useRouter();
 const batchId = route.params.id as string;
+const store = useAquaStore();
 
-const { batches, isLoading } = useBatches();
+const { batches, isLoading, logMortality } = useBatches();
 const batch = computed(() => batches.value?.find(b => b.id === batchId));
 
 const { data: events, isLoading: eventsLoading } = useGetFishStockEventsByBatch(batchId);
@@ -144,6 +204,40 @@ const headers = [
   { title: 'ABW', key: 'avgWeightGram', align: 'end' as const },
   { title: 'Note', key: 'referenceId' }
 ];
+
+const seedHeaders = [
+  { title: 'Species', key: 'fishTypeId' },
+  { title: 'Date', key: 'date' },
+  { title: 'Qty Stocked', key: 'quantity', align: 'end' as const },
+  { title: 'Dead', key: 'mortality', align: 'end' as const },
+  { title: 'Status', key: 'status' },
+  { title: '', key: 'actions', sortable: false, align: 'end' as const },
+];
+
+// Mortality dialog state
+const mortalityDialog = ref(false);
+const selectedSeed = ref<FishSeed | null>(null);
+
+function openMortalityDialog(seed: FishSeed) {
+  selectedSeed.value = seed;
+  mortalityDialog.value = true;
+}
+
+function getMortalityForSeed(seedId: string): number {
+  if (!events.value || !seedId) return 0;
+  return events.value
+    .filter(e => e.type === FishStockEventType.MORTALITY && (e as any).referenceId === seedId)
+    .reduce((sum, e) => sum + Math.abs(e.quantityDelta), 0);
+}
+
+async function handleMortalitySaved(payload: { batchId: string; seedId: string; quantity: number; date: string; note?: string }) {
+  try {
+    await logMortality(payload);
+    store.notify('Mortality logged successfully', 'success');
+  } catch {
+    store.notify('Failed to log mortality', 'systemError');
+  }
+}
 
 function getFishTypeName(id?: string) {
     if (!id) return '-';

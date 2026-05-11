@@ -309,6 +309,26 @@ export const useMoveFishSeed = () => {
     });
 };
 
+export const useLogMortality = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (payload: { batchId: string; seedId: string; quantity: number; date?: string; note?: string }) => {
+            const params = new URLSearchParams();
+            params.append('quantity', payload.quantity.toString());
+            if (payload.date) params.append('date', payload.date);
+            if (payload.note) params.append('note', payload.note);
+            const { data } = await AXIOS_INSTANCE.post<Batch>(
+                `/api/batches/${payload.batchId}/seeds/${payload.seedId}/mortality?${params.toString()}`
+            );
+            return data;
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['batches'] });
+            queryClient.invalidateQueries({ queryKey: ['fish-stock-events', 'batch', variables.batchId] });
+        }
+    });
+};
+
 // --- Fish Stock Events ---
 
 export const useGetFishStockEventsByBatch = (batchId: string) => {

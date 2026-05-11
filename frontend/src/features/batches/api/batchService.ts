@@ -1,12 +1,13 @@
 import {
-    useGetAllBatches,
-    useCreateBatch,
-    useUpdateBatch,
-    useGetBatchesByPond,
-    useAddFishSeed,
-    useMoveFishSeed
+	useAddFishSeed,
+	useCreateBatch,
+	useGetAllBatches,
+	useGetBatchesByPond,
+	useLogMortality,
+	useMoveFishSeed,
+	useUpdateBatch
 } from '../../../api/manual/hooks';
-import type { Batch, FishSeed } from '../../../api/generated/model';
+import type {Batch, FishSeed} from '../../../api/generated/model';
 
 /**
  * Batch Service
@@ -41,7 +42,12 @@ export const batchService = {
     /**
      * Move fish seed between ponds hook
      */
-    useMoveSeed: useMoveFishSeed
+    useMoveSeed: useMoveFishSeed,
+
+    /**
+     * Log mortality event for a fish seed hook
+     */
+    useLogMortality
 };
 
 export type {

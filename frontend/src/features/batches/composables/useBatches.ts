@@ -1,9 +1,9 @@
-import { computed } from 'vue';
-import { useQueryClient } from '@tanstack/vue-query';
-import { batchService, type Batch, type FishSeed } from '../api/batchService';
-import { useBatchStore } from '../stores/useBatchStore';
-import type { GetAllBatchesParams } from '../../../api/generated/model';
-import type { MaybeRef } from 'vue';
+import type {MaybeRef} from 'vue';
+import {computed} from 'vue';
+import {useQueryClient} from '@tanstack/vue-query';
+import {type Batch, batchService} from '../api/batchService';
+import {useBatchStore} from '../stores/useBatchStore';
+import type {GetAllBatchesParams} from '../../../api/generated/model';
 
 /**
  * Batches Composable
@@ -21,6 +21,7 @@ export function useBatches(params?: MaybeRef<GetAllBatchesParams>) {
     const updateBatch = batchService.useUpdate();
     const addSeedMutation = batchService.useAddSeed();
     const moveSeedMutation = batchService.useMoveSeed();
+    const logMortalityMutation = batchService.useLogMortality();
 
     // Computed
     const activeBatches = computed(() =>
@@ -54,6 +55,11 @@ export function useBatches(params?: MaybeRef<GetAllBatchesParams>) {
         queryClient.invalidateQueries({ queryKey: ['api', 'ponds'] });
     }
 
+    async function logMortality(payload: { batchId: string; seedId: string; quantity: number; date?: string; note?: string }) {
+        await logMortalityMutation.mutateAsync(payload);
+        queryClient.invalidateQueries({ queryKey: ['api', 'batches'] });
+    }
+
     function getBatchById(id?: string) {
         if (!id || !batches.value) return undefined;
         return batches.value.find((b: Batch) => b.id === id);
@@ -80,6 +86,7 @@ export function useBatches(params?: MaybeRef<GetAllBatchesParams>) {
         update,
         addSeed,
         moveSeed,
+        logMortality,
         refetch,
         getBatchById,
 
