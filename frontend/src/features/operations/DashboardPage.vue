@@ -50,6 +50,47 @@
       </v-col>
     </v-row>
 
+    <!-- Row 1: Pond Utilisation + Feed Stock Alerts -->
+    <v-row class="mt-6">
+      <v-col cols="12" md="8">
+        <PondUtilisationWidget />
+      </v-col>
+      <v-col cols="12" md="4">
+        <FeedStockAlertsWidget />
+      </v-col>
+    </v-row>
+
+    <!-- Row 2: Survival Rate + Water Quality -->
+    <v-row class="mt-4">
+      <v-col cols="12" md="4">
+        <SurvivalRateWidget :sample-logs="allSamples" />
+      </v-col>
+      <v-col cols="12" md="8">
+        <WaterQualityWidget />
+      </v-col>
+    </v-row>
+
+    <!-- Row 3: ABW Growth Curves (full width) -->
+    <v-row class="mt-4">
+      <v-col cols="12">
+        <ABWGrowthWidget :sample-logs="allSamples" />
+      </v-col>
+    </v-row>
+
+    <!-- Row 4: Monthly Finance + Batch Profitability -->
+    <v-row class="mt-4">
+      <v-col cols="12" md="7">
+        <MonthlyFinanceWidget :expenditures="expenditures" :harvest-logs="harvestLogs || []" />
+      </v-col>
+      <v-col cols="12" md="5">
+        <BatchProfitabilityWidget
+          :expenditures="expenditures"
+          :harvest-logs="harvestLogs || []"
+          :is-loading="expendituresLoading"
+        />
+      </v-col>
+    </v-row>
+
     <!-- Running Batches Section -->
     <v-row class="mt-6">
       <v-col cols="12">
@@ -140,7 +181,6 @@
       </v-col>
     </v-row>
 
-
     <!-- Pivot Tables -->
     <v-row class="mt-4">
         <v-col cols="12" md="6">
@@ -175,11 +215,19 @@ import {feedLogService} from './api/feedLogService';
 import {harvestLogService} from '../harvesting/api/harvestLogService';
 import {feedStockService} from '../inventory/api/feedStockService';
 import {fishTypeService} from '../settings/api/fishTypeService';
+import {expenditureService} from '../finance/api/expenditureService';
 import {getGetSampleLogsByBatchQueryOptions} from '@/api/generated/sample-log-controller/sample-log-controller.ts';
 import FishStockingPivot from './components/FishStockingPivot.vue';
 import SampleLogPivot from './components/SampleLogPivot.vue';
 import BiomassByFishType from './components/BiomassByFishType.vue';
-import type {Batch, FeedLog, Pond, SampleLog} from '@/api/generated/model';
+import WaterQualityWidget from './components/WaterQualityWidget.vue';
+import FeedStockAlertsWidget from './components/FeedStockAlertsWidget.vue';
+import SurvivalRateWidget from './components/SurvivalRateWidget.vue';
+import ABWGrowthWidget from './components/ABWGrowthWidget.vue';
+import BatchProfitabilityWidget from './components/BatchProfitabilityWidget.vue';
+import MonthlyFinanceWidget from './components/MonthlyFinanceWidget.vue';
+import PondUtilisationWidget from './components/PondUtilisationWidget.vue';
+import type {Batch, Expenditure, FeedLog, Pond, SampleLog} from '@/api/generated/model';
 
 const store = useAquaStore();
 
@@ -190,6 +238,10 @@ const { data: feedLogs } = feedLogService.useGetAll();
 const { data: lowStockItems } = feedStockService.useGetLowStock();
 const { data: harvestLogs } = harvestLogService.useGetAll();
 const { data: fishTypes } = fishTypeService.useGetAll();
+
+// Expenditures (all) for financial widgets
+const { data: expendituresData, isLoading: expendituresLoading } = expenditureService.useGetAll();
+const expenditures = computed<Expenditure[]>(() => (expendituresData.value as Expenditure[]) || []);
 
 const referenceDate = ref(new Date().toISOString().substr(0, 10));
 
@@ -207,7 +259,6 @@ const dashboardBatches = computed(() => {
 });
 
 // Fetch sample logs for all dashboard batches using unpaginated endpoint
-// This avoids the 100-element pagination limit
 const batchSampleQueries = computed(() => {
     return dashboardBatches.value.map(batch =>
         getGetSampleLogsByBatchQueryOptions(batch.id || '')
@@ -252,7 +303,6 @@ const feedToday = computed(() => {
 });
 
 const avgFCR = computed(() => {
-    // Only calculate average FCR for ACTIVE batches
     const batchesWithFCR = dashboardBatches.value
         .filter(b => b.status === 'Active')
         .map(b => parseFloat(calculateBatchFCR(b)))
@@ -264,7 +314,6 @@ const avgFCR = computed(() => {
 });
 
 const avgHarvestedFCR = computed(() => {
-    // Calculate average FCR for COMPLETED/HARVESTED batches
     const batchesWithFCR = dashboardBatches.value
         .filter((b: Batch) => (b.status as string) === 'Completed')
         .map(b => parseFloat(calculateBatchFCR(b)))
@@ -284,23 +333,16 @@ function calculateBatchFCR(batch: Batch): string {
         return '-';
     }
 
-    // 1. Initial Biomass (at stocking)
     const initialBiomass = batch.fishSeeds?.reduce((sum, s) => {
         let weightGrams = s.sizeGrams || 0;
-
-        // If sizeGrams not available but sizeInches is, convert
-        // Using approximate conversion: 1 inch ≈ 18 grams (typical for prawns/shrimp)
         if (!weightGrams && s.sizeInches) {
             weightGrams = s.sizeInches * 18;
         }
-
         return sum + ((s.quantity || 0) * weightGrams) / 1000;
     }, 0) || 0;
 
-    // 2. Current Biomass Estimate (for active) or Total Harvested Weight (for completed)
     const currentBiomass = calculateBatchBiomass(batch);
 
-    // 3. For active batches with partial harvests, add harvested weight to account for total production
     let totalBiomassProduced = currentBiomass;
     if (batch.status === 'Active') {
         const harvestedWeight = harvestLogs.value
@@ -309,7 +351,6 @@ function calculateBatchFCR(batch: Batch): string {
         totalBiomassProduced = currentBiomass + harvestedWeight;
     }
 
-    // 4. Weight Gained = Total Biomass Produced - Initial Biomass
     const weightGained = totalBiomassProduced - initialBiomass;
 
     if (weightGained <= 0) return '-';
@@ -318,30 +359,24 @@ function calculateBatchFCR(batch: Batch): string {
 }
 
 function calculateBatchBiomass(batch: Batch): number {
-    // If completed, use actual harvested actualWeight
     if ((batch.status as string) === 'Completed') {
         return harvestLogs.value
           ?.filter(l => l.batchId === batch.id)
           .reduce((sum, l) => sum + (l.actualWeight || l.biomassWeight || 0), 0) || 0;
     }
 
-    // Otherwise, use estimation logic
-    // 1. Base quantity from stocking
     const totalStocked = batch.fishSeeds?.reduce((sum, s) => sum + (s.quantity || 0), 0) || 0;
     if (totalStocked === 0) return 0;
 
-    // 2. Subtract harvests
     const totalHarvested = harvestLogs.value
       ?.filter(l => l.batchId === batch.id)
       .reduce((sum, l) => sum + (l.count || 0), 0) || 0;
 
     let currentQuantity = Math.max(0, totalStocked - totalHarvested);
 
-    // 3. Get latest sampling data - average by day first
     const batchSamples = allSamples.value.filter(l => l.batchId === batch.id);
 
     if (batchSamples.length === 0) {
-        // No samples, use stocking data for biomass estimation
         let currentABW = 0;
         if (batch.fishSeeds && batch.fishSeeds.length > 0) {
             const totalStockWeight = batch.fishSeeds.reduce((sum, s) => {
@@ -356,70 +391,45 @@ function calculateBatchBiomass(batch: Batch): number {
         return currentABW ? (currentQuantity * currentABW) / 1000 : 0;
     }
 
-    // Group samples by date and calculate daily averages
     const samplesByDate = batchSamples.reduce((acc, sample) => {
         const date = sample.date || '';
-        if (!acc[date]) {
-            acc[date] = [];
-        }
+        if (!acc[date]) acc[date] = [];
         acc[date].push(sample);
         return acc;
     }, {} as Record<string, SampleLog[]>);
 
-    // Get the latest date
     const dates = Object.keys(samplesByDate);
-    if (dates.length === 0) {
-        return 0;
-    }
+    if (dates.length === 0) return 0;
 
-    const sortedDates = dates.sort((a, b) =>
-        new Date(b).getTime() - new Date(a).getTime()
-    );
-
-    const latestDate = sortedDates[0];
-    if (!latestDate) {
-        return 0;
-    }
+    const latestDate = dates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+    if (!latestDate) return 0;
 
     const latestDaySamples = samplesByDate[latestDate];
-    if (!latestDaySamples || latestDaySamples.length === 0) {
-        return 0;
-    }
+    if (!latestDaySamples || latestDaySamples.length === 0) return 0;
 
-    // Calculate average weight for the latest day
     let currentABW = 0;
     let latestSurvivalEstimate: number | undefined;
 
-    const weights: number[] = [];
-    latestDaySamples.forEach((s: SampleLog) => {
-        if (s.averageWeight !== undefined && s.averageWeight !== null) {
-            weights.push(s.averageWeight);
-        }
-    });
+    const weights = latestDaySamples
+      .map((s: SampleLog) => s.averageWeight)
+      .filter((w): w is number => w != null);
 
     if (weights.length > 0) {
-        const sum = weights.reduce((acc: number, w: number) => acc + w, 0);
-        currentABW = sum / weights.length;
+        currentABW = weights.reduce((acc, w) => acc + w, 0) / weights.length;
     }
 
-    // Use the latest survival estimate from the latest day
-    const survivalEstimates: number[] = [];
-    latestDaySamples.forEach((s: SampleLog) => {
-        if (s.survivalEstimate !== undefined && s.survivalEstimate !== null) {
-            survivalEstimates.push(s.survivalEstimate);
-        }
-    });
+    const survivalEstimates = latestDaySamples
+      .map((s: SampleLog) => s.survivalEstimate)
+      .filter((v): v is number => v != null);
 
     if (survivalEstimates.length > 0) {
         latestSurvivalEstimate = survivalEstimates[survivalEstimates.length - 1];
     }
 
-    // Apply survival estimate if available
     if (latestSurvivalEstimate !== undefined) {
         currentQuantity = currentQuantity * (latestSurvivalEstimate / 100);
     }
 
-    // 5. Return calculated biomass
     if (currentABW) {
         return (currentQuantity * currentABW) / 1000;
     }
@@ -466,7 +476,7 @@ function calculateAge(stockingDate?: string) {
   const start = new Date(stockingDate).setHours(0,0,0,0);
   const refDate = new Date(referenceDate.value).setHours(0,0,0,0);
 
-  if (refDate < start) return 0; // Hasn't started yet relative to selection
+  if (refDate < start) return 0;
 
   const diff = refDate - start;
 	return Math.floor(diff / (1000 * 60 * 60 * 24));
