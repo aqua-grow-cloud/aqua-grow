@@ -10,6 +10,13 @@ import {useQuery} from '@tanstack/vue-query';
 import type {SampleLog} from '@/api/generated/model';
 import type {MaybeRef} from 'vue';
 
+// DTO matching DateSpeciesPivotRow on the backend
+export interface DateSpeciesPivotRow {
+    date: string;                        // ISO date string e.g. "2025-01-12"
+    abwBySpecies: Record<string, number>; // fishTypeId → weighted ABW (g)
+    countBySpecies: Record<string, number>; // fishTypeId → total fish sampled
+}
+
 // DTO matching SamplePivotRow on the backend
 export interface SamplePivotEntry {
     date: string;
@@ -61,6 +68,22 @@ export const sampleLogService = {
      */
     useLog() {
         return useLogSample();
+    },
+
+    /**
+     * Pre-aggregated pivot data grouped by date × species.
+     * Each row = one date; columns = one ABW value per fishTypeId.
+     */
+    useGetPivotByDate() {
+        return useQuery({
+            queryKey: ['sample-logs', 'pivot', 'by-date'],
+            queryFn: async () => {
+                return customInstance<DateSpeciesPivotRow[]>({
+                    url: '/api/sample-logs/pivot/by-date',
+                    method: 'get',
+                });
+            },
+        });
     },
 
     /**

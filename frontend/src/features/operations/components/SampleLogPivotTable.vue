@@ -1,198 +1,212 @@
 <template>
   <v-card variant="outlined" class="rounded-lg shadow-sm">
     <v-card-title class="px-6 py-4 bg-slate-50 border-b">
-      <div class="d-flex align-center justify-space-between w-100">
+      <div class="d-flex align-center justify-space-between w-100 flex-wrap gap-2">
         <div class="d-flex align-center">
-          <v-icon icon="mdi-fish" color="primary" class="mr-2"></v-icon>
-          Sample Log Growth Analysis
+          <v-icon icon="mdi-chart-timeline-variant" color="primary" class="mr-2"></v-icon>
+          Growth Analysis — Date × Species
         </div>
-        <div class="d-flex gap-2 align-center">
-          <v-btn
-            variant="outlined"
-            prepend-icon="mdi-download"
-            color="primary"
-            density="compact"
-            class="rounded-lg"
-            @click="exportPivotCsv"
-          >
-            Export Analysis
-          </v-btn>
-        </div>
+        <v-btn
+          variant="outlined"
+          prepend-icon="mdi-download"
+          color="primary"
+          density="compact"
+          class="rounded-lg"
+          @click="exportCsv"
+        >
+          Export
+        </v-btn>
       </div>
     </v-card-title>
 
-    <v-table hover fixed-header height="600px">
-      <thead>
-        <tr class="bg-grey-lighten-4">
-          <th class="text-subtitle-2 font-weight-bold">Batch/Pond</th>
-          <th class="text-subtitle-2 font-weight-bold text-right">Fish Sampled</th>
-          <th class="text-subtitle-2 font-weight-bold text-right">Avg Weight (g)</th>
-          <th class="text-subtitle-2 font-weight-bold text-right">Min Weight (g)</th>
-          <th class="text-subtitle-2 font-weight-bold text-right">Max Weight (g)</th>
-          <th class="text-subtitle-2 font-weight-bold text-right">Growth Rate</th>
-        </tr>
-      </thead>
-      <tbody>
-        <template v-for="row in displayRows" :key="row.batchId">
-          <tr @click="toggleExpand(row.batchId)" class="cursor-pointer hover:bg-grey-lighten-5">
-            <td class="font-weight-bold text-primary">
-              <v-icon v-if="row.entries.length > 0" :icon="expandedRows.has(row.batchId) ? 'mdi-chevron-down' : 'mdi-chevron-right'" size="small" class="mr-1"></v-icon>
-              {{ row.label }}
+    <div v-if="isLoading" class="d-flex justify-center align-center py-12">
+      <v-progress-circular indeterminate color="primary"></v-progress-circular>
+    </div>
+
+    <div v-else-if="rows.length === 0" class="text-center py-12 text-grey">
+      <v-icon icon="mdi-table-off" size="48" class="mb-2 opacity-20"></v-icon>
+      <div>No sample log records found.</div>
+    </div>
+
+    <div v-else class="overflow-x-auto">
+      <table class="pivot-table w-100">
+        <thead>
+          <tr>
+            <th class="col-date">Date</th>
+            <th
+              v-for="sp in allSpecies"
+              :key="sp.id"
+              class="col-species text-right"
+            >
+              {{ sp.name }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in rows" :key="row.date">
+            <td class="col-date font-weight-medium">{{ formatDate(row.date) }}</td>
+            <td
+              v-for="sp in allSpecies"
+              :key="sp.id"
+              class="col-species text-right"
+            >
+              <template v-if="row.abwBySpecies[sp.id] != null">
+                <span class="abw-value">{{ row.abwBySpecies[sp.id]!.toFixed(2) }} g</span>
+                <span class="count-badge ml-1 text-caption text-grey">
+                  ({{ row.countBySpecies[sp.id] }} pcs)
+                </span>
+              </template>
+              <span v-else class="text-grey-lighten-2">—</span>
             </td>
-            <td class="text-right">{{ row.totalFishSampled }}</td>
-            <td class="text-right font-weight-medium">
-              {{ row.weightedAvgWeight.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }} g
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr class="footer-row">
+            <td class="font-weight-bold">Latest ABW</td>
+            <td
+              v-for="sp in allSpecies"
+              :key="sp.id"
+              class="text-right font-weight-bold"
+            >
+              <span v-if="latestAbw[sp.id] != null">
+                {{ latestAbw[sp.id]!.toFixed(2) }} g
+              </span>
+              <span v-else class="text-grey-lighten-2">—</span>
             </td>
-            <td class="text-right text-grey-darken-1">
-              {{ row.minWeight.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }} g
-            </td>
-            <td class="text-right text-grey-darken-1">
-              {{ row.maxWeight.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }} g
-            </td>
-            <td class="text-right">
-              <v-chip v-if="row.growthRate !== null" size="small" :color="getGrowthColor(row.growthRate!)">
-                {{ row.growthRate! > 0 ? '+' : '' }}{{ row.growthRate!.toFixed(2) }} g/day
+          </tr>
+          <tr class="footer-row">
+            <td class="font-weight-bold">Growth Rate</td>
+            <td
+              v-for="sp in allSpecies"
+              :key="sp.id"
+              class="text-right"
+            >
+              <v-chip
+                v-if="growthRates[sp.id] != null"
+                size="x-small"
+                :color="getGrowthColor(growthRates[sp.id]!)"
+              >
+                {{ growthRates[sp.id]! > 0 ? '+' : '' }}{{ growthRates[sp.id]!.toFixed(2) }} g/day
               </v-chip>
               <span v-else class="text-caption text-grey">N/A</span>
             </td>
           </tr>
-          <!-- Expanded children rows (chronological sample entries) -->
-          <template v-if="expandedRows.has(row.batchId) && row.entries.length > 0">
-            <tr v-for="entry in row.entries" :key="`${row.batchId}-${entry.date}-${entry.dayNumber}`" class="bg-grey-lighten-5">
-              <td class="pl-12 text-grey-darken-2">
-                <v-icon icon="mdi-calendar" size="x-small" class="mr-1"></v-icon>
-                {{ formatDate(entry.date) }}
-              </td>
-              <td class="text-right">{{ entry.sampleCount }}</td>
-              <td class="text-right">
-                {{ entry.averageWeight.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }} g
-              </td>
-              <td class="text-right">-</td>
-              <td class="text-right">-</td>
-              <td class="text-right">
-                <span class="text-caption">Day {{ entry.dayNumber }}</span>
-              </td>
-            </tr>
-          </template>
-        </template>
-      </tbody>
-      <tfoot class="bg-slate-100 font-weight-bold">
-        <tr>
-          <td class="text-right">Total Samples:</td>
-          <td class="text-right">{{ totalFishSampled }}</td>
-          <td class="text-right">{{ overallAvgWeight.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }} g</td>
-          <td class="text-right">-</td>
-          <td class="text-right">-</td>
-          <td class="text-right">-</td>
-        </tr>
-      </tfoot>
-    </v-table>
-
-    <v-card-text v-if="!isLoading && displayRows.length === 0" class="text-center py-12 text-grey">
-      <v-icon icon="mdi-table-off" size="48" class="mb-2 opacity-20"></v-icon>
-      <div>No sample log records found to generate growth analysis.</div>
-    </v-card-text>
+        </tfoot>
+      </table>
+    </div>
   </v-card>
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from 'vue';
-import {sampleLogService, type SamplePivotRow} from '../api/sampleLogService';
-import {useBatches} from '../../batches/composables/useBatches';
-import {usePonds} from '../../ponds/composables/usePonds';
+import {computed} from 'vue';
+import {type DateSpeciesPivotRow, sampleLogService} from '../api/sampleLogService';
+import {fishTypeService} from '../../settings/api/fishTypeService';
 
-const { data: pivotData, isLoading } = sampleLogService.useGetPivot();
-const { getBatchById } = useBatches();
-const { getPondById } = usePonds();
+const { data: pivotData, isLoading } = sampleLogService.useGetPivotByDate();
+const { data: fishTypes } = fishTypeService.useGetAll();
 
-const expandedRows = ref(new Set<string>());
-
-// Enrich each pivot row with a display label resolved on the frontend
-interface DisplayRow extends SamplePivotRow {
-  label: string;
-}
-
-function getBatchLabel(batchId?: string): string {
-  if (!batchId || batchId === 'unallocated') return 'Unallocated';
-  const batch = getBatchById(batchId);
-  if (!batch) return 'Unknown Batch';
-  const pondNames = [...new Set(
-    (batch.fishSeeds || [])
-      .map((s: any) => getPondById(s.pondId)?.name)
-      .filter(Boolean)
-  )].join(', ') || 'Unknown Pond';
-  return `${batch.name || batch.stockingDate || batchId} (${pondNames})`;
-}
-
-function formatDate(dateStr?: string | null): string {
-  if (!dateStr) return 'Unknown Date';
-  return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-const displayRows = computed<DisplayRow[]>(() => {
-  if (!pivotData.value) return [];
-  return pivotData.value
-    .map(row => ({ ...row, label: getBatchLabel(row.batchId) }))
-    .sort((a, b) => b.weightedAvgWeight - a.weightedAvgWeight);
-});
-
-const totalFishSampled = computed(() =>
-  displayRows.value.reduce((sum, r) => sum + r.totalFishSampled, 0)
+// Sorted ascending by date (backend already sorts, but guard here too)
+const rows = computed<DateSpeciesPivotRow[]>(() =>
+  [...(pivotData.value ?? [])].sort((a, b) => a.date.localeCompare(b.date))
 );
 
-const overallAvgWeight = computed(() => {
-  const totalWeight = displayRows.value.reduce((sum, r) => sum + r.weightedAvgWeight * r.totalFishSampled, 0);
-  return totalFishSampled.value > 0 ? totalWeight / totalFishSampled.value : 0;
+// Collect the full set of species that appear in any row, in a stable order
+const allSpecies = computed(() => {
+  const ids = new Set<string>();
+  rows.value.forEach(r => Object.keys(r.abwBySpecies).forEach(id => ids.add(id)));
+
+  return Array.from(ids).map(id => ({
+    id,
+    name: (fishTypes.value as any)?.find((t: any) => t.id === id)?.name ?? id,
+  })).sort((a, b) => a.name.localeCompare(b.name));
 });
 
-function toggleExpand(key: string) {
-  if (expandedRows.value.has(key)) {
-    expandedRows.value.delete(key);
-  } else {
-    expandedRows.value.add(key);
-  }
-}
+// Latest ABW per species (from the most recent date that has data for that species)
+const latestAbw = computed<Record<string, number>>(() => {
+  const result: Record<string, number> = {};
+  // rows are ascending by date, so iterate forward and keep overwriting
+  rows.value.forEach(r => {
+    Object.entries(r.abwBySpecies).forEach(([sp, abw]) => {
+      result[sp] = abw;
+    });
+  });
+  return result;
+});
 
-function getGrowthColor(growthRate: number): string {
-  if (growthRate >= 1.0) return 'success';
-  if (growthRate >= 0.5) return 'info';
-  if (growthRate >= 0) return 'warning';
-  return 'error';
-}
+// Growth rate per species: (latestABW - firstABW) / days between first and last sample date for that species
+const growthRates = computed<Record<string, number | null>>(() => {
+  const first: Record<string, { date: string; abw: number }> = {};
+  const last: Record<string, { date: string; abw: number }> = {};
 
-function exportPivotCsv() {
-  const rows = [
-    ['Batch/Pond', 'Fish Sampled', 'Weighted Avg Weight (g)', 'Min ABW (g)', 'Max ABW (g)', 'Growth Rate (g/day)']
-  ];
-
-  displayRows.value.forEach(row => {
-    rows.push([
-      row.label,
-      row.totalFishSampled.toString(),
-      row.weightedAvgWeight.toFixed(2),
-      row.minWeight.toFixed(2),
-      row.maxWeight.toFixed(2),
-      row.growthRate !== null ? row.growthRate!.toFixed(2) : 'N/A'
-    ]);
-    row.entries.forEach(e => {
-      rows.push([
-        `  → ${formatDate(e.date)}`,
-        e.sampleCount.toString(),
-        e.averageWeight.toFixed(2),
-        '-',
-        '-',
-        `Day ${e.dayNumber}`
-      ]);
+  rows.value.forEach(r => {
+    Object.entries(r.abwBySpecies).forEach(([sp, abw]) => {
+      if (!first[sp]) first[sp] = { date: r.date, abw };
+      last[sp] = { date: r.date, abw };
     });
   });
 
-  rows.push(['Total', totalFishSampled.value.toString(), overallAvgWeight.value.toFixed(2), '-', '-', '-']);
+  const result: Record<string, number | null> = {};
+  allSpecies.value.forEach(({ id }) => {
+    const f = first[id];
+    const l = last[id];
+    if (!f || !l || f.date === l.date) {
+      result[id] = null;
+      return;
+    }
+    const days = Math.floor(
+      (new Date(l.date).getTime() - new Date(f.date).getTime()) / 86_400_000
+    );
+    result[id] = days > 0 ? (l.abw - f.abw) / days : null;
+  });
+  return result;
+});
 
-  const csvContent = rows.map(r => r.join(',')).join('\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+function formatDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric',
+  });
+}
+
+function getGrowthColor(rate: number): string {
+  if (rate >= 1.0) return 'success';
+  if (rate >= 0.5) return 'info';
+  if (rate >= 0) return 'warning';
+  return 'error';
+}
+
+function exportCsv() {
+  const speciesCols = allSpecies.value.map(s => s.name);
+  const header = ['Date', ...speciesCols.flatMap(n => [`${n} ABW (g)`, `${n} Count`])];
+  const dataRows = rows.value.map(r => [
+    r.date,
+    ...allSpecies.value.flatMap(({ id }) => [
+      r.abwBySpecies[id] != null ? r.abwBySpecies[id]!.toFixed(2) : '',
+      r.countBySpecies[id] != null ? r.countBySpecies[id].toString() : '',
+    ]),
+  ]);
+  const latestRow = [
+    'Latest ABW',
+    ...allSpecies.value.flatMap(({ id }) => [
+      latestAbw.value[id] != null ? latestAbw.value[id]!.toFixed(2) : '',
+      '',
+    ]),
+  ];
+  const growthRow = [
+    'Growth Rate (g/day)',
+    ...allSpecies.value.flatMap(({ id }) => [
+      growthRates.value[id] != null ? growthRates.value[id]!.toFixed(2) : 'N/A',
+      '',
+    ]),
+  ];
+
+  const csv = [header, ...dataRows, latestRow, growthRow]
+    .map(r => r.map(c => `"${c}"`).join(','))
+    .join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   link.setAttribute('href', URL.createObjectURL(blob));
-  link.setAttribute('download', `sample-log-growth-analysis-${new Date().toISOString().split('T')[0]}.csv`);
+  link.setAttribute('download', `growth-analysis-${new Date().toISOString().split('T')[0]}.csv`);
   link.style.visibility = 'hidden';
   document.body.appendChild(link);
   link.click();
@@ -201,14 +215,54 @@ function exportPivotCsv() {
 </script>
 
 <style scoped>
-.cursor-pointer {
-  cursor: pointer;
+.pivot-table {
+  border-collapse: collapse;
+  font-size: 0.875rem;
 }
-.v-table th {
-  background-color: #f8fafc !important;
-}
-.v-table td {
-  height: 48px !important;
+
+.pivot-table th,
+.pivot-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
   vertical-align: middle;
+}
+
+.pivot-table thead th {
+  background: #f8fafc;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #475569;
+}
+
+.pivot-table tbody tr:hover td {
+  background: #f1f5f9;
+}
+
+.col-date {
+  min-width: 140px;
+  position: sticky;
+  left: 0;
+  background: inherit;
+  z-index: 1;
+}
+
+.col-species {
+  min-width: 140px;
+}
+
+.footer-row td {
+  background: #f1f5f9;
+  border-top: 2px solid #cbd5e1;
+}
+
+.abw-value {
+  font-weight: 500;
+}
+
+.count-badge {
+  opacity: 0.7;
 }
 </style>
