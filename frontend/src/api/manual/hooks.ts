@@ -412,3 +412,41 @@ export const useDeleteFishType = () => {
         }
     });
 };
+
+// --- Employees ---
+
+export interface Employee {
+    id?: string;
+    name: string;
+    role?: string;
+    salary?: number;
+    advanceTaken?: number;
+    status?: string;
+    joinedDate?: string;
+    whatsappNumber?: string;
+    telegramChatId?: string;
+    tenantId?: string;
+}
+
+export const useGetAllEmployees = () => {
+    return useQuery({
+        queryKey: ['employees'],
+        queryFn: async () => {
+            const { data } = await AXIOS_INSTANCE.get<Employee[]>('/api/employees');
+            return data;
+        }
+    });
+};
+
+export const useUpdateEmployee = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (payload: { id: string; data: Employee }) => {
+            const { data } = await AXIOS_INSTANCE.put<Employee>(`/api/employees/${payload.id}`, payload.data);
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['employees'] });
+        }
+    });
+};
