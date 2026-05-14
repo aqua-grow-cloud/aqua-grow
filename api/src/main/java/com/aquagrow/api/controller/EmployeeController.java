@@ -43,6 +43,8 @@ public class EmployeeController {
                     employee.setSalary(employeeDetails.getSalary());
                     employee.setAdvanceTaken(employeeDetails.getAdvanceTaken());
                     employee.setStatus(employeeDetails.getStatus());
+                    employee.setWhatsappNumber(employeeDetails.getWhatsappNumber());
+                    employee.setTelegramChatId(employeeDetails.getTelegramChatId());
                     return ResponseEntity.ok(employeeRepository.save(employee));
                 })
                 .orElse(ResponseEntity.notFound().build());
