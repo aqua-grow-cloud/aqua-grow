@@ -1,13 +1,34 @@
 import {
-	type LogSampleMutationResult,
-	type SearchSampleLogsQueryResult,
-	useGetSampleLogsByBatch,
-	useLogSample,
-	useSearchSampleLogs
-} from '../../../api/generated/sample-log-controller/sample-log-controller';
-import {customInstance} from '../../../api/axios-instance';
-import type {SampleLog} from '../../../api/generated/model';
+    type LogSampleMutationResult,
+    type SearchSampleLogsQueryResult,
+    useGetSampleLogsByBatch,
+    useLogSample,
+    useSearchSampleLogs
+} from '@/api/generated/sample-log-controller/sample-log-controller.ts';
+import {customInstance} from '@/api/axios-instance.ts';
+import {useQuery} from '@tanstack/vue-query';
+import type {SampleLog} from '@/api/generated/model';
 import type {MaybeRef} from 'vue';
+
+// DTO matching SamplePivotRow on the backend
+export interface SamplePivotEntry {
+    date: string;
+    sampleCount: number;
+    averageWeight: number;
+    dayNumber: number;
+}
+
+export interface SamplePivotRow {
+    batchId: string;
+    totalFishSampled: number;
+    weightedAvgWeight: number;
+    minWeight: number;
+    maxWeight: number;
+    growthRate: number | null;
+    firstSampleDate: string | null;
+    lastSampleDate: string | null;
+    entries: SamplePivotEntry[];
+}
 
 /**
  * Sample Log Service
@@ -40,6 +61,22 @@ export const sampleLogService = {
      */
     useLog() {
         return useLogSample();
+    },
+
+    /**
+     * Pre-aggregated pivot data per batch — server does all grouping and calculations.
+     * Replaces fetching large raw log pages on the frontend.
+     */
+    useGetPivot() {
+        return useQuery({
+            queryKey: ['sample-logs', 'pivot'],
+            queryFn: async () => {
+                return customInstance<SamplePivotRow[]>({
+                    url: '/api/sample-logs/pivot',
+                    method: 'get',
+                });
+            },
+        });
     },
 
     /**

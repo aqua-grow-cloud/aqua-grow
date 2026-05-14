@@ -32,69 +32,41 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { sampleLogService } from '../api/sampleLogService';
-import { useBatches } from '../../batches/composables/useBatches';
-import { fishTypeService } from '../../settings/api/fishTypeService';
+import {computed} from 'vue';
+import {sampleLogService} from '../api/sampleLogService';
+import {useBatches} from '../../batches/composables/useBatches';
+import {fishTypeService} from '../../settings/api/fishTypeService';
 
 const { batches } = useBatches();
-// Fetch lots of logs to get good coverage. Ideally this is a specific backend aggregation.
-const { data: logsData, isLoading } = sampleLogService.useSearch(computed(() => ({ size: 100 })));
+const { data: pivotRows, isLoading } = sampleLogService.useGetPivot();
 const { data: fishTypes } = fishTypeService.useGetAll();
 
-const logs = computed(() => {
-    const raw = logsData.value;
-    return (raw && 'content' in raw && Array.isArray((raw as any).content)) 
-        ? (raw as any).content 
-        : (Array.isArray(raw) ? raw : []);
-});
-
+// Build pivot table: one row per batch, one column per species (fishTypeId)
+// The pivot endpoint aggregates weight per batch, but not per species.
+// We reconstruct species columns from the batch's fishSeeds to show current ABW per species.
+// Since the pivot endpoint doesn't break down by fishTypeId, we show the batch-level
+// weighted avg weight in all species columns that batch contains.
 const pivotData = computed(() => {
-    if (!logs.value || !batches.value) return [];
+    if (!pivotRows.value || !batches.value) return [];
 
-    const batchMap = new Map();
+    return pivotRows.value.map(row => {
+        const batch = batches.value.find((b: any) => b.id === row.batchId);
+        const batchName = batch?.name || 'Unknown Batch';
 
-    // Grouping
-    logs.value.forEach((log: any) => {
-        if (!batchMap.has(log.batchId)) {
-            const batch = batches.value.find((b: any) => b.id === log.batchId);
-            batchMap.set(log.batchId, {
-                batchId: log.batchId,
-                batchName: batch?.name || 'Unknown Batch',
-                speciesData: {} 
-            });
-        }
-        
-        const entry = batchMap.get(log.batchId);
-        const speciesId = log.fishTypeId || 'Unknown'; // Fallback if type missing
+        // Collect all fishTypeIds in this batch
+        const speciesIds: string[] = [...new Set(
+            (batch?.fishSeeds || []).map((s: any) => s.fishTypeId).filter(Boolean)
+        )] as string[];
 
-        if (!entry.speciesData[speciesId]) {
-            entry.speciesData[speciesId] = { totalWeight: 0, totalCount: 0 };
-        }
-
-        // Weighted Average Calculation: Sum(TotalWeight) / Sum(Count)
-        // If totalSampleWeight is missing, fallback to averageWeight * sampleCount
-        const weight = log.totalSampleWeight || (log.averageWeight * log.sampleCount) || 0;
-        const count = log.sampleCount || 0;
-
-        entry.speciesData[speciesId].totalWeight += weight;
-        entry.speciesData[speciesId].totalCount += count;
-    });
-
-    // Flatten to Row Structure
-    return Array.from(batchMap.values()).map((entry: any) => {
+        // Map each species to the weighted avg ABW for this batch
         const metrics: Record<string, number> = {};
-        for (const [speciesId, data] of Object.entries(entry.speciesData)) {
-            const d = data as any;
-            if (d.totalCount > 0) {
-                metrics[speciesId] = d.totalWeight / d.totalCount;
+        speciesIds.forEach(id => {
+            if (row.weightedAvgWeight > 0) {
+                metrics[id] = row.weightedAvgWeight;
             }
-        }
-        return {
-            batchId: entry.batchId,
-            batchName: entry.batchName,
-            metrics
-        };
+        });
+
+        return { batchId: row.batchId, batchName, metrics };
     });
 });
 
@@ -110,5 +82,4 @@ function getFishTypeName(id?: string) {
     if (!id || id === 'Unknown') return 'Unknown';
     return (fishTypes.value as any)?.find((t: any) => t.id === id)?.name || id;
 }
-
 </script>
