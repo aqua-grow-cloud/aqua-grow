@@ -6,6 +6,7 @@ import com.aquagrow.api.service.FeedService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -33,6 +34,17 @@ public class FeedLogController {
     @PostMapping
     public FeedLog logFeed(@RequestBody FeedLog feedLog) {
         return feedService.createFeedLog(feedLog);
+    }
+
+    @PutMapping("/{id}")
+    public FeedLog updateFeedLog(@PathVariable String id, @RequestBody FeedLog feedLog) {
+        return feedService.updateFeedLog(id, feedLog);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteFeedLog(@PathVariable String id) {
+        feedService.deleteFeedLog(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/batch/{batchId}")

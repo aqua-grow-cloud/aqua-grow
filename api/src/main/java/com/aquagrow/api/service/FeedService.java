@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.Optional;
 
 /**
  * Service for managing feed logs and feed consumption analytics.
@@ -214,6 +215,86 @@ public class FeedService {
                 batchId, fcr, totalFeedKg, biomassGain);
 
         return fcr;
+    }
+
+    /**
+     * Updates an existing feed log, adjusting inventory for the difference in amount.
+     *
+     * @param id the feed log ID
+     * @param updated the updated feed log data
+     * @return the saved feed log
+     * @throws BusinessException if the feed log is not found or insufficient stock
+     */
+    @Transactional
+    public FeedLog updateFeedLog(String id, FeedLog updated) {
+        FeedLog existing = feedLogRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Feed log not found: " + id));
+
+        String tenantId = existing.getTenantId();
+
+        // Restore old amount back to inventory, then deduct new amount
+        String oldFeedType = existing.getFeedType();
+        Double oldAmount = existing.getAmount();
+        String newFeedType = updated.getFeedType();
+        Double newAmount = updated.getAmount();
+
+        if (oldFeedType != null && !oldFeedType.isEmpty() && oldAmount != null && oldAmount > 0) {
+            restoreToInventory(tenantId, oldFeedType, oldAmount);
+        }
+        if (newFeedType != null && !newFeedType.isEmpty()) {
+            deductFromInventory(tenantId, newFeedType, newAmount);
+        }
+
+        existing.setBatchId(updated.getBatchId() != null ? updated.getBatchId() : existing.getBatchId());
+        existing.setDate(updated.getDate() != null ? updated.getDate() : existing.getDate());
+        existing.setFeedType(newFeedType);
+        existing.setAmount(newAmount);
+        existing.setTime(updated.getTime() != null ? updated.getTime() : existing.getTime());
+
+        FeedLog saved = feedLogRepository.save(existing);
+        log.info("Updated feed log: {} for tenant: {}", id, tenantId);
+        return saved;
+    }
+
+    /**
+     * Deletes a feed log and restores its amount back to feed stock inventory.
+     *
+     * @param id the feed log ID
+     * @throws BusinessException if the feed log is not found
+     */
+    @Transactional
+    public void deleteFeedLog(String id) {
+        FeedLog existing = feedLogRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Feed log not found: " + id));
+
+        String tenantId = existing.getTenantId();
+
+        if (existing.getFeedType() != null && !existing.getFeedType().isEmpty()
+                && existing.getAmount() != null && existing.getAmount() > 0) {
+            restoreToInventory(tenantId, existing.getFeedType(), existing.getAmount());
+        }
+
+        feedLogRepository.delete(existing);
+        log.info("Deleted feed log: {} for tenant: {}", id, tenantId);
+    }
+
+    /**
+     * Restores feed amount back to inventory stock.
+     *
+     * @param tenantId the tenant ID
+     * @param feedType the feed type
+     * @param amount the amount to restore in kg
+     */
+    private void restoreToInventory(String tenantId, String feedType, Double amount) {
+        if (amount == null || amount <= 0) return;
+        feedStockRepository.findByTenantIdAndFeedType(tenantId, feedType)
+                .ifPresent(stock -> {
+                    double current = stock.getCurrentStock() != null ? stock.getCurrentStock() : 0.0;
+                    stock.setCurrentStock(current + amount);
+                    feedStockRepository.save(stock);
+                    log.info("Restored {} kg of {} to inventory (new total: {} kg, tenant: {})",
+                            amount, feedType, stock.getCurrentStock(), tenantId);
+                });
     }
 
     /**
