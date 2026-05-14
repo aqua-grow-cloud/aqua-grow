@@ -1,6 +1,7 @@
 package com.aquagrow.api.service;
 
 import com.aquagrow.api.dto.CsvSampleLog;
+import com.aquagrow.api.dto.SamplePivotRow;
 import com.aquagrow.api.exception.BusinessException;
 import com.aquagrow.api.model.*;
 import com.aquagrow.api.repository.*;
@@ -340,6 +341,94 @@ public class SampleService {
 
         double avgWeightGrams = latestSample.get().getAverageWeight();
         return (currentStock * avgWeightGrams) / 1000.0; // Convert to kg
+    }
+
+    /**
+     * Returns one pre-aggregated pivot row per batch.
+     * Performs a single full-table scan grouped in memory — avoids N+1 per-batch API calls
+     * and eliminates the need to send thousands of raw rows to the frontend.
+     */
+    @Transactional(readOnly = true)
+    public List<SamplePivotRow> getPivotData() {
+        List<SampleLog> all = sampleLogRepository.findAll();
+
+        // Group by batchId
+        Map<String, List<SampleLog>> byBatch = all.stream()
+                .collect(Collectors.groupingBy(s -> s.getBatchId() != null ? s.getBatchId() : "unallocated"));
+
+        return byBatch.entrySet().stream().map(entry -> {
+            String batchId = entry.getKey();
+            List<SampleLog> samples = entry.getValue().stream()
+                    .sorted(Comparator.comparing(SampleLog::getDate))
+                    .collect(Collectors.toList());
+
+            // Weighted average: Σ(totalSampleWeight or averageWeight*count) / Σ(sampleCount)
+            double totalWeightSum = 0.0;
+            int totalFishSampled = 0;
+            double minW = Double.MAX_VALUE;
+            double maxW = 0.0;
+
+            for (SampleLog s : samples) {
+                int count = s.getSampleCount() != null ? s.getSampleCount() : 0;
+                double perRecordWeight = 0.0;
+                if (s.getTotalSampleWeight() != null && s.getTotalSampleWeight() > 0) {
+                    perRecordWeight = s.getTotalSampleWeight();
+                } else if (s.getAverageWeight() != null && count > 0) {
+                    perRecordWeight = s.getAverageWeight() * count;
+                }
+                totalWeightSum += perRecordWeight;
+                totalFishSampled += count;
+
+                if (s.getAverageWeight() != null && s.getAverageWeight() > 0) {
+                    if (s.getAverageWeight() < minW) minW = s.getAverageWeight();
+                    if (s.getAverageWeight() > maxW) maxW = s.getAverageWeight();
+                }
+            }
+
+            double weightedAvg = totalFishSampled > 0 ? totalWeightSum / totalFishSampled : 0.0;
+            if (minW == Double.MAX_VALUE) minW = 0.0;
+
+            // Growth rate
+            Double growthRate = null;
+            if (samples.size() >= 2) {
+                SampleLog first = samples.get(0);
+                SampleLog last = samples.get(samples.size() - 1);
+                if (first.getAverageWeight() != null && last.getAverageWeight() != null
+                        && first.getAverageWeight() > 0 && last.getAverageWeight() > 0) {
+                    long days = java.time.temporal.ChronoUnit.DAYS.between(first.getDate(), last.getDate());
+                    if (days > 0) {
+                        growthRate = (last.getAverageWeight() - first.getAverageWeight()) / days;
+                    }
+                }
+            }
+
+            LocalDate firstDate = samples.isEmpty() ? null : samples.get(0).getDate();
+            LocalDate lastDate = samples.isEmpty() ? null : samples.get(samples.size() - 1).getDate();
+
+            List<SamplePivotRow.SampleEntry> entries = samples.stream().map(s -> {
+                long dayNum = firstDate != null
+                        ? java.time.temporal.ChronoUnit.DAYS.between(firstDate, s.getDate())
+                        : 0L;
+                return SamplePivotRow.SampleEntry.builder()
+                        .date(s.getDate())
+                        .sampleCount(s.getSampleCount() != null ? s.getSampleCount() : 0)
+                        .averageWeight(s.getAverageWeight() != null ? s.getAverageWeight() : 0.0)
+                        .dayNumber(dayNum)
+                        .build();
+            }).collect(Collectors.toList());
+
+            return SamplePivotRow.builder()
+                    .batchId(batchId)
+                    .totalFishSampled(totalFishSampled)
+                    .weightedAvgWeight(weightedAvg)
+                    .minWeight(minW)
+                    .maxWeight(maxW)
+                    .growthRate(growthRate)
+                    .firstSampleDate(firstDate)
+                    .lastSampleDate(lastDate)
+                    .entries(entries)
+                    .build();
+        }).collect(Collectors.toList());
     }
 
     // ==================== Private Helper Methods ====================

@@ -1,5 +1,6 @@
 package com.aquagrow.api.controller;
 
+import com.aquagrow.api.dto.SamplePivotRow;
 import com.aquagrow.api.model.SampleLog;
 import com.aquagrow.api.service.SampleService;
 import lombok.RequiredArgsConstructor;
@@ -62,6 +63,11 @@ public class SampleLogController {
     @PostMapping("/import")
     public List<SampleLog> importCsv(@RequestParam("file") MultipartFile file) throws Exception {
         return sampleService.importFromCsv(file);
+    }
+
+    @GetMapping("/pivot")
+    public List<SamplePivotRow> getPivotData() {
+        return sampleService.getPivotData();
     }
 
     // ==================== Analytics Endpoints ====================
