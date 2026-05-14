@@ -25,7 +25,7 @@
       <thead>
         <tr class="bg-grey-lighten-4">
           <th class="text-subtitle-2 font-weight-bold">Batch/Pond</th>
-          <th class="text-subtitle-2 font-weight-bold text-right">Samples</th>
+          <th class="text-subtitle-2 font-weight-bold text-right">Fish Sampled</th>
           <th class="text-subtitle-2 font-weight-bold text-right">Avg Weight (g)</th>
           <th class="text-subtitle-2 font-weight-bold text-right">Min Weight (g)</th>
           <th class="text-subtitle-2 font-weight-bold text-right">Max Weight (g)</th>
@@ -116,13 +116,12 @@ const sampleLogs = computed(() => {
 interface PivotRow {
   key: string;
   label: string;
-  count: number;
-  avgWeight: number;
+  count: number;       // total fish sampled (sum of sampleCount)
+  avgWeight: number;   // weighted avg: ΣtotalSampleWeight / ΣsampleCount
   minWeight: number;
   maxWeight: number;
   growthRate: number | null;
   children: ChildRow[];
-  dayNumber?: number;
 }
 
 interface ChildRow {
@@ -133,32 +132,31 @@ interface ChildRow {
   dayNumber: number;
 }
 
-// Helper function to format batch name with pond
+// Helper: batch label with pond names derived from fishSeeds
 function getBatchLabel(batchId?: string): string {
   if (!batchId) return 'Unallocated';
   const batch = getBatchById(batchId);
   if (!batch) return 'Unknown Batch';
-  
-  const pond = getPondById(batch.pondId);
-  const pondName = pond?.name || 'Unknown Pond';
-  const batchName = batch.name || batch.stockingDate || 'Unknown Batch';
-  
-  return `${batchName} (${pondName})`;
+
+  const pondNames = [...new Set(
+    (batch.fishSeeds || [])
+      .map((s: any) => getPondById(s.pondId)?.name)
+      .filter(Boolean)
+  )].join(', ') || 'Unknown Pond';
+
+  return `${batch.name || batch.stockingDate || batchId} (${pondNames})`;
 }
 
-// Helper function to format date
 function formatDate(dateStr?: string): string {
   if (!dateStr) return 'Unknown Date';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-// Calculate days since first sample
-function getDaysSince(startDate: string, endDate: string): number {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+// Days between two date strings (floor, not ceil; result 0 for same day)
+function daysBetween(startDate: string, endDate: string): number {
+  const start = new Date(startDate).getTime();
+  const end = new Date(endDate).getTime();
+  return Math.floor((end - start) / (1000 * 60 * 60 * 24));
 }
 
 // Main pivot computation - grouped by batch
@@ -169,10 +167,8 @@ const pivotRows = computed(() => {
 
   sampleLogs.value.forEach((log: SampleLog) => {
     const groupKey = log.batchId || 'unallocated';
-    const groupLabel = getBatchLabel(log.batchId);
-
     if (!groupMap[groupKey]) {
-      groupMap[groupKey] = { items: [], groupLabel: groupLabel };
+      groupMap[groupKey] = { items: [], groupLabel: getBatchLabel(log.batchId) };
     }
     groupMap[groupKey]!.items.push(log);
   });
@@ -180,62 +176,80 @@ const pivotRows = computed(() => {
   return Object.entries(groupMap)
     .map(([key, data]) => {
       // Sort samples chronologically
-      const sortedSamples = [...data.items].sort((a, b) => 
+      const sortedSamples = [...data.items].sort((a, b) =>
         new Date(a.date || '').getTime() - new Date(b.date || '').getTime()
       );
 
-      const rowCount = sortedSamples.length;
-      const weights = sortedSamples.map(s => s.averageWeight || 0).filter(w => w > 0);
-      const avgWeight = weights.length > 0 ? weights.reduce((sum, w) => sum + w, 0) / weights.length : 0;
-      const minWeight = weights.length > 0 ? Math.min(...weights) : 0;
-      const maxWeight = weights.length > 0 ? Math.max(...weights) : 0;
+      // Total fish sampled (sum of sampleCount across all records)
+      const totalFishSampled = sortedSamples.reduce((sum, s) => sum + (s.sampleCount || 0), 0);
 
-      // Calculate growth rate (weight change per day)
+      // Weighted average ABW: Σ(totalSampleWeight) / Σ(sampleCount)
+      // Fall back to averageWeight * sampleCount when totalSampleWeight is missing
+      const totalWeight = sortedSamples.reduce((sum, s) => {
+        const w = s.totalSampleWeight ?? ((s.averageWeight ?? 0) * (s.sampleCount ?? 1));
+        return sum + w;
+      }, 0);
+      const avgWeight = totalFishSampled > 0 ? totalWeight / totalFishSampled : 0;
+
+      // min/max are per-record averageWeight values
+      const perRecordABW = sortedSamples.map(s => s.averageWeight || 0).filter(w => w > 0);
+      const minWeight = perRecordABW.length > 0 ? Math.min(...perRecordABW) : 0;
+      const maxWeight = perRecordABW.length > 0 ? Math.max(...perRecordABW) : 0;
+
+      // Growth rate: (lastABW - firstABW) / days between first and last sample
       let growthRate: number | null = null;
       if (sortedSamples.length >= 2) {
         const firstSample = sortedSamples[0]!;
         const lastSample = sortedSamples[sortedSamples.length - 1]!;
         const firstWeight = firstSample.averageWeight || 0;
         const lastWeight = lastSample.averageWeight || 0;
-        const days = getDaysSince(firstSample.date || '', lastSample.date || '');
-        
+        const days = daysBetween(firstSample.date || '', lastSample.date || '');
         if (days > 0 && firstWeight > 0 && lastWeight > 0) {
           growthRate = (lastWeight - firstWeight) / days;
         }
       }
 
-      // Build children from individual sample dates
+      // Build children — each row is one sample record
       const firstSampleDate = sortedSamples[0]?.date || '';
       const children: ChildRow[] = sortedSamples.map((sample) => {
-        const dayNumber = firstSampleDate ? getDaysSince(firstSampleDate, sample.date || '') : 0;
+        const dayNumber = firstSampleDate ? daysBetween(firstSampleDate, sample.date || '') : 0;
         return {
-          key: `${key}-${sample.date}`,
+          key: `${key}-${sample.id || sample.date}`,
           label: formatDate(sample.date),
           count: sample.sampleCount || 0,
           avgWeight: sample.averageWeight || 0,
-          dayNumber: dayNumber
+          dayNumber,
         };
       });
 
       return {
         key,
         label: data.groupLabel || key,
-        count: rowCount,
+        count: totalFishSampled,
         avgWeight,
         minWeight,
         maxWeight,
         growthRate,
-        children
+        children,
       };
     })
-    .sort((a, b) => b.avgWeight - a.avgWeight); // Sort by average weight (highest first)
+    .sort((a, b) => b.avgWeight - a.avgWeight);
 });
 
-const totalCount = computed(() => sampleLogs.value?.length || 0);
+// Footer: weighted average across all logs
+const totalFishSampled = computed(() =>
+  sampleLogs.value?.reduce((sum: number, s: SampleLog) => sum + (s.sampleCount || 0), 0) ?? 0
+);
+
+const totalCount = computed(() => totalFishSampled.value);
 
 const overallAvgWeight = computed(() => {
-  const weights = sampleLogs.value?.map((s: SampleLog) => s.averageWeight || 0).filter(w => w > 0) || [];
-  return weights.length > 0 ? weights.reduce((sum, w) => sum + w, 0) / weights.length : 0;
+  if (!sampleLogs.value || totalFishSampled.value === 0) return 0;
+  const totalW = sampleLogs.value.reduce((sum: number, s: SampleLog) => {
+    const w = (s as any).totalSampleWeight ?? ((s.averageWeight ?? 0) * (s.sampleCount ?? 1));
+    return sum + w;
+  }, 0);
+  return totalW / totalFishSampled.value;
 });
 
 function toggleExpand(key: string) {
@@ -247,15 +261,15 @@ function toggleExpand(key: string) {
 }
 
 function getGrowthColor(growthRate: number): string {
-  if (growthRate >= 1.0) return 'success';  // Excellent growth
-  if (growthRate >= 0.5) return 'info';     // Good growth
-  if (growthRate >= 0) return 'warning';    // Slow growth
-  return 'error';                            // Negative growth
+  if (growthRate >= 1.0) return 'success';
+  if (growthRate >= 0.5) return 'info';
+  if (growthRate >= 0) return 'warning';
+  return 'error';
 }
 
 function exportPivotCsv() {
   const rows = [
-    ['Batch/Pond', 'Samples', 'Avg Weight (g)', 'Min Weight (g)', 'Max Weight (g)', 'Growth Rate (g/day)']
+    ['Batch/Pond', 'Fish Sampled', 'Weighted Avg Weight (g)', 'Min ABW (g)', 'Max ABW (g)', 'Growth Rate (g/day)']
   ];
 
   pivotRows.value.forEach(row => {
@@ -268,7 +282,6 @@ function exportPivotCsv() {
       row.growthRate !== null ? row.growthRate.toFixed(2) : 'N/A'
     ]);
 
-    // Add children
     row.children.forEach(child => {
       rows.push([
         `  → ${child.label}`,
@@ -294,7 +307,6 @@ function exportPivotCsv() {
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
-
   link.setAttribute('href', url);
   link.setAttribute('download', `sample-log-growth-analysis-${new Date().toISOString().split('T')[0]}.csv`);
   link.style.visibility = 'hidden';

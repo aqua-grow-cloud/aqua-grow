@@ -59,12 +59,14 @@ const props = defineProps<{
 
 const { batches } = useBatches();
 
-const activeBatches = computed(() =>
-  batches.value?.filter(b => b.status === 'Active') || []
-);
+// Include all batches that have at least one sample log
+const batchesWithSamples = computed(() => {
+  const batchIdsWithData = new Set(props.sampleLogs.map(s => s.batchId).filter(Boolean));
+  return (batches.value || []).filter(b => batchIdsWithData.has(b.id));
+});
 
 const batchOptions = computed(() =>
-  activeBatches.value.map(b => ({ id: b.id!, label: b.name || b.stockingDate || b.id! }))
+  batchesWithSamples.value.map(b => ({ id: b.id!, label: b.name || b.stockingDate || b.id! }))
 );
 
 const selectedBatchIds = ref<string[]>([]);
@@ -81,7 +83,7 @@ const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#14b8a6'
 // Build one series per selected batch using DOC (days of culture) as x-axis
 const seriesData = computed(() => {
   return selectedBatchIds.value.map((batchId, idx) => {
-    const batch = activeBatches.value.find(b => b.id === batchId);
+    const batch = batchesWithSamples.value.find(b => b.id === batchId);
     const stockingDate = batch?.stockingDate ? new Date(batch.stockingDate) : null;
 
     const samples = props.sampleLogs
