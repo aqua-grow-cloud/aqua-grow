@@ -83,6 +83,7 @@
             <th>Feed</th>
             <th>Amount</th>
             <th>Time</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -92,11 +93,107 @@
             <td>{{ log.feedType }}</td>
             <td>{{ log.amount }} kg</td>
             <td>{{ log.time }}</td>
+            <td class="text-right">
+              <v-btn icon="mdi-pencil" size="x-small" variant="text" color="primary" @click="startEdit(log)"></v-btn>
+              <v-btn icon="mdi-delete" size="x-small" variant="text" color="error" @click="confirmDelete(log)"></v-btn>
+            </td>
           </tr>
         </tbody>
       </v-table>
     </v-card-text>
   </v-card>
+
+  <!-- Edit Dialog -->
+  <v-dialog v-model="editDialog" max-width="520px" persistent>
+    <v-card>
+      <v-card-title>Edit Feed Log</v-card-title>
+      <v-card-text>
+        <v-form @submit.prevent="saveEdit" ref="editForm">
+          <v-row>
+            <v-col cols="12" sm="6">
+              <v-select
+                v-model="editData.batchId"
+                :items="activeBatches"
+                item-title="label"
+                item-value="id"
+                label="Batch"
+                variant="outlined"
+                density="compact"
+                required
+              ></v-select>
+            </v-col>
+            <v-col cols="12" sm="6">
+              <v-text-field
+                v-model="editData.date"
+                label="Date"
+                type="date"
+                variant="outlined"
+                density="compact"
+                required
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-text-field
+                v-model="editData.time"
+                label="Time"
+                type="time"
+                variant="outlined"
+                density="compact"
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="4">
+              <v-select
+                v-model="editData.feedType"
+                :items="inventoryItems"
+                label="Feed Type"
+                variant="outlined"
+                density="compact"
+                required
+              ></v-select>
+            </v-col>
+            <v-col cols="12" sm="2">
+              <v-text-field
+                v-model.number="editDisplayAmount"
+                :label="`Amount (${editUnit})`"
+                type="number"
+                variant="outlined"
+                density="compact"
+                required
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="2">
+              <v-btn-toggle v-model="editUnit" mandatory color="primary" variant="outlined" density="compact">
+                <v-btn value="kg">Kg</v-btn>
+                <v-btn value="bags">Bags</v-btn>
+              </v-btn-toggle>
+            </v-col>
+          </v-row>
+        </v-form>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn variant="text" @click="editDialog = false">Cancel</v-btn>
+        <v-btn color="primary" :loading="updateMutation.isPending.value" @click="saveEdit">Save</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- Delete Confirmation -->
+  <v-dialog v-model="deleteDialog" max-width="400px">
+    <v-card>
+      <v-card-title>Delete Feed Log?</v-card-title>
+      <v-card-text>
+        Are you sure? The <strong>{{ logToDelete?.amount }} kg</strong> of
+        <strong>{{ logToDelete?.feedType }}</strong> logged on
+        <strong>{{ logToDelete?.date }}</strong> will be restored to inventory.
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn variant="text" @click="deleteDialog = false">Cancel</v-btn>
+        <v-btn color="error" :loading="deleteMutation.isPending.value" @click="doDelete">Delete</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script setup lang="ts">
@@ -119,6 +216,8 @@ const { data: feedLogs } = feedLogService.useGetAll();
 const { data: feedStock } = feedStockService.useGetAll();
 const { data: fishTypes } = fishTypeService.useGetAll();
 const logFeedMutation = feedLogService.useLog();
+const updateMutation = feedLogService.useUpdate();
+const deleteMutation = feedLogService.useDelete();
 
 const { execute: executeLogFeed, isLoading: isLogging, error: logError } = useApiAction(
     () => logFeedMutation.mutateAsync({ data: form.value } as any),
@@ -211,6 +310,56 @@ async function save() {
     // Reset amount
     displayAmount.value = 0;
     form.value.amount = 0;
+  }
+}
+
+// --- Edit ---
+const editDialog = ref(false);
+const editData = ref<FeedLog>({});
+const editUnit = ref<'kg' | 'bags'>('kg');
+const editDisplayAmount = ref(0);
+
+function startEdit(log: FeedLog) {
+  editData.value = { ...log };
+  editDisplayAmount.value = log.amount ?? 0;
+  editUnit.value = 'kg';
+  editDialog.value = true;
+}
+
+const { execute: executeUpdate, error: updateError } = useApiAction(
+    () => updateMutation.mutateAsync({
+        id: editData.value.id!,
+        data: { ...editData.value, amount: editUnit.value === 'bags' ? editDisplayAmount.value * 40 : editDisplayAmount.value }
+    }),
+    { successMessage: 'Feed log updated' }
+);
+
+async function saveEdit() {
+  await executeUpdate();
+  if (!updateError.value) {
+    editDialog.value = false;
+  }
+}
+
+// --- Delete ---
+const deleteDialog = ref(false);
+const logToDelete = ref<FeedLog | null>(null);
+
+function confirmDelete(log: FeedLog) {
+  logToDelete.value = log;
+  deleteDialog.value = true;
+}
+
+const { execute: executeDelete, error: deleteError } = useApiAction(
+    () => deleteMutation.mutateAsync(logToDelete.value!.id!),
+    { successMessage: 'Feed log deleted' }
+);
+
+async function doDelete() {
+  await executeDelete();
+  if (!deleteError.value) {
+    deleteDialog.value = false;
+    logToDelete.value = null;
   }
 }
 </script>

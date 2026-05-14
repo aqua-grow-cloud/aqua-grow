@@ -450,3 +450,32 @@ export const useUpdateEmployee = () => {
         }
     });
 };
+
+// --- Feed Logs ---
+
+export const useUpdateFeedLog = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (payload: { id: string; data: any }) => {
+            const { data } = await AXIOS_INSTANCE.put(`/api/feed-logs/${payload.id}`, payload.data);
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['api', 'feed-logs'] });
+            queryClient.invalidateQueries({ queryKey: ['api', 'feed-stock'] });
+        }
+    });
+};
+
+export const useDeleteFeedLog = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async (id: string) => {
+            await AXIOS_INSTANCE.delete(`/api/feed-logs/${id}`);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['api', 'feed-logs'] });
+            queryClient.invalidateQueries({ queryKey: ['api', 'feed-stock'] });
+        }
+    });
+};
