@@ -1,5 +1,6 @@
 package com.aquagrow.api.controller;
 
+import com.aquagrow.api.dto.DateSpeciesPivotRow;
 import com.aquagrow.api.dto.SamplePivotRow;
 import com.aquagrow.api.model.SampleLog;
 import com.aquagrow.api.service.SampleService;
@@ -68,6 +69,11 @@ public class SampleLogController {
     @GetMapping("/pivot")
     public List<SamplePivotRow> getPivotData() {
         return sampleService.getPivotData();
+    }
+
+    @GetMapping("/pivot/by-date")
+    public List<DateSpeciesPivotRow> getPivotByDate() {
+        return sampleService.getPivotByDate();
     }
 
     // ==================== Analytics Endpoints ====================

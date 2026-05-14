@@ -1,6 +1,7 @@
 package com.aquagrow.api.service;
 
 import com.aquagrow.api.dto.CsvSampleLog;
+import com.aquagrow.api.dto.DateSpeciesPivotRow;
 import com.aquagrow.api.dto.SamplePivotRow;
 import com.aquagrow.api.exception.BusinessException;
 import com.aquagrow.api.model.*;
@@ -341,6 +342,63 @@ public class SampleService {
 
         double avgWeightGrams = latestSample.get().getAverageWeight();
         return (currentStock * avgWeightGrams) / 1000.0; // Convert to kg
+    }
+
+    /**
+     * Returns one row per sampling date, with species ABW as columns.
+     * Each cell = Σ(totalSampleWeight or avgWeight×count) / Σ(sampleCount) for that date+species.
+     * Rows are sorted ascending by date.
+     */
+    @Transactional(readOnly = true)
+    public List<DateSpeciesPivotRow> getPivotByDate() {
+        List<SampleLog> all = sampleLogRepository.findAll();
+
+        // Group by date
+        Map<LocalDate, List<SampleLog>> byDate = all.stream()
+                .collect(Collectors.groupingBy(SampleLog::getDate));
+
+        return byDate.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> {
+                    LocalDate date = entry.getKey();
+                    List<SampleLog> samples = entry.getValue();
+
+                    // For each species on this date, accumulate weight and count
+                    // key = fishTypeId (fall back to "unknown")
+                    Map<String, double[]> accumulator = new HashMap<>(); // [totalWeight, totalCount]
+
+                    for (SampleLog s : samples) {
+                        String species = s.getFishTypeId() != null ? s.getFishTypeId() : "unknown";
+                        int count = s.getSampleCount() != null ? s.getSampleCount() : 0;
+                        double weight = 0.0;
+                        if (s.getTotalSampleWeight() != null && s.getTotalSampleWeight() > 0) {
+                            weight = s.getTotalSampleWeight();
+                        } else if (s.getAverageWeight() != null && count > 0) {
+                            weight = s.getAverageWeight() * count;
+                        }
+                        accumulator.merge(species, new double[]{weight, count},
+                                (a, b) -> new double[]{a[0] + b[0], a[1] + b[1]});
+                    }
+
+                    Map<String, Double> abwBySpecies = new HashMap<>();
+                    Map<String, Integer> countBySpecies = new HashMap<>();
+
+                    accumulator.forEach((species, acc) -> {
+                        double totalWeight = acc[0];
+                        int totalCount = (int) acc[1];
+                        if (totalCount > 0) {
+                            abwBySpecies.put(species, totalWeight / totalCount);
+                            countBySpecies.put(species, totalCount);
+                        }
+                    });
+
+                    return DateSpeciesPivotRow.builder()
+                            .date(date)
+                            .abwBySpecies(abwBySpecies)
+                            .countBySpecies(countBySpecies)
+                            .build();
+                })
+                .collect(Collectors.toList());
     }
 
     /**
