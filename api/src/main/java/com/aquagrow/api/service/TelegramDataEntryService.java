@@ -80,6 +80,9 @@ public class TelegramDataEntryService {
                 "- <b>Log Expense</b>: <code>EX [Batch] [Category] [Amount] [Desc]</code>\n" +
                 "- <b>Salary</b>: <code>PAY [Employee] [Base] [Bonus] [Desc]</code>\n" +
                 "- <b>Summary</b>: <code>FIN [YYYY-MM]</code>\n\n" +
+                "<b>AI Assistant</b>:\n" +
+                "- <b>Ask AI</b>: <code>ASK [your question]</code>\n" +
+                "  <i>Ex: ASK What is the ideal water temperature for tilapia?</i>\n\n" +
                 "<b>Raw Data Log</b>:\n" +
                 "- Paste a tab-separated row from your expense tracker directly.");
     }
