@@ -4,9 +4,9 @@
       <v-col>
         <PageHeader title="Batches">
           <template #actions v-if="store.isManager">
-            <v-btn color="primary" variant="elevated" @click="batchDialog = true" class="mr-2">
+            <v-btn color="primary" variant="elevated" @click="formDialog = true" class="mr-2">
               <v-icon left>mdi-plus</v-icon>
-              Manage Batches
+              Start New Batch
             </v-btn>
             <v-btn color="secondary" variant="elevated" @click="seedDialog = true">
               <v-icon left>mdi-sprout</v-icon>
@@ -146,10 +146,18 @@
       </v-window>
     </v-card>
 
-    <BatchManagementDialog 
-      v-model="batchDialog" 
+    <BatchFormDialog
+      v-model="formDialog"
+      :ponds="ponds || []"
+      :batches="batches || []"
+      @save="handleBatchFormSave"
+      @add-seed="handleAddSeed"
+    />
+
+    <BatchManagementDialog
+      v-model="batchDialog"
       :batch="editedBatch"
-      @save="saveBatch" 
+      @save="saveBatch"
     />
 
     <FishSeedDialog
@@ -171,23 +179,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAquaStore } from '../../stores/useAquaStore';
+import {computed, ref} from 'vue';
+import {useRouter} from 'vue-router';
+import {useAquaStore} from '@/stores/useAquaStore.ts';
 import BatchManagementDialog from './components/BatchManagementDialog.vue';
+import BatchFormDialog from './components/BatchFormDialog.vue';
 import FishSeedDialog from './components/FishSeedDialog.vue';
 import MoveFishSeedDialog from './components/MoveFishSeedDialog.vue';
 import PageHeader from '../../components/PageHeader.vue';
-import { useBatches } from './composables/useBatches';
-import { usePonds } from '../ponds/composables/usePonds';
-import { useSuppliers } from '../inventory/composables/useSuppliers';
-import { fishTypeService } from '../settings/api/fishTypeService';
-import type { Batch as ApiBatch, FishSeed as ApiFishSeed } from '../../api/generated/model';
+import {useBatches} from './composables/useBatches';
+import {usePonds} from '../ponds/composables/usePonds';
+import {useSuppliers} from '../inventory/composables/useSuppliers';
+import {fishTypeService} from '../settings/api/fishTypeService';
+import type {Batch as ApiBatch, FishSeed as ApiFishSeed} from '../../api/generated/model';
 
 const router = useRouter();
 const store = useAquaStore();
 const activeTab = ref('batches');
 const batchDialog = ref(false);
+const formDialog = ref(false);
 const seedDialog = ref(false);
 const moveDialog = ref(false);
 const editedBatch = ref<ApiBatch | undefined>(undefined);
@@ -293,11 +303,11 @@ function getFishTypeName(id?: string) {
 
 function getBatchPonds(batch: ApiBatch): string {
   if (!batch.fishSeeds || batch.fishSeeds.length === 0) return 'No ponds';
-  
+
   const pondIds = [...new Set(batch.fishSeeds.map(s => s.pondId).filter(Boolean))];
   const pondNames = pondIds.map(id => getPondById(id || '')?.name).filter(Boolean);
   const speciesNames = [...new Set(batch.fishSeeds.map(s => getFishTypeName((s as any).fishTypeId)).filter(Boolean))];
-  
+
   return `${pondNames.join(', ') || 'Unknown'} (${speciesNames.join(', ') || 'Unknown'})`;
 }
 
@@ -320,6 +330,11 @@ async function saveBatch(batchData: Partial<ApiBatch>) {
   }
   batchDialog.value = false;
   editedBatch.value = undefined;
+}
+
+async function handleBatchFormSave(batchData: Partial<ApiBatch>) {
+    await createBatch(batchData);
+    formDialog.value = false;
 }
 
 async function handleAddSeed(payload: { batchId: string; seed: ApiFishSeed }) {
