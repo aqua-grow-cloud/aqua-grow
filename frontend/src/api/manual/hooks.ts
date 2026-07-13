@@ -424,7 +424,6 @@ export interface Employee {
     status?: string;
     joinedDate?: string;
     whatsappNumber?: string;
-    telegramChatId?: string;
     tenantId?: string;
 }
 

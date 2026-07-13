@@ -21,6 +21,18 @@
           :loading="isLoading"
           hover
         >
+          <template v-slot:item.cultivationType="{ item }">
+            <v-chip
+              v-if="item.cultivationType"
+              size="small"
+              :color="cultivationTypeColor(item.cultivationType)"
+              variant="tonal"
+            >
+              {{ item.cultivationType }}
+            </v-chip>
+            <span v-else class="text-grey-lighten-1">—</span>
+          </template>
+
           <template v-slot:item.actions="{ item }">
             <v-btn
               icon="mdi-pencil"
@@ -70,6 +82,12 @@
               label="Scientific Name"
               placeholder="e.g. Oreochromis niloticus"
             ></v-text-field>
+            <v-select
+              v-model="editedItem.cultivationType"
+              label="Cultivation Type"
+              :items="cultivationTypes"
+              clearable
+            ></v-select>
           </v-card-text>
           <v-card-actions>
             <v-spacer></v-spacer>
@@ -111,8 +129,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { fishTypeService, type FishType } from './api/fishTypeService';
+import {computed, ref} from 'vue';
+import {type FishType, fishTypeService} from './api/fishTypeService';
 
 const { data: fishTypes, isLoading } = fishTypeService.useGetAll();
 const createMutation = fishTypeService.useCreate();
@@ -122,8 +140,16 @@ const deleteMutation = fishTypeService.useDelete();
 const headers = [
   { title: 'Name', key: 'name', sortable: true },
   { title: 'Scientific Name', key: 'scientificName', sortable: true },
+  { title: 'Cultivation Type', key: 'cultivationType', sortable: true },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const },
 ];
+
+const cultivationTypes = ['FISH', 'SHRIMP', 'OTHER'];
+
+function cultivationTypeColor(type: string): string {
+  const colors: Record<string, string> = { FISH: 'blue', SHRIMP: 'orange', OTHER: 'grey' };
+  return colors[type] ?? 'grey';
+}
 
 const dialog = ref(false);
 const deleteDialog = ref(false);

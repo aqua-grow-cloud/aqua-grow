@@ -5,7 +5,6 @@
     <v-tabs v-model="tab" color="primary">
       <v-tab value="users">Users & Roles</v-tab>
       <v-tab value="fish-types">Fish Types</v-tab>
-      <v-tab value="telegram">Telegram</v-tab>
     </v-tabs>
 
     <v-window v-model="tab" class="mt-4">
@@ -64,20 +63,15 @@
       <v-window-item value="fish-types">
         <FishTypesSettings />
       </v-window-item>
-
-      <v-window-item value="telegram">
-        <TelegramSettings />
-      </v-window-item>
     </v-window>
   </v-container>
 </template>
 
 <script setup lang="ts">
 import {ref} from 'vue';
-import {useAquaStore} from '../../stores/useAquaStore';
+import {useAquaStore} from '@/stores/useAquaStore.ts';
 import PageHeader from '../../components/PageHeader.vue';
 import FishTypesSettings from './FishTypesSettings.vue';
-import TelegramSettings from './TelegramSettings.vue';
 
 const store = useAquaStore();
 const tab = ref('users');

@@ -258,30 +258,45 @@ const currentStock = computed(() => {
   return events.value?.reduce((sum, e) => sum + e.quantityDelta, 0) || 0;
 });
 
-const latestABW = computed(() => {
-    if (!events.value || events.value.length === 0) return 0;
-
-    // Filter events with weight data and sort by date (newest first)
-    const withWeight = events.value
-        .filter(e => e.avgWeightGram && e.avgWeightGram > 0)
+// Returns the latest ABW for a specific fish type from sampling events,
+// falling back to the seed's initial sizeGrams if no samples exist yet.
+function getLatestABWForType(fishTypeId: string): number {
+    const withWeight = (events.value || [])
+        .filter(e => (e as any).fishTypeId === fishTypeId && e.avgWeightGram && e.avgWeightGram > 0)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    if (withWeight.length === 0) return 0;
+    if (withWeight.length > 0) {
+        const mostRecentDate = withWeight[0].date;
+        const sameDaySamples = withWeight.filter(e => e.date === mostRecentDate);
+        return sameDaySamples.reduce((sum, e) => sum + (e.avgWeightGram || 0), 0) / sameDaySamples.length;
+    }
 
-    // Get the most recent date
-    const mostRecentDate = withWeight[0].date;
+    // Fallback: seed's initial size
+    const seed = batch.value?.fishSeeds?.find((s: any) => s.fishTypeId === fishTypeId);
+    return (seed as any)?.sizeGrams || 0;
+}
 
-    // Get all samples from the most recent date
-    const sameDaySamples = withWeight.filter(e => e.date === mostRecentDate);
+// Returns current live stock for a specific fish type.
+function getStockForType(fishTypeId: string): number {
+    return (events.value || [])
+        .filter(e => (e as any).fishTypeId === fishTypeId)
+        .reduce((sum, e) => sum + e.quantityDelta, 0);
+}
 
-    // Calculate average of all same-day samples
-    const avgWeight = sameDaySamples.reduce((sum, e) => sum + (e.avgWeightGram || 0), 0) / sameDaySamples.length;
-
-    return avgWeight;
+// Sum biomass across each species individually so each species' ABW is applied
+// only to its own stock count, not the batch total.
+const currentBiomass = computed(() => {
+    if (!batch.value?.fishSeeds || !events.value) return 0;
+    const uniqueTypeIds = [...new Set((batch.value.fishSeeds as any[]).map(s => s.fishTypeId).filter(Boolean))];
+    return uniqueTypeIds.reduce((total, typeId) => {
+        return total + (getStockForType(typeId) * getLatestABWForType(typeId)) / 1000;
+    }, 0);
 });
 
-const currentBiomass = computed(() => {
-    return (currentStock.value * latestABW.value) / 1000;
+// Weighted-average ABW across all species for display purposes only.
+const latestABW = computed(() => {
+    if (currentStock.value === 0) return 0;
+    return (currentBiomass.value * 1000) / currentStock.value;
 });
 
 const survivalRate = computed(() => {
