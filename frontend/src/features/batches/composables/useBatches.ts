@@ -3,7 +3,7 @@ import {computed} from 'vue';
 import {useQueryClient} from '@tanstack/vue-query';
 import {type Batch, batchService} from '../api/batchService';
 import {useBatchStore} from '../stores/useBatchStore';
-import type {GetAllBatchesParams} from '../../../api/generated/model';
+import type {GetAllBatchesParams} from '@/api/generated/model';
 
 /**
  * Batches Composable
@@ -34,9 +34,10 @@ export function useBatches(params?: MaybeRef<GetAllBatchesParams>) {
 
     // Actions
     async function create(batchData: any) {
-        await createBatch.mutateAsync({ data: batchData });
+        const result = await createBatch.mutateAsync({ data: batchData });
         queryClient.invalidateQueries({ queryKey: ['api', 'batches'] });
         queryClient.invalidateQueries({ queryKey: ['api', 'ponds'] }); // Refresh ponds to show currentBatchId
+        return result;
     }
 
     async function update(id: string, batchData: any) {

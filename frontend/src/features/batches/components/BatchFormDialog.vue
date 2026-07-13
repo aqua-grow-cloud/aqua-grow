@@ -115,6 +115,20 @@
                 density="compact"
               ></v-text-field>
             </v-col>
+            <v-col cols="12" sm="6">
+              <v-text-field
+                v-model.number="form.unitPrice"
+                label="Unit Price (₹)"
+                type="number"
+                step="0.01"
+                min="0"
+                variant="outlined"
+                density="compact"
+                prefix="₹"
+                hint="Used to auto-log a seed purchase expenditure"
+                persistent-hint
+              ></v-text-field>
+            </v-col>
             <v-col cols="12">
               <v-select
                 v-model="form.vendor"
@@ -146,10 +160,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import type { Batch, FishSeed, Pond } from '../../../api/generated/model';
-import { supplierService } from '../../inventory/api/supplierService';
-import { fishTypeService } from '../../settings/api/fishTypeService';
+import {computed, ref, watch} from 'vue';
+import type {Batch, FishSeed, Pond} from '@/api/generated/model';
+import {supplierService} from '../../inventory/api/supplierService';
+import {fishTypeService} from '../../settings/api/fishTypeService';
 
 interface Props {
   modelValue: boolean;
@@ -187,6 +201,7 @@ const defaultForm = {
   quantity: 0,
   sizeInches: null as number | null,
   sizeGrams: null as number | null,
+  unitPrice: null as number | null,
   vendor: '',
 };
 
@@ -272,6 +287,7 @@ function save() {
       quantity: form.value.quantity,
       sizeInches: form.value.sizeInches || undefined,
       sizeGrams: form.value.sizeGrams || undefined,
+      unitPrice: form.value.unitPrice || undefined,
       vendor: form.value.vendor || undefined
   };
 
@@ -292,6 +308,7 @@ function save() {
               quantity: form.value.quantity,
               sizeInches: form.value.sizeInches || undefined,
               sizeGrams: form.value.sizeGrams || undefined,
+              unitPrice: form.value.unitPrice || undefined,
               vendor: form.value.vendor || undefined
           }]
       };

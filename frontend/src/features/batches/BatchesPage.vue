@@ -175,6 +175,41 @@
       :loading="isMoving"
       @save="handleMoveSeed"
     />
+
+    <ExpenditureDialog
+      v-model="seedExpenditureDialog"
+      title="Log Seed Purchase Expenditure"
+      :expenditure="pendingExpenditure as any"
+      @save="handleSeedExpenditure"
+      @update:model-value="val => { if (!val) pendingExpenditure = null }"
+    />
+
+    <!-- Seed expenditure prompt snackbar -->
+    <v-snackbar
+      v-model="seedSnackbar"
+      color="surface"
+      :timeout="10000"
+      location="bottom right"
+      elevation="4"
+    >
+      <span class="text-body-2">Seed added. Want to log the purchase as an expenditure?</span>
+      <template v-slot:actions>
+        <v-btn
+          color="primary"
+          variant="text"
+          size="small"
+          @click="openSeedExpenditureDialog"
+        >
+          Log Expenditure
+        </v-btn>
+        <v-btn
+          variant="text"
+          size="small"
+          icon="mdi-close"
+          @click="seedSnackbar = false"
+        ></v-btn>
+      </template>
+    </v-snackbar>
   </v-container>
 </template>
 
@@ -186,12 +221,14 @@ import BatchManagementDialog from './components/BatchManagementDialog.vue';
 import BatchFormDialog from './components/BatchFormDialog.vue';
 import FishSeedDialog from './components/FishSeedDialog.vue';
 import MoveFishSeedDialog from './components/MoveFishSeedDialog.vue';
+import ExpenditureDialog from '../finance/components/ExpenditureDialog.vue';
 import PageHeader from '../../components/PageHeader.vue';
 import {useBatches} from './composables/useBatches';
 import {usePonds} from '../ponds/composables/usePonds';
 import {useSuppliers} from '../inventory/composables/useSuppliers';
 import {fishTypeService} from '../settings/api/fishTypeService';
-import type {Batch as ApiBatch, FishSeed as ApiFishSeed} from '../../api/generated/model';
+import {useExpenditures} from '../finance/composables/useExpenditures';
+import type {Batch as ApiBatch, Expenditure, FishSeed as ApiFishSeed} from '../../api/generated/model';
 
 const router = useRouter();
 const store = useAquaStore();
@@ -200,6 +237,9 @@ const batchDialog = ref(false);
 const formDialog = ref(false);
 const seedDialog = ref(false);
 const moveDialog = ref(false);
+const seedExpenditureDialog = ref(false);
+const seedSnackbar = ref(false);
+const pendingExpenditure = ref<Omit<Expenditure, 'id'> | null>(null);
 const editedBatch = ref<ApiBatch | undefined>(undefined);
 const selectedSeed = ref<any | null>(null);
 const nameFilter = ref('');
@@ -215,6 +255,7 @@ const { batches, create: createBatch, update: updateBatch, addSeed: addBatchSeed
 const { ponds, getPondById } = usePonds();
 const { suppliers } = useSuppliers();
 const { data: fishTypes } = fishTypeService.useGetAll();
+const { create: createExpenditure } = useExpenditures();
 
 const batchHeaders = [
   { title: 'Batch Name', key: 'name' },
@@ -333,13 +374,46 @@ async function saveBatch(batchData: Partial<ApiBatch>) {
 }
 
 async function handleBatchFormSave(batchData: Partial<ApiBatch>) {
-    await createBatch(batchData);
+    const newBatch = await createBatch(batchData) as any;
     formDialog.value = false;
+    const seed = batchData.fishSeeds?.[0] as any;
+    if (seed?.unitPrice > 0) {
+        pendingExpenditure.value = buildSeedExpenditure(seed, newBatch?.id);
+        seedSnackbar.value = true;
+    }
 }
 
 async function handleAddSeed(payload: { batchId: string; seed: ApiFishSeed }) {
     await addBatchSeed(payload.batchId, payload.seed);
     seedDialog.value = false;
+    const seed = payload.seed as any;
+    if (seed.unitPrice > 0) {
+        pendingExpenditure.value = buildSeedExpenditure(seed, payload.batchId);
+        seedSnackbar.value = true;
+    }
+}
+
+function buildSeedExpenditure(seed: any, batchId?: string): Omit<Expenditure, 'id'> {
+    return {
+        date: seed.date,
+        category: 'Seed',
+        macroInvestment: 'INVESTMENT',
+        subType: 'Fingerlings',
+        batchId: batchId,
+        amount: seed.quantity * seed.unitPrice,
+        description: `Seed purchase: ${getFishTypeName(seed.fishTypeId)} × ${seed.quantity} pcs @ ₹${seed.unitPrice}`
+    };
+}
+
+function openSeedExpenditureDialog() {
+    seedSnackbar.value = false;
+    seedExpenditureDialog.value = true;
+}
+
+async function handleSeedExpenditure(data: Omit<Expenditure, 'id'>) {
+    await createExpenditure(data);
+    seedExpenditureDialog.value = false;
+    pendingExpenditure.value = null;
 }
 
 const isMoving = ref(false);

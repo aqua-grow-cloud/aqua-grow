@@ -2,7 +2,7 @@
   <v-dialog v-model="show" max-width="500px">
     <v-card class="rounded-lg">
       <v-card-title class="bg-primary text-white px-6 py-4">
-        {{ isEditMode ? 'Edit Expenditure' : 'Log Manual Expenditure' }}
+        {{ isEditMode ? 'Edit Expenditure' : (props.title || 'Log Expenditure') }}
       </v-card-title>
       <v-card-text class="pt-6">
         <v-form ref="formRef" v-model="isFormValid" @submit.prevent="save">
@@ -39,18 +39,34 @@
                 density="compact"
                 required
                 :rules="[v => !!v || 'Macro Investment is required']"
-                hint="Pick an existing value or type a new one"
+                hint="Select or type a new entry"
                 persistent-hint
               ></v-combobox>
             </v-col>
             <v-col cols="12" sm="6">
-              <v-text-field
-                v-model="form.subType"
-                label="Type / Category"
+              <v-combobox
+                v-model="form.category"
+                :items="categoryOptions"
+                label="Category"
                 variant="outlined"
                 density="compact"
-                placeholder="e.g. Annual Lease"
-              ></v-text-field>
+                required
+                :rules="[v => !!v || 'Category is required']"
+                hint="Select or type a new category"
+                persistent-hint
+              ></v-combobox>
+            </v-col>
+            <v-col cols="12" sm="6">
+              <v-combobox
+                v-model="form.subType"
+                :items="subTypeOptions"
+                label="Type"
+                variant="outlined"
+                density="compact"
+                hint="Select or type a new type"
+                persistent-hint
+                clearable
+              ></v-combobox>
             </v-col>
             <v-col cols="12">
               <v-text-field
@@ -98,6 +114,7 @@ import type {Batch, Expenditure} from '@/api/generated/model';
 const props = defineProps<{
   modelValue: boolean;
   expenditure?: Expenditure | null;
+  title?: string;
 }>();
 
 const emit = defineEmits<{
@@ -109,13 +126,17 @@ const emit = defineEmits<{
 const { batches } = useBatches();
 const formRef = ref<any>(null);
 const isFormValid = ref(false);
-const macroInvestmentOptions = ref<string[]>([]);
+const macroInvestmentOptions = ref<string[]>(['INVESTMENT', 'LEASE', 'ADVANCE', 'NO_RETURN', 'MAINTENANCE']);
+const categoryOptions = ['Feed', 'Seed', 'Salary', 'Maintenance', 'Lease', 'Advance', 'Equipment', 'Fuel', 'Medicine', 'Other'];
+const subTypeOptions = ['Annual Lease', 'Monthly Lease', 'Fingerlings', 'Pellets', 'Weekly Salary', 'Monthly Salary', 'Equipment Repair', 'Fuel', 'Medicine', 'Other'];
 
 onMounted(async () => {
   try {
-    macroInvestmentOptions.value = await expenditureService.getMacroInvestments();
+    const existing = await expenditureService.getMacroInvestments();
+    // Merge with defaults, deduplicate
+    macroInvestmentOptions.value = [...new Set([...macroInvestmentOptions.value, ...existing])];
   } catch {
-    // fallback to empty — user can still type freely
+    // keep defaults
   }
 });
 
@@ -141,10 +162,10 @@ const defaultForm = {
   date: new Date().toISOString().substr(0, 10),
   batchId: '',
   macroInvestment: 'INVESTMENT',
+  category: 'Other',
   subType: '',
   amount: 0,
   description: '',
-  category: 'Other' as any
 };
 
 const form = ref({ ...defaultForm });
@@ -162,10 +183,10 @@ watch(() => props.modelValue, (val) => {
         date: props.expenditure.date || defaultForm.date,
         batchId: props.expenditure.batchId || '',
         macroInvestment: props.expenditure.macroInvestment || 'INVESTMENT',
+        category: props.expenditure.category || 'Other',
         subType: props.expenditure.subType || '',
         amount: props.expenditure.amount ?? 0,
         description: props.expenditure.description || '',
-        category: props.expenditure.category || 'Other'
       };
     } else {
       form.value = { ...defaultForm, batchId: latestActiveBatchId.value };
@@ -180,18 +201,11 @@ function close() {
 function save() {
   if (!isFormValid.value) return;
 
-  // Map macroInvestment to category for compatibility with existing model
-  let category = 'Other' as Expenditure['category'];
-  if (form.value.macroInvestment === 'LEASE') category = 'Lease';
-  if (form.value.macroInvestment === 'ADVANCE') category = 'Advance';
-  if (form.value.macroInvestment === 'NO_RETURN') category = 'NoReturn';
-  if (form.value.macroInvestment === 'MAINTENANCE') category = 'Maintenance';
-
   if (isEditMode.value && props.expenditure?.id) {
     const payload: Expenditure = {
       id: props.expenditure.id,
       date: form.value.date,
-      category: category,
+      category: form.value.category,
       macroInvestment: form.value.macroInvestment,
       subType: form.value.subType,
       batchId: form.value.batchId || undefined,
@@ -203,7 +217,7 @@ function save() {
   } else {
     const payload: Omit<Expenditure, 'id'> = {
       date: form.value.date,
-      category: category,
+      category: form.value.category,
       macroInvestment: form.value.macroInvestment,
       subType: form.value.subType,
       batchId: form.value.batchId || undefined,
