@@ -35,7 +35,6 @@ public class SecurityConfig {
                         .requestMatchers(OPTIONS, "/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/api/telegram/webhook").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("Admin")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(

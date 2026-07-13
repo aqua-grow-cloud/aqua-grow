@@ -29,5 +29,4 @@ public class Employee {
     private String status; // Active, Inactive
     private LocalDate joinedDate;
     private String whatsappNumber;
-    private String telegramChatId;
 }

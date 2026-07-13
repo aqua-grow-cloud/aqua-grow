@@ -109,6 +109,10 @@ public class FishTypeService {
             existing.setScientificName(updates.getScientificName());
         }
 
+        if (updates.getCultivationType() != null) {
+            existing.setCultivationType(updates.getCultivationType());
+        }
+
         FishType saved = fishTypeRepository.save(existing);
         log.info("Updated fish type: {}", id);
         return saved;
