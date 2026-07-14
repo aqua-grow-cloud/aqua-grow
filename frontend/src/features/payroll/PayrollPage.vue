@@ -89,11 +89,10 @@
     <SalaryDialog
       v-model="salaryDialog"
       :employee="selectedEmp"
-      @pay="paySalary"
+      @success="handleSalarySuccess"
     />
 
-    <v-dialog v-model="advanceDialog" max-width="400px">
-        <v-card class="rounded-lg">
+    <v-dialog v-model="advanceDialog" max-width="400px">        <v-card class="rounded-lg">
             <v-card-title>Issue Advance</v-card-title>
             <v-card-text>
                 <div class="mb-4">Issuing advance to <strong>{{ selectedEmp?.name }}</strong></div>
@@ -114,27 +113,56 @@
         </v-card>
     </v-dialog>
 
+    <ExpenditureDialog
+      v-model="salaryExpenditureDialog"
+      title="Log Salary Expenditure"
+      :expenditure="pendingSalaryExpenditure as any"
+      @save="handleSalaryExpenditure"
+      @update:model-value="val => { if (!val) pendingSalaryExpenditure = null }"
+    />
+
+    <v-snackbar
+      v-model="salarySnackbar"
+      color="surface"
+      :timeout="10000"
+      location="bottom right"
+      elevation="4"
+    >
+      <span class="text-body-2">Salary paid. Want to log it as an expenditure?</span>
+      <template v-slot:actions>
+        <v-btn color="primary" variant="text" size="small" @click="openSalaryExpenditureDialog">
+          Log Expenditure
+        </v-btn>
+        <v-btn variant="text" size="small" icon="mdi-close" @click="salarySnackbar = false"></v-btn>
+      </template>
+    </v-snackbar>
+
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useAquaStore } from '../../stores/useAquaStore';
-import { usePayroll } from './composables/usePayroll';
-import type { Employee } from '../../api/generated/model';
-import type { SalaryPayment } from '../../types';
+import {ref} from 'vue';
+import {useAquaStore} from '@/stores/useAquaStore.ts';
+import {usePayroll} from './composables/usePayroll';
+import {useExpenditures} from '../finance/composables/useExpenditures';
+import type {Employee, Expenditure} from '@/api/generated/model';
 import PageHeader from '../../components/PageHeader.vue';
 import EmployeeFormDialog from './components/EmployeeFormDialog.vue';
 import SalaryDialog from './components/SalaryDialog.vue';
+import ExpenditureDialog from '../finance/components/ExpenditureDialog.vue';
 
 const store = useAquaStore();
 const { employees, addEmployee, updateEmployee, addAdvance, processSalary } = usePayroll();
+const { create: createExpenditure } = useExpenditures();
 
 const empDialog = ref(false);
 const salaryDialog = ref(false);
 const advanceDialog = ref(false);
+const salaryExpenditureDialog = ref(false);
+const salarySnackbar = ref(false);
 const selectedEmp = ref<Employee | undefined>(undefined);
 const advanceAmount = ref(0);
+const pendingSalaryExpenditure = ref<Omit<Expenditure, 'id'> | null>(null);
 
 function openEmployeeDialog() {
     selectedEmp.value = undefined;
@@ -170,9 +198,32 @@ async function saveEmployee(empData: any) {
     empDialog.value = false;
 }
 
-async function paySalary(payment: Omit<SalaryPayment, 'id'>) {
+async function paySalary(payment: any) {
     await processSalary(payment);
     salaryDialog.value = false;
+}
+
+function handleSalarySuccess(data: { amount: number; employeeName: string; month: string; date: string }) {
+    pendingSalaryExpenditure.value = {
+        date: data.date,
+        category: 'Salary',
+        macroInvestment: 'NO_RETURN',
+        subType: 'Monthly Salary',
+        amount: data.amount,
+        description: `Salary payment: ${data.employeeName} — ${data.month}`
+    };
+    salarySnackbar.value = true;
+}
+
+function openSalaryExpenditureDialog() {
+    salarySnackbar.value = false;
+    salaryExpenditureDialog.value = true;
+}
+
+async function handleSalaryExpenditure(data: Omit<Expenditure, 'id'>) {
+    await createExpenditure(data);
+    salaryExpenditureDialog.value = false;
+    pendingSalaryExpenditure.value = null;
 }
 
 async function confirmAdvance() {

@@ -70,10 +70,10 @@
       <v-card-actions class="px-6 pb-6">
         <v-spacer></v-spacer>
         <v-btn variant="text" @click="$emit('update:modelValue', false)" :disabled="isProcessing">Cancel</v-btn>
-        <v-btn 
-          color="primary" 
-          variant="flat" 
-          :disabled="netSalary < 0 || isProcessing" 
+        <v-btn
+          color="primary"
+          variant="flat"
+          :disabled="netSalary < 0 || isProcessing"
           :loading="isProcessing"
           @click="confirmPay"
         >
@@ -85,9 +85,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import type { Employee } from '../../../api/generated/model';
-import { useSalaryPayments } from '../composables/useSalaryPayments';
+import {computed, ref, watch} from 'vue';
+import type {Employee} from '@/api/generated/model';
+import {useSalaryPayments} from '../composables/useSalaryPayments';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -96,7 +96,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', val: boolean): void;
-  (e: 'success'): void;
+  (e: 'success', data: { amount: number; employeeName: string; month: string; date: string }): void;
 }>();
 
 const { createPayment, calculateNetAmount, isProcessing } = useSalaryPayments();
@@ -127,7 +127,7 @@ async function confirmPay() {
     if (!props.employee?.id) return;
 
     const paymentDate = new Date().toISOString().split('T')[0];
-    
+
     // Create payment data object with explicit types
     const paymentData = {
         employeeId: props.employee.id,
@@ -146,8 +146,13 @@ async function confirmPay() {
     try {
         await createPayment(paymentData);
 
-        // Success - no notification needed, just emit success
-        emit('success');
+        const successData: { amount: number; employeeName: string; month: string; date: string } = {
+            amount: netSalary.value,
+            employeeName: String(props.employee.name ?? ''),
+            month: String(month.value),
+            date: String(paymentDate)
+        };
+        emit('success', successData);
         emit('update:modelValue', false);
     } catch (error) {
         console.error('Failed to process salary payment:', error);
