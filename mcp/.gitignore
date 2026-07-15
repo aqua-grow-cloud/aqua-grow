@@ -1,0 +1,54 @@
+# Certificate files (Let's Encrypt)
+certs/
+*.pem
+*.pfx
+*.p12
+
+# Certbot files
+.certbot/
+letsencrypt/
+
+# Kubernetes secrets (if exported locally)
+*.secret.yaml
+*-secret.yaml
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars.backup
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+**/.idea/*
+.agent/*
+.vscode/*
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+build/
+.gradle/
