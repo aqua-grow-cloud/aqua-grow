@@ -77,11 +77,6 @@ const router = createRouter({
             path: '/feed-orders',
             name: 'feed-orders',
             component: () => import('../features/inventory/FeedOrdersPage.vue')
-        },
-        {
-            path: '/chat',
-            name: 'chat',
-            component: () => import('../features/chat/ChatPage.vue')
         }
     ]
 })

@@ -35,8 +35,6 @@
         <div v-if="store.isAdmin" class="mt-4 mb-2 text-caption text-grey-lighten-1 px-4 font-weight-bold">SETTINGS</div>
         <v-list-item v-if="store.isAdmin" rounded="lg" prepend-icon="mdi-cog-outline" title="Users & Roles" to="/settings" active-class="bg-primary text-white"></v-list-item>
 
-        <div class="mt-4 mb-2 text-caption text-grey-lighten-1 px-4 font-weight-bold">AI</div>
-        <v-list-item rounded="lg" prepend-icon="mdi-robot-outline" title="Farm Assistant" to="/chat" active-class="bg-primary text-white"></v-list-item>
       </v-list>
 
       <template v-slot:append>
