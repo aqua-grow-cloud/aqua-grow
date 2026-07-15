@@ -4,7 +4,7 @@
       v-model="drawer"
       app
       color="#0F172A"
-      theme="dark" 
+      theme="dark"
       :mobile-breakpoint="960"
       width="260"
     >
@@ -27,13 +27,16 @@
         <v-list-item v-if="store.isManager" rounded="lg" prepend-icon="mdi-scale-balance" title="Harvest" to="/harvest" active-class="bg-primary text-white"></v-list-item>
         <v-list-item v-if="store.isManager" rounded="lg" prepend-icon="mdi-cash-multiple" title="Payroll" to="/payroll" active-class="bg-primary text-white"></v-list-item>
         <v-list-item v-if="store.isManager" rounded="lg" prepend-icon="mdi-finance" title="Finances" to="/finance" active-class="bg-primary text-white"></v-list-item>
-        
+
         <div v-if="store.isManager" class="mt-4 mb-2 text-caption text-grey-lighten-1 px-4 font-weight-bold">INVENTORY</div>
         <v-list-item v-if="store.isManager" rounded="lg" prepend-icon="mdi-package-variant-closed" title="Feed Stock" to="/feed-stock" active-class="bg-primary text-white"></v-list-item>
         <v-list-item v-if="store.isManager" rounded="lg" prepend-icon="mdi-cart-outline" title="Feed Orders" to="/feed-orders" active-class="bg-primary text-white"></v-list-item>
         <v-list-item v-if="store.isManager" rounded="lg" prepend-icon="mdi-truck-outline" title="Suppliers" to="/suppliers" active-class="bg-primary text-white"></v-list-item>
         <div v-if="store.isAdmin" class="mt-4 mb-2 text-caption text-grey-lighten-1 px-4 font-weight-bold">SETTINGS</div>
         <v-list-item v-if="store.isAdmin" rounded="lg" prepend-icon="mdi-cog-outline" title="Users & Roles" to="/settings" active-class="bg-primary text-white"></v-list-item>
+
+        <div class="mt-4 mb-2 text-caption text-grey-lighten-1 px-4 font-weight-bold">AI</div>
+        <v-list-item rounded="lg" prepend-icon="mdi-robot-outline" title="Farm Assistant" to="/chat" active-class="bg-primary text-white"></v-list-item>
       </v-list>
 
       <template v-slot:append>
@@ -83,9 +86,9 @@
         {{ store.globalMessage }}
       </div>
       <template v-slot:actions>
-        <v-btn 
+        <v-btn
           v-if="store.globalNotificationType === 'systemError' && store.notificationRetryCallback"
-          variant="text" 
+          variant="text"
           @click="store.retryAction"
         >
           Retry
@@ -114,8 +117,8 @@
 </template>
 
 <script setup lang="ts">
-import { inject, ref } from 'vue'
-import { useAquaStore } from './stores/useAquaStore'
+import {inject, ref} from 'vue'
+import {useAquaStore} from './stores/useAquaStore'
 
 const store = useAquaStore()
 // import Keycloak from 'keycloak-js' // Type only

@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import {createRouter, createWebHistory} from 'vue-router'
 
 const router = createRouter({
     history: createWebHistory(),
@@ -77,6 +77,11 @@ const router = createRouter({
             path: '/feed-orders',
             name: 'feed-orders',
             component: () => import('../features/inventory/FeedOrdersPage.vue')
+        },
+        {
+            path: '/chat',
+            name: 'chat',
+            component: () => import('../features/chat/ChatPage.vue')
         }
     ]
 })
