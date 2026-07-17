@@ -23,22 +23,50 @@
             <thead>
               <tr>
                 <th class="text-left font-weight-bold">Fish Type</th>
-                <th class="text-right font-weight-bold">ABW (g)</th>
+                <th class="text-right font-weight-bold">Count</th>
                 <th class="text-right font-weight-bold">Biomass (kg)</th>
+                <th class="text-right font-weight-bold">% Share</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in summaryData" :key="item.id">
-                <td>
-                  <v-icon icon="mdi-circle" size="small" :color="item.color" class="mr-1"></v-icon>
-                  {{ item.name }}
-                </td>
-                <td class="text-right">{{ item.avgWeight.toFixed(1) }}</td>
-                <td class="text-right font-weight-bold">{{ item.biomass.toLocaleString() }}</td>
-              </tr>
+              <template v-for="item in summaryData" :key="item.id">
+                <!-- Fish type row -->
+                <tr @click="toggleType(item.id)" style="cursor: pointer">
+                  <td>
+                    <v-icon
+                      :icon="expandedTypes.has(item.id) ? 'mdi-chevron-down' : 'mdi-chevron-right'"
+                      size="small"
+                      class="mr-1"
+                    />
+                    <v-icon icon="mdi-circle" size="small" :color="item.color" class="mr-1" />
+                    {{ item.name }}
+                  </td>
+                  <td class="text-right">{{ item.count.toLocaleString() }}</td>
+                  <td class="text-right font-weight-bold">{{ item.biomass.toLocaleString() }}</td>
+                  <td class="text-right">{{ item.pct }}%</td>
+                </tr>
+
+                <!-- Batch sub-rows (shown when expanded) -->
+                <template v-if="expandedTypes.has(item.id)">
+                  <tr
+                    v-for="b in (batchBreakdown.get(item.id) || [])"
+                    :key="b.batchName"
+                    class="bg-grey-lighten-5"
+                  >
+                    <td class="pl-8 text-grey-darken-1 text-body-2">↳ {{ b.batchName }}</td>
+                    <td class="text-right text-grey text-body-2">—</td>
+                    <td class="text-right text-grey text-body-2">{{ b.biomass.toLocaleString() }}</td>
+                    <td class="text-right text-grey text-body-2">—</td>
+                  </tr>
+                </template>
+              </template>
+
+              <!-- Total row -->
               <tr v-if="summaryData.length > 0" class="bg-grey-lighten-4">
-                <td colspan="2" class="font-weight-bold">Total</td>
+                <td class="font-weight-bold">Total</td>
+                <td class="text-right font-weight-bold">{{ totalCount.toLocaleString() }}</td>
                 <td class="text-right font-weight-bold">{{ totalBiomass.toLocaleString() }}</td>
+                <td class="text-right font-weight-bold">100%</td>
               </tr>
             </tbody>
           </v-table>
@@ -49,14 +77,14 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue';
+import {computed, ref} from 'vue';
 import {use} from 'echarts/core';
 import {CanvasRenderer} from 'echarts/renderers';
 import {PieChart} from 'echarts/charts';
 import {LegendComponent, TitleComponent, TooltipComponent,} from 'echarts/components';
 import VChart from 'vue-echarts';
-import type {Batch, HarvestLog, SampleLog} from '../../../api/generated/model';
-import type {FishType} from '../../settings/api/fishTypeService';
+import type {Batch, HarvestLog, SampleLog} from '@/api/generated/model';
+import type {FishType} from '@/api/manual/hooks.ts';
 
 use([
   CanvasRenderer,
@@ -72,6 +100,18 @@ const props = defineProps<{
   harvestLogs: HarvestLog[];
   sampleLogs: SampleLog[];
 }>();
+
+const expandedTypes = ref<Set<string>>(new Set());
+
+function toggleType(typeId: string) {
+  const next = new Set(expandedTypes.value);
+  if (next.has(typeId)) {
+    next.delete(typeId);
+  } else {
+    next.add(typeId);
+  }
+  expandedTypes.value = next;
+}
 
 const COLORS = ['#1867C0', '#4CAF50', '#FB8C00', '#F44336', '#9C27B0', '#00BCD4', '#FFEB3B', '#795548'];
 
@@ -136,23 +176,87 @@ const biomassByType = computed(() => {
   return result;
 });
 
+const batchBreakdown = computed(() => {
+  const result = new Map<string, { batchName: string; biomass: number }[]>();
+
+  props.batches.forEach(batch => {
+    if (batch.status !== 'Active') return;
+
+    batch.fishSeeds?.forEach(seed => {
+      const typeId = seed.fishTypeId;
+      if (!typeId) return;
+
+      const totalStocked = seed.quantity || 0;
+      const totalHarvested = props.harvestLogs
+        .filter(h => h.batchId === batch.id && h.fishTypeId === typeId)
+        .reduce((sum, h) => sum + (h.count || 0), 0);
+
+      let currentQuantity = Math.max(0, totalStocked - totalHarvested);
+
+      const samplesForBatchType = props.sampleLogs
+        .filter(s => s.batchId === batch.id && s.fishTypeId === typeId && s.averageWeight && s.averageWeight > 0)
+        .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime());
+
+      let abw = seed.sizeGrams || 0;
+      let latestSurvivalEstimate: number | undefined;
+
+      if (samplesForBatchType.length > 0) {
+        const mostRecentDate = samplesForBatchType[0]?.date;
+        const sameDaySamples = samplesForBatchType.filter(s => s.date === mostRecentDate);
+        const totalWeight = sameDaySamples.reduce((sum, s) => sum + (s.averageWeight || 0), 0);
+        abw = totalWeight / sameDaySamples.length;
+        latestSurvivalEstimate = sameDaySamples[0]?.survivalEstimate;
+      }
+
+      if (latestSurvivalEstimate !== undefined) {
+        currentQuantity = currentQuantity * (latestSurvivalEstimate / 100);
+      }
+
+      const biomass = Math.round((currentQuantity * abw) / 1000);
+      if (biomass <= 0) return;
+
+      const batchName = batch.name || batch.stockingDate || batch.id || 'Unknown';
+
+      if (!result.has(typeId)) {
+        result.set(typeId, []);
+      }
+      result.get(typeId)!.push({ batchName, biomass });
+    });
+  });
+
+  // Sort each type's batch list by biomass descending
+  result.forEach(list => list.sort((a, b) => b.biomass - a.biomass));
+
+  return result;
+});
+
 const summaryData = computed(() => {
+  const rawTotal = Array.from(biomassByType.value.values())
+    .reduce((s, v) => s + v.biomass, 0);
+
   return Array.from(biomassByType.value.entries())
     .map(([typeId, stats], index) => {
       const type = props.fishTypes.find(t => t.id === typeId);
       const avgWeight = stats.quantity > 0 ? stats.totalWeight / stats.quantity : 0;
+      const biomass = Math.round(stats.biomass);
 
       return {
         id: typeId,
         name: type?.name || 'Unknown',
-        biomass: Math.round(stats.biomass),
-        avgWeight: avgWeight,
+        biomass,
+        count: Math.round(stats.quantity),
+        avgWeight,
+        pct: rawTotal > 0 ? Math.round((stats.biomass / rawTotal) * 100) : 0,
         color: COLORS[index % COLORS.length]
       };
     })
     .filter(item => item.biomass > 0)
     .sort((a, b) => b.biomass - a.biomass);
 });
+
+const totalCount = computed(() =>
+  summaryData.value.reduce((sum, item) => sum + item.count, 0)
+);
 
 const totalBiomass = computed(() => {
   return summaryData.value.reduce((sum, item) => sum + item.biomass, 0);
