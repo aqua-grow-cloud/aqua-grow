@@ -68,7 +68,7 @@ const props = defineProps<{
 const { batches } = useBatches();
 
 const completedBatches = computed(() =>
-  batches.value?.filter(b => (b.status as string) === 'Completed') || []
+  batches.value?.filter(b => b.status === 'Completed') || []
 );
 
 const rows = computed(() => {

@@ -13,7 +13,7 @@ export interface Pond {
     longitude?: number;
 }
 
-export type BatchStatus = 'Active' | 'Harvested' | 'Cancelled';
+export type BatchStatus = 'Active' | 'Harvested' | 'Cancelled' | 'Completed';
 
 export interface FishSeed {
     id: string;

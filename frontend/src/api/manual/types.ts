@@ -74,7 +74,7 @@ export interface Batch {
     name?: string;
     stockingDate: string;
     estimatedHarvestDate?: string;
-    status: 'Active' | 'Harvested';
+    status: 'Active' | 'Harvested' | 'Completed' | 'Cancelled';
     fishSeeds?: FishSeed[];
     tenantId?: string;
 }

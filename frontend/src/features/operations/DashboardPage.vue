@@ -144,13 +144,13 @@
                 </td>
                 <td class="text-center font-weight-bold">
                   <v-tooltip
-                    :text="(batch.status as string) === 'Completed' ? 'Final Loss' : 'Remaining Balance'"
+                    :text="batch.status === 'Completed' ? 'Final Loss' : 'Remaining Balance'"
                     location="top"
                   >
                     <template v-slot:activator="{ props }">
                       <span
                         v-bind="props"
-                        :class="(batch.status as string) === 'Completed' && getBatchDiff(batch) > 0 ? 'text-error' : ''"
+                        :class="batch.status === 'Completed' && getBatchDiff(batch) > 0 ? 'text-error' : ''"
                       >
                         {{ getBatchDiff(batch).toLocaleString() }}
                       </span>
@@ -255,7 +255,7 @@ const activePondsCount = computed(() => {
 
 const dashboardBatches = computed(() => {
   return batches.value?.filter((b: Batch) =>
-    b.status === 'Active' || (b.status as string) === 'Completed') || [];
+    b.status === 'Active' || b.status === 'Completed') || [];
 });
 
 // Fetch sample logs for all dashboard batches using unpaginated endpoint
@@ -315,7 +315,7 @@ const avgFCR = computed(() => {
 
 const avgHarvestedFCR = computed(() => {
     const batchesWithFCR = dashboardBatches.value
-        .filter((b: Batch) => (b.status as string) === 'Completed')
+        .filter((b: Batch) => b.status === 'Completed')
         .map(b => parseFloat(calculateBatchFCR(b)))
         .filter(fcr => !isNaN(fcr) && fcr > 0);
 
@@ -359,7 +359,7 @@ function calculateBatchFCR(batch: Batch): string {
 }
 
 function calculateBatchBiomass(batch: Batch): number {
-    if ((batch.status as string) === 'Completed') {
+    if (batch.status === 'Completed') {
         return harvestLogs.value
           ?.filter(l => l.batchId === batch.id)
           .reduce((sum, l) => sum + (l.actualWeight || l.biomassWeight || 0), 0) || 0;

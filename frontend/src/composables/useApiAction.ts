@@ -1,6 +1,6 @@
-import { ref, type Ref } from 'vue';
-import { useAquaStore } from '../stores/useAquaStore';
-import type { AxiosError } from 'axios';
+import {ref, type Ref} from 'vue';
+import {useAquaStore} from '../stores/useAquaStore';
+import type {AxiosError} from 'axios';
 
 interface ErrorResponse {
     message: string;
@@ -13,25 +13,26 @@ interface ApiActionOptions {
     showSuccessNotification?: boolean;
 }
 
-interface ApiActionResult<T> {
+interface ApiActionResult<T, Args extends unknown[]> {
     data: Ref<T | null>;
     error: Ref<AxiosError<ErrorResponse> | null>;
     fieldErrors: Ref<Record<string, string>>;
-    execute: () => Promise<void>;
+    execute: (...args: Args) => Promise<void>;
     isLoading: Ref<boolean>;
 }
 
 /**
- * Composable wrapper for API actions with automatic error handling
- * 
- * @param action - The async function to execute
+ * Composable wrapper for API actions with automatic error handling.
+ * Supports optional arguments forwarded to the action function.
+ *
+ * @param action - The async function to execute (may accept arguments)
  * @param options - Configuration options
  * @returns Object with data, error, fieldErrors, execute function, and loading state
  */
-export function useApiAction<T>(
-    action: () => Promise<T>,
+export function useApiAction<T, Args extends unknown[] = []>(
+    action: (...args: Args) => Promise<T>,
     options: ApiActionOptions = {}
-): ApiActionResult<T> {
+): ApiActionResult<T, Args> {
     const store = useAquaStore();
     const data = ref<T | null>(null);
     const error = ref<AxiosError<ErrorResponse> | null>(null);
@@ -43,16 +44,18 @@ export function useApiAction<T>(
         showSuccessNotification = true
     } = options;
 
-    async function execute() {
+    // Store last args so the retry callback can replay the same call
+    let lastArgs: Args = [] as unknown as Args;
+
+    async function execute(...args: Args) {
+        lastArgs = args;
         isLoading.value = true;
         error.value = null;
         fieldErrors.value = {};
 
         try {
-            const result = await action();
-            data.value = result;
+            data.value = await action(...args);
 
-            // Show success notification
             if (showSuccessNotification) {
                 store.notify(successMessage, 'success');
             }
@@ -63,28 +66,24 @@ export function useApiAction<T>(
             if (response) {
                 const { type, message, fieldErrors: errors } = response;
 
-                // Handle field-level validation errors
                 if (errors) {
                     fieldErrors.value = errors;
                 }
 
-                // Determine notification type based on error type and status code
                 if (type === 'VALIDATION_ERROR' || type === 'BUSINESS_ERROR') {
                     store.notify(message || 'Validation failed', 'businessError');
                 } else {
-                    // System error - provide retry callback
                     store.notify(
                         message || 'An unexpected error occurred. Please try again.',
                         'systemError',
-                        execute // Retry callback
+                        () => execute(...lastArgs)
                     );
                 }
             } else {
-                // No structured error response - treat as system error
                 store.notify(
                     'An unexpected error occurred. Please try again.',
                     'systemError',
-                    execute
+                    () => execute(...lastArgs)
                 );
             }
         } finally {

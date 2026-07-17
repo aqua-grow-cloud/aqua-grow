@@ -29,7 +29,7 @@ export function useBatches(params?: MaybeRef<GetAllBatchesParams>) {
     );
 
     const harvestedBatches = computed(() =>
-        batches.value?.filter((b: Batch) => b.status === 'Harvested') || []
+        batches.value?.filter((b: Batch) => b.status === 'Completed') || []
     );
 
     // Actions
