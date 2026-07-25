@@ -65,7 +65,7 @@
           <v-col cols="12" sm="3">
             <v-select
               v-model="statusFilter"
-              :items="['Active', 'Completed']"
+              :items="activeTab === 'seeds' ? seedStatusItems : batchStatusItems"
               label="Filter by Status"
               variant="outlined"
               density="compact"
@@ -226,7 +226,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from 'vue';
+import {computed, ref, watch} from 'vue';
 import {useRouter} from 'vue-router';
 import {useAquaStore} from '@/stores/useAquaStore.ts';
 import BatchManagementDialog from './components/BatchManagementDialog.vue';
@@ -245,6 +245,7 @@ import type {Batch as ApiBatch, Expenditure, FishSeed as ApiFishSeed} from '../.
 const router = useRouter();
 const store = useAquaStore();
 const activeTab = ref('batches');
+watch(activeTab, () => { statusFilter.value = null; });
 const batchDialog = ref(false);
 const formDialog = ref(false);
 const seedDialog = ref(false);
@@ -296,13 +297,13 @@ const fishSeedList = computed(() => {
     const batchDisplayName = batch.name || batch.stockingDate || 'Unknown';
 
     if (batchFilter.value && batch.id !== batchFilter.value) return;
-    if (statusFilter.value && batch.status !== statusFilter.value) return;
 
     if (batch.fishSeeds && batch.fishSeeds.length > 0) {
         batch.fishSeeds.forEach((seed: ApiFishSeed) => {
             // Client-side filtering to supplement server-side batch filtering
             if (pondFilter.value && seed.pondId !== pondFilter.value) return;
             if (fishTypeIdFilter.value && (seed as any).fishTypeId !== fishTypeIdFilter.value) return;
+            if (statusFilter.value && seed.status !== statusFilter.value) return;
 
             const pond = getPondById(seed.pondId || '');
             list.push({
@@ -351,6 +352,16 @@ const batchFilterItems = computed(() => {
         .map(b => ({ title: b.name ?? '', value: b.id ?? '' }))
         .sort((a, b) => a.title.localeCompare(b.title));
 });
+
+const batchStatusItems = computed(() =>
+    [...new Set((batches.value || []).map(b => b.status).filter(s => !!s) as string[])].sort()
+);
+
+const seedStatusItems = computed(() =>
+    [...new Set(
+        (batches.value || []).flatMap(b => b.fishSeeds || []).map(s => s.status).filter(s => !!s) as string[]
+    )].sort()
+);
 
 const filteredBatches = computed(() =>
     (batches.value || [])
