@@ -295,6 +295,9 @@ const fishSeedList = computed(() => {
   batches.value?.forEach((batch: ApiBatch) => {
     const batchDisplayName = batch.name || batch.stockingDate || 'Unknown';
 
+    if (batchFilter.value && batch.id !== batchFilter.value) return;
+    if (statusFilter.value && batch.status !== statusFilter.value) return;
+
     if (batch.fishSeeds && batch.fishSeeds.length > 0) {
         batch.fishSeeds.forEach((seed: ApiFishSeed) => {
             // Client-side filtering to supplement server-side batch filtering
