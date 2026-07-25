@@ -26,19 +26,19 @@
 
       <v-card-text class="bg-slate-50 border-b py-3 px-6">
         <v-row dense align="center">
-          <v-col cols="12" sm="4">
-            <v-text-field
-              v-model="nameFilter"
-              label="Search by Batch Name"
+          <v-col cols="12" sm="3">
+            <v-select
+              v-model="batchFilter"
+              :items="batchFilterItems"
+              label="Filter by Batch"
               variant="outlined"
               density="compact"
               hide-details
               clearable
-              prepend-inner-icon="mdi-magnify"
-              placeholder="Enter batch name..."
-            ></v-text-field>
+              placeholder="All Batches"
+            ></v-select>
           </v-col>
-          <v-col cols="12" sm="4">
+          <v-col cols="12" sm="3">
             <v-select
               v-model="pondFilter"
               :items="pondFilterItems"
@@ -50,7 +50,7 @@
               placeholder="All Ponds"
             ></v-select>
           </v-col>
-          <v-col cols="12" sm="4" v-if="activeTab === 'seeds'">
+          <v-col cols="12" sm="3" v-if="activeTab === 'seeds'">
             <v-select
               v-model="fishTypeIdFilter"
               :items="fishTypeFilterItems"
@@ -62,6 +62,18 @@
               placeholder="All Species"
             ></v-select>
           </v-col>
+          <v-col cols="12" sm="3">
+            <v-select
+              v-model="statusFilter"
+              :items="['Active', 'Completed']"
+              label="Filter by Status"
+              variant="outlined"
+              density="compact"
+              hide-details
+              clearable
+              placeholder="All Statuses"
+            ></v-select>
+          </v-col>
         </v-row>
       </v-card-text>
 
@@ -70,7 +82,7 @@
         <v-window-item value="batches">
           <v-data-table
             :headers="batchHeaders"
-            :items="batches || []"
+            :items="filteredBatches"
             :sort-by="[{ key: 'stockingDate', order: 'desc' }]"
             class="elevation-0"
           >
@@ -242,13 +254,13 @@ const seedSnackbar = ref(false);
 const pendingExpenditure = ref<Omit<Expenditure, 'id'> | null>(null);
 const editedBatch = ref<ApiBatch | undefined>(undefined);
 const selectedSeed = ref<any | null>(null);
-const nameFilter = ref('');
+const batchFilter = ref<string | null>(null);
+const statusFilter = ref<string | null>(null);
 const pondFilter = ref<string | null>(null);
 const fishTypeIdFilter = ref<string | null>(null);
 
 // Use composables
 const { batches, create: createBatch, update: updateBatch, addSeed: addBatchSeed, moveSeed } = useBatches(computed(() => ({
-    name: nameFilter.value || undefined,
     pondId: pondFilter.value || undefined,
     fishTypeId: fishTypeIdFilter.value || undefined
 })));
@@ -328,6 +340,20 @@ const pondFilterItems = computed(() => {
         value: p.id
     })).sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 });
+
+const batchFilterItems = computed(() => {
+    if (!batches.value) return [];
+    return batches.value
+        .filter(b => !!b.id && !!b.name)
+        .map(b => ({ title: b.name ?? '', value: b.id ?? '' }))
+        .sort((a, b) => a.title.localeCompare(b.title));
+});
+
+const filteredBatches = computed(() =>
+    (batches.value || [])
+        .filter(b => !batchFilter.value || b.id === batchFilter.value)
+        .filter(b => !statusFilter.value || b.status === statusFilter.value)
+);
 
 const fishTypeFilterItems = computed(() => {
     if (!fishTypes.value) return [];
