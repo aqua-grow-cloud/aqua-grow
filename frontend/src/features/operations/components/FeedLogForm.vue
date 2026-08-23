@@ -16,6 +16,11 @@
               required
             ></v-select>
           </v-col>
+          <v-col v-if="form.batchId" cols="12">
+            <v-alert variant="tonal" color="info" density="compact">
+              <strong>Batch total:</strong> {{ batchTotalKg.toFixed(2) }} kg / {{ batchTotalBags.toFixed(2) }} bags
+            </v-alert>
+          </v-col>
           <v-col cols="12" sm="6">
             <v-text-field
               v-model="form.date"
@@ -281,6 +286,16 @@ watch(defaultFeedType, (ft) => {
 }, { immediate: true });
 
 const isValid = computed(() => form.value.batchId && displayAmount.value > 0 && form.value.feedType);
+
+const BAGS_TO_KG = 40
+
+const batchTotalKg = computed(() =>
+  (feedLogs.value || [])
+    .filter(l => l.batchId === form.value.batchId)
+    .reduce((sum, l) => sum + (l.amount ?? 0), 0)
+)
+
+const batchTotalBags = computed(() => batchTotalKg.value / BAGS_TO_KG)
 
 const recentLogs = computed(() => {
   return [...(feedLogs.value || [])].sort((a: FeedLog, b: FeedLog) =>
