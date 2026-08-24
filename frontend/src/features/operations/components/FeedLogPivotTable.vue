@@ -99,6 +99,15 @@
   </v-card>
 </template>
 
+<script lang="ts">
+// Module-level exports for testing
+export function formatMonth(dateStr?: string): string {
+  if (!dateStr) return 'Unknown Month'
+  const date = new Date(dateStr + 'T00:00:00')
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+}
+</script>
+
 <script setup lang="ts">
 import {computed, ref} from 'vue';
 import {feedLogService} from '../api/feedLogService';
@@ -115,6 +124,7 @@ const expandedRows = ref(new Set<string>());
 
 const groupByOptions = [
   { title: 'Date', value: 'date' },
+  { title: 'Month', value: 'month' },
   { title: 'Batch/Pond', value: 'batch' },
   { title: 'Feed Type', value: 'feedType' },
 ];
@@ -174,6 +184,12 @@ const pivotRows = computed(() => {
         // Sub-group by feed type
         subGroupKey = log.feedType || 'Unknown Type';
         subGroupLabel = log.feedType || 'Unknown Type';
+        break;
+      case 'month':
+        groupKey      = log.date?.slice(0, 7) || 'unknown'
+        groupLabel    = formatMonth(log.date)
+        subGroupKey   = log.feedType || 'Unknown Type'
+        subGroupLabel = log.feedType || 'Unknown Type'
         break;
       case 'batch':
         groupKey = log.batchId || 'unallocated';
@@ -246,7 +262,7 @@ const pivotRows = computed(() => {
     })
     .sort((a, b) => {
       // For date grouping, sort chronologically (most recent first)
-      if (groupBy.value === 'date') {
+      if (groupBy.value === 'date' || groupBy.value === 'month') {
         return b.key.localeCompare(a.key);
       }
       // For others, sort by total amount
