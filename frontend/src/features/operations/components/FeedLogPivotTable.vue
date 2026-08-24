@@ -186,10 +186,11 @@ const pivotRows = computed(() => {
         subGroupLabel = log.feedType || 'Unknown Type';
         break;
       case 'month':
-        groupKey      = log.date?.slice(0, 7) || 'unknown'
-        groupLabel    = formatMonth(log.date)
-        subGroupKey   = log.feedType || 'Unknown Type'
-        subGroupLabel = log.feedType || 'Unknown Type'
+        groupKey = log.date?.slice(0, 7) || 'unknown';
+        groupLabel = formatMonth(log.date);
+        // Sub-group by feed type
+        subGroupKey = log.feedType || 'Unknown Type';
+        subGroupLabel = log.feedType || 'Unknown Type';
         break;
       case 'batch':
         groupKey = log.batchId || 'unallocated';
