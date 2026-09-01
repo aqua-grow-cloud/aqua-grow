@@ -46,6 +46,7 @@ public class FeedStockController {
             @RequestBody FeedStock feedStockDetails) {
         tenantAuthorizationService.requireRootTenant();
         return feedStockRepository.findById(id)
+                .filter(fs -> TenantContext.getTenantId().equals(fs.getTenantId()))
                 .map(feedStock -> {
                     feedStock.setFeedType(feedStockDetails.getFeedType());
                     feedStock.setCurrentStock(feedStockDetails.getCurrentStock());
@@ -62,6 +63,7 @@ public class FeedStockController {
     public ResponseEntity<Void> deleteFeedStock(@PathVariable String id) {
         tenantAuthorizationService.requireRootTenant();
         return feedStockRepository.findById(id)
+                .filter(fs -> TenantContext.getTenantId().equals(fs.getTenantId()))
                 .map(feedStock -> {
                     feedStockRepository.delete(feedStock);
                     return ResponseEntity.ok().<Void>build();

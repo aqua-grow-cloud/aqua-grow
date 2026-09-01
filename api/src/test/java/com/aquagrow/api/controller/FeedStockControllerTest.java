@@ -86,4 +86,22 @@ class FeedStockControllerTest {
                         .content("{\"feedType\":\"Pellet A\",\"currentStock\":100,\"threshold\":20,\"unit\":\"kg\"}"))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    @WithMockUser
+    void update_whenWrongTenant_returns404() throws Exception {
+        TenantContext.setTenantId("other-tenant");
+        doNothing().when(tenantAuthorizationService).requireRootTenant();
+        FeedStock stock = new FeedStock();
+        stock.setId("s1");
+        stock.setTenantId("root-farm"); // different from context
+        stock.setFeedType("Pellet A");
+        when(feedStockRepository.findById("s1")).thenReturn(Optional.of(stock));
+
+        mockMvc.perform(put("/api/feed-stock/s1")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"feedType\":\"Pellet A\",\"currentStock\":100,\"threshold\":20,\"unit\":\"kg\"}"))
+                .andExpect(status().isNotFound());
+    }
 }
