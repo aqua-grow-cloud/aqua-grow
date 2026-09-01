@@ -1,6 +1,7 @@
 package com.aquagrow.api.exception;
 
 import com.aquagrow.api.dto.ErrorResponse;
+import com.aquagrow.api.security.SubTenantAccessDeniedException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +50,13 @@ public class GlobalExceptionHandler {
 
         ErrorResponse errorResponse = ErrorResponse.businessError(ex.getMessage());
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(SubTenantAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleSubTenantAccessDenied(
+            SubTenantAccessDeniedException ex, WebRequest request) {
+        ErrorResponse errorResponse = ErrorResponse.businessError(ex.getMessage());
+        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(Exception.class)
