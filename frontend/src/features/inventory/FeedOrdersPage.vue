@@ -2,7 +2,7 @@
   <v-container fluid>
     <PageHeader 
         title="Feed Orders" 
-        :action-label="store.isManager ? 'New Order' : undefined"
+        :action-label="store.isManager && !tenantStore.isSubTenant ? 'Place Order' : undefined"
         @action="openCreateDialog" 
     >
         <template v-slot:actions v-if="store.isManager">
@@ -149,6 +149,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useAquaStore } from '../../stores/useAquaStore';
+import { useTenantStore } from '@/stores/useTenantStore';
 import PageHeader from '../../components/PageHeader.vue';
 import OrderMessageDialog from './components/OrderMessageDialog.vue';
 import { feedOrderService } from './api/feedOrderService';
@@ -157,6 +158,7 @@ import { feedStockService } from '../inventory/api/feedStockService';
 import type { FeedOrder, FeedStock, Supplier } from '../../api/manual/types';
 
 const store = useAquaStore();
+const tenantStore = useTenantStore();
 
 const headers = [
   { title: 'Order Date', key: 'orderDate' },
