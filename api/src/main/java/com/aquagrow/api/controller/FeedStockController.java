@@ -2,10 +2,11 @@ package com.aquagrow.api.controller;
 
 import com.aquagrow.api.model.FeedStock;
 import com.aquagrow.api.repository.FeedStockRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.aquagrow.api.security.TenantAuthorizationService;
+import com.aquagrow.api.security.TenantContext;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,24 +14,29 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/feed-stock")
 @CrossOrigin(origins = "*")
+@RequiredArgsConstructor
+@Slf4j
 public class FeedStockController {
 
-    @Autowired
-    private FeedStockRepository feedStockRepository;
+    private final FeedStockRepository feedStockRepository;
+    private final TenantAuthorizationService tenantAuthorizationService;
 
     @GetMapping
     public List<FeedStock> getAllFeedStock() {
-        return feedStockRepository.findAll();
+        String effectiveTenantId = TenantContext.getEffectiveFeedTenantId();
+        return feedStockRepository.findByTenantId(effectiveTenantId);
     }
 
     @GetMapping("/low")
     public List<FeedStock> getLowStock() {
-        return feedStockRepository.findByCurrentStockLessThanThreshold();
+        String effectiveTenantId = TenantContext.getEffectiveFeedTenantId();
+        return feedStockRepository.findLowStockByTenantId(effectiveTenantId);
     }
 
     @PostMapping
     public FeedStock createFeedStock(@RequestBody FeedStock feedStock) {
-        feedStock.setTenantId(com.aquagrow.api.security.TenantContext.getTenantId());
+        tenantAuthorizationService.requireRootTenant();
+        feedStock.setTenantId(TenantContext.getTenantId());
         return feedStockRepository.save(feedStock);
     }
 
@@ -38,6 +44,7 @@ public class FeedStockController {
     public ResponseEntity<FeedStock> updateFeedStock(
             @PathVariable String id,
             @RequestBody FeedStock feedStockDetails) {
+        tenantAuthorizationService.requireRootTenant();
         return feedStockRepository.findById(id)
                 .map(feedStock -> {
                     feedStock.setFeedType(feedStockDetails.getFeedType());
@@ -53,6 +60,7 @@ public class FeedStockController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteFeedStock(@PathVariable String id) {
+        tenantAuthorizationService.requireRootTenant();
         return feedStockRepository.findById(id)
                 .map(feedStock -> {
                     feedStockRepository.delete(feedStock);
