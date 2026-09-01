@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="25" author="aquagrow">
+        <comment>Add composite index on feed_stock(tenant_id, feed_type) to optimize atomic deduction query</comment>
+        <createIndex indexName="idx_feed_stock_tenant_feedtype" tableName="feed_stock">
+            <column name="tenant_id"/>
+            <column name="feed_type"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
