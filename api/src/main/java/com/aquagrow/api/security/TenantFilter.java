@@ -31,6 +31,11 @@ public class TenantFilter implements Filter {
                 if (tenantId != null) {
                     log.debug("Setting Tenant Context to: {}", tenantId);
                     TenantContext.setTenantId(tenantId);
+                    String parentId = jwt.getClaimAsString("parent_tenant_id");
+                    if (parentId != null) {
+                        log.debug("Setting parent tenant context to: {}", parentId);
+                        TenantContext.setParentTenantId(parentId);
+                    }
                 } else {
                     log.warn("No tenant_id claim found in JWT for user: {}", authentication.getName());
                     // Fail securely if no tenant ID is present in the token
