@@ -2,9 +2,20 @@
   <v-container fluid>
     <PageHeader
         title="Feed Inventory"
-        action-label="Add Feed Stock"
+        :action-label="tenantStore.isSubTenant ? undefined : 'Add Feed Stock'"
         @action="openDialog"
     />
+
+    <v-alert
+        v-if="tenantStore.isSubTenant"
+        data-testid="sub-tenant-banner"
+        type="info"
+        variant="tonal"
+        class="mb-4"
+    >
+        This is your network's global feed inventory, managed by your administrator.
+        Your feed usage is deducted directly from this stock.
+    </v-alert>
 
     <v-row>
         <v-col cols="12">
@@ -38,31 +49,33 @@
                     </template>
 
                     <template v-slot:item.actions="{ item }">
-                        <v-tooltip text="Update Stock">
-                            <template v-slot:activator="{ props }">
-                                <v-btn v-bind="props" icon size="small" variant="text" color="primary" @click="editItem(item)">
-                                    <v-icon>mdi-pencil</v-icon>
-                                </v-btn>
-                            </template>
-                        </v-tooltip>
-                         <v-tooltip text="Order More">
-                            <template v-slot:activator="{ props }">
-                                <v-btn
-                                    v-bind="props"
-                                    icon
-                                    size="small"
-                                    variant="text"
-                                    color="success"
-                                    @click="quickOrder(item)"
-                                    :disabled="!item.supplierId"
-                                >
-                                    <v-icon>mdi-cart-plus</v-icon>
-                                </v-btn>
-                            </template>
-                        </v-tooltip>
-                         <v-btn icon size="small" variant="text" color="error" @click="deleteItem(item)">
-                            <v-icon>mdi-delete</v-icon>
-                        </v-btn>
+                        <template v-if="!tenantStore.isSubTenant">
+                            <v-tooltip text="Update Stock">
+                                <template v-slot:activator="{ props }">
+                                    <v-btn v-bind="props" icon size="small" variant="text" color="primary" @click="editItem(item)">
+                                        <v-icon>mdi-pencil</v-icon>
+                                    </v-btn>
+                                </template>
+                            </v-tooltip>
+                             <v-tooltip text="Order More">
+                                <template v-slot:activator="{ props }">
+                                    <v-btn
+                                        v-bind="props"
+                                        icon
+                                        size="small"
+                                        variant="text"
+                                        color="success"
+                                        @click="quickOrder(item)"
+                                        :disabled="!item.supplierId"
+                                    >
+                                        <v-icon>mdi-cart-plus</v-icon>
+                                    </v-btn>
+                                </template>
+                            </v-tooltip>
+                             <v-btn icon size="small" variant="text" color="error" @click="deleteItem(item)">
+                                <v-icon>mdi-delete</v-icon>
+                            </v-btn>
+                        </template>
                     </template>
                 </v-data-table>
             </v-card>
@@ -193,6 +206,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useAquaStore } from '../../stores/useAquaStore';
+import { useTenantStore } from '@/stores/useTenantStore';
 import PageHeader from '../../components/PageHeader.vue';
 import { feedStockService } from './api/feedStockService';
 import { supplierService } from './api/supplierService';
@@ -201,6 +215,7 @@ import type { FeedStock } from '../../api/manual/types';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
+const tenantStore = useTenantStore();
 
 const headers = [
   { title: 'Feed Type', key: 'feedType' },
