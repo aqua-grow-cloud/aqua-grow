@@ -45,17 +45,19 @@ public class FeedService {
             throw new BusinessException("Tenant context is required");
         }
 
-        feedLog.setTenantId(tenantId);
+        feedLog.setTenantId(tenantId); // FeedLog belongs to the requesting tenant (sub-tenant or root)
 
-        // Deduct from inventory if feed type is specified
-        if (feedLog.getFeedType() != null && !feedLog.getFeedType().isEmpty()) {
-            deductFromInventory(tenantId, feedLog.getFeedType(), feedLog.getAmount());
+        if (feedLog.getFeedType() != null && !feedLog.getFeedType().isEmpty()
+                && feedLog.getAmount() != null && feedLog.getAmount() > 0) {
+            deductFromInventory(TenantContext.getEffectiveFeedTenantId(),
+                    feedLog.getFeedType(), feedLog.getAmount());
         }
 
         FeedLog saved = feedLogRepository.save(feedLog);
 
-        log.info("Created feed log: {} (batch: {}, type: {}, amount: {} kg, tenant: {})",
-                saved.getId(), saved.getBatchId(), saved.getFeedType(), saved.getAmount(), tenantId);
+        log.info("Created feed log: {} (batch: {}, type: {}, amount: {} kg, tenant: {}, stock tenant: {})",
+                saved.getId(), saved.getBatchId(), saved.getFeedType(), saved.getAmount(),
+                tenantId, TenantContext.getEffectiveFeedTenantId());
 
         return saved;
     }
@@ -231,6 +233,7 @@ public class FeedService {
                 .orElseThrow(() -> new BusinessException("Feed log not found: " + id));
 
         String tenantId = existing.getTenantId();
+        String stockTenantId = TenantContext.getEffectiveFeedTenantId();
 
         // Restore old amount back to inventory, then deduct new amount
         String oldFeedType = existing.getFeedType();
@@ -239,10 +242,10 @@ public class FeedService {
         Double newAmount = updated.getAmount();
 
         if (oldFeedType != null && !oldFeedType.isEmpty() && oldAmount != null && oldAmount > 0) {
-            restoreToInventory(tenantId, oldFeedType, oldAmount);
+            restoreToInventory(stockTenantId, oldFeedType, oldAmount);
         }
         if (newFeedType != null && !newFeedType.isEmpty()) {
-            deductFromInventory(tenantId, newFeedType, newAmount);
+            deductFromInventory(stockTenantId, newFeedType, newAmount);
         }
 
         existing.setBatchId(updated.getBatchId() != null ? updated.getBatchId() : existing.getBatchId());
@@ -268,10 +271,11 @@ public class FeedService {
                 .orElseThrow(() -> new BusinessException("Feed log not found: " + id));
 
         String tenantId = existing.getTenantId();
+        String stockTenantId = TenantContext.getEffectiveFeedTenantId();
 
         if (existing.getFeedType() != null && !existing.getFeedType().isEmpty()
                 && existing.getAmount() != null && existing.getAmount() > 0) {
-            restoreToInventory(tenantId, existing.getFeedType(), existing.getAmount());
+            restoreToInventory(stockTenantId, existing.getFeedType(), existing.getAmount());
         }
 
         feedLogRepository.delete(existing);
@@ -305,39 +309,26 @@ public class FeedService {
      * @param amount the amount to deduct in kg
      * @throws BusinessException if insufficient stock
      */
-    private void deductFromInventory(String tenantId, String feedType, Double amount) {
-        if (amount == null || amount <= 0) {
-            return;
+    private void deductFromInventory(String stockTenantId, String feedType, Double amount) {
+        if (amount == null || amount <= 0) return;
+        int updated = feedStockRepository.deductStock(
+                stockTenantId, feedType, amount, java.time.LocalDateTime.now());
+        if (updated == 0) {
+            feedStockRepository.findByTenantIdAndFeedType(stockTenantId, feedType)
+                    .ifPresentOrElse(
+                        stock -> {
+                            throw new BusinessException(
+                                String.format("Insufficient global feed stock for '%s': available %.2f kg, requested %.2f kg",
+                                    feedType, stock.getCurrentStock(), amount));
+                        },
+                        () -> {
+                            throw new BusinessException(
+                                String.format("Feed type '%s' not found in global inventory. " +
+                                    "Contact your network administrator.", feedType));
+                        }
+                    );
         }
-
-        feedStockRepository.findByTenantIdAndFeedType(tenantId, feedType)
-                .ifPresent(stock -> {
-                    double currentStock = stock.getCurrentStock() != null ? stock.getCurrentStock() : 0.0;
-
-                    if (currentStock < amount) {
-                        log.warn("Insufficient feed stock for type {}: current {} kg, requested {} kg",
-                                feedType, currentStock, amount);
-                        throw new BusinessException(
-                                String.format("Insufficient feed stock for %s: available %.2f kg, requested %.2f kg",
-                                        feedType, currentStock, amount));
-                    }
-
-                    stock.setCurrentStock(currentStock - amount);
-                    feedStockRepository.save(stock);
-
-                    log.info("Deducted {} kg of {} from inventory (remaining: {} kg, tenant: {})",
-                            amount, feedType, stock.getCurrentStock(), tenantId);
-
-                    // Check if stock is low after deduction
-                    if (stock.isLowStock()) {
-                        log.warn("Low stock alert for {}: {} kg (threshold: {} kg)",
-                                feedType, stock.getCurrentStock(), stock.getThreshold());
-                    }
-                    if (stock.isCriticalStock()) {
-                        log.error("CRITICAL stock alert for {}: {} kg (threshold: {} kg)",
-                                feedType, stock.getCurrentStock(), stock.getThreshold());
-                    }
-                });
+        log.info("Deducted {} kg of {} from tenant {} stock", amount, feedType, stockTenantId);
     }
 
     /**
@@ -352,7 +343,7 @@ public class FeedService {
             throw new BusinessException("Tenant context is required");
         }
 
-        List<FeedStock> lowStocks = feedStockRepository.findLowStockByTenantId(tenantId);
+        List<FeedStock> lowStocks = feedStockRepository.findLowStockByTenantId(TenantContext.getEffectiveFeedTenantId());
 
         log.debug("Found {} low stock alerts for tenant: {}", lowStocks.size(), tenantId);
 
