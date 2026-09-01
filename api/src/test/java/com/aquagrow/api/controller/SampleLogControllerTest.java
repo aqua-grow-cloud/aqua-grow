@@ -144,7 +144,7 @@ class SampleLogControllerTest {
     void searchSampleLogs_shouldReturnPagedResults() throws Exception {
         // Given
         Page<SampleLog> page = new PageImpl<>(Arrays.asList(testSample), PageRequest.of(0, 10), 1);
-        when(sampleService.searchSampleLogs(any(), any(), any(), any())).thenReturn(page);
+        when(sampleService.searchSampleLogs(any(), any(), any(), any(), any(), any())).thenReturn(page);
 
         // When/Then
         mockMvc.perform(get("/api/sample-logs")
@@ -161,7 +161,7 @@ class SampleLogControllerTest {
     void searchSampleLogs_withPondFilter_shouldReturnResults() throws Exception {
         // Given
         Page<SampleLog> page = new PageImpl<>(Arrays.asList(testSample), PageRequest.of(0, 10), 1);
-        when(sampleService.searchSampleLogs(any(), eq("pond-1"), any(), any())).thenReturn(page);
+        when(sampleService.searchSampleLogs(any(), eq("pond-1"), any(), any(), any(), any())).thenReturn(page);
 
         // When/Then
         mockMvc.perform(get("/api/sample-logs")
@@ -177,7 +177,7 @@ class SampleLogControllerTest {
     void searchSampleLogs_withFishTypeFilter_shouldReturnResults() throws Exception {
         // Given
         Page<SampleLog> page = new PageImpl<>(Arrays.asList(testSample), PageRequest.of(0, 10), 1);
-        when(sampleService.searchSampleLogs(any(), any(), eq("fish-1"), any())).thenReturn(page);
+        when(sampleService.searchSampleLogs(any(), any(), eq("fish-1"), any(), any(), any())).thenReturn(page);
 
         // When/Then
         mockMvc.perform(get("/api/sample-logs")

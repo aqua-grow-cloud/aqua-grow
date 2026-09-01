@@ -239,7 +239,7 @@ class SampleServiceTest {
         when(sampleLogRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(page);
 
         // When
-        Page<SampleLog> result = sampleService.searchSampleLogs("batch-1", null, null, pageable);
+        Page<SampleLog> result = sampleService.searchSampleLogs("batch-1", null, null, null, null, pageable);
 
         // Then
         assertThat(result.getContent()).hasSize(1);
@@ -258,7 +258,7 @@ class SampleServiceTest {
         when(sampleLogRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(page);
 
         // When
-        Page<SampleLog> result = sampleService.searchSampleLogs(null, "pond-1", null, pageable);
+        Page<SampleLog> result = sampleService.searchSampleLogs(null, "pond-1", null, null, null, pageable);
 
         // Then
         assertThat(result.getContent()).hasSize(1);
@@ -276,7 +276,7 @@ class SampleServiceTest {
         when(sampleLogRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(emptyPage);
 
         // When
-        Page<SampleLog> result = sampleService.searchSampleLogs(null, "pond-1", null, pageable);
+        Page<SampleLog> result = sampleService.searchSampleLogs(null, "pond-1", null, null, null, pageable);
 
         // Then
         assertThat(result.getContent()).isEmpty();
