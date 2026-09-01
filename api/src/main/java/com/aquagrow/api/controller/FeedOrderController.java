@@ -9,6 +9,7 @@ import com.aquagrow.api.model.PaymentStatus;
 import com.aquagrow.api.repository.FeedOrderRepository;
 import com.aquagrow.api.repository.SupplierRepository;
 import com.aquagrow.api.service.FeedOrderService;
+import com.aquagrow.api.security.TenantAuthorizationService;
 import com.aquagrow.api.service.WhatsAppMessageService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +32,9 @@ public class FeedOrderController {
     @Autowired
     private WhatsAppMessageService whatsAppMessageService;
 
+    @Autowired
+    private TenantAuthorizationService tenantAuthorizationService;
+
     @GetMapping
     public List<FeedOrder> getAllOrders() {
         return feedOrderService.getAllOrders();
@@ -38,6 +42,7 @@ public class FeedOrderController {
 
     @PostMapping
     public FeedOrder createOrder(@RequestBody FeedOrder order) {
+        tenantAuthorizationService.requireRootTenant();
         return feedOrderService.createOrder(order);
     }
 
