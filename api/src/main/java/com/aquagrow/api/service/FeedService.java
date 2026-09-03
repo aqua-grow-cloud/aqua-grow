@@ -6,6 +6,7 @@ import com.aquagrow.api.model.FeedStock;
 import com.aquagrow.api.repository.FeedLogRepository;
 import com.aquagrow.api.repository.FeedStockRepository;
 import com.aquagrow.api.security.TenantContext;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class FeedService {
 
     private final FeedLogRepository feedLogRepository;
     private final FeedStockRepository feedStockRepository;
+    private final EntityManager entityManager;
 
     /**
      * Creates a new feed log entry and updates feed stock inventory.
@@ -291,14 +293,19 @@ public class FeedService {
      */
     private void restoreToInventory(String tenantId, String feedType, Double amount) {
         if (amount == null || amount <= 0) return;
-        feedStockRepository.findByTenantIdAndFeedType(tenantId, feedType)
-                .ifPresent(stock -> {
-                    double current = stock.getCurrentStock() != null ? stock.getCurrentStock() : 0.0;
-                    stock.setCurrentStock(current + amount);
-                    feedStockRepository.save(stock);
-                    log.info("Restored {} kg of {} to inventory (new total: {} kg, tenant: {})",
-                            amount, feedType, stock.getCurrentStock(), tenantId);
-                });
+        scopeTenantFilterTo(tenantId);
+        try {
+            feedStockRepository.findByTenantIdAndFeedType(tenantId, feedType)
+                    .ifPresent(stock -> {
+                        double current = stock.getCurrentStock() != null ? stock.getCurrentStock() : 0.0;
+                        stock.setCurrentStock(current + amount);
+                        feedStockRepository.save(stock);
+                        log.info("Restored {} kg of {} to inventory (new total: {} kg, tenant: {})",
+                                amount, feedType, stock.getCurrentStock(), tenantId);
+                    });
+        } finally {
+            scopeTenantFilterTo(TenantContext.getTenantId());
+        }
     }
 
     /**
@@ -311,24 +318,45 @@ public class FeedService {
      */
     private void deductFromInventory(String stockTenantId, String feedType, Double amount) {
         if (amount == null || amount <= 0) return;
-        int updated = feedStockRepository.deductStock(
-                stockTenantId, feedType, amount, java.time.LocalDateTime.now());
-        if (updated == 0) {
-            feedStockRepository.findByTenantIdAndFeedType(stockTenantId, feedType)
-                    .ifPresentOrElse(
-                        stock -> {
-                            throw new BusinessException(
-                                String.format("Insufficient global feed stock for '%s': available %.2f kg, requested %.2f kg",
-                                    feedType, stock.getCurrentStock(), amount));
-                        },
-                        () -> {
-                            throw new BusinessException(
-                                String.format("Feed type '%s' not found in global inventory. " +
-                                    "Contact your network administrator.", feedType));
-                        }
-                    );
+        scopeTenantFilterTo(stockTenantId);
+        try {
+            int updated = feedStockRepository.deductStock(
+                    stockTenantId, feedType, amount, java.time.LocalDateTime.now());
+            if (updated == 0) {
+                feedStockRepository.findByTenantIdAndFeedType(stockTenantId, feedType)
+                        .ifPresentOrElse(
+                            stock -> {
+                                throw new BusinessException(
+                                    String.format("Insufficient global feed stock for '%s': available %.2f kg, requested %.2f kg",
+                                        feedType, stock.getCurrentStock(), amount));
+                            },
+                            () -> {
+                                throw new BusinessException(
+                                    String.format("Feed type '%s' not found in global inventory. " +
+                                        "Contact your network administrator.", feedType));
+                            }
+                        );
+            }
+            log.info("Deducted {} kg of {} from tenant {} stock", amount, feedType, stockTenantId);
+        } finally {
+            scopeTenantFilterTo(TenantContext.getTenantId());
         }
-        log.info("Deducted {} kg of {} from tenant {} stock", amount, feedType, stockTenantId);
+    }
+
+    /**
+     * Re-scopes the Hibernate {@code tenantFilter} to the given tenant id.
+     * TenantAspect enables the filter pinned to the current (possibly sub-) tenant on every
+     * request; global feed-stock operations must target the effective (root) feed tenant, so
+     * we override the filter parameter around those operations. Both the deductStock bulk
+     * UPDATE and the findByTenantIdAndFeedType SELECT are subject to this filter, so without
+     * re-scoping a sub-tenant cannot see or modify the root's global inventory. Callers restore
+     * the filter to the requesting tenant afterwards so FeedLog operations stay correctly scoped.
+     */
+    private void scopeTenantFilterTo(String tenantId) {
+        if (tenantId == null) return;
+        entityManager.unwrap(org.hibernate.Session.class)
+                .enableFilter("tenantFilter")
+                .setParameter("tenantId", tenantId);
     }
 
     /**

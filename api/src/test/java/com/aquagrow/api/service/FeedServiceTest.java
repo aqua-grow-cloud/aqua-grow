@@ -6,6 +6,9 @@ import com.aquagrow.api.model.FeedStock;
 import com.aquagrow.api.repository.FeedLogRepository;
 import com.aquagrow.api.repository.FeedStockRepository;
 import com.aquagrow.api.security.TenantContext;
+import jakarta.persistence.EntityManager;
+import org.hibernate.Filter;
+import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +29,17 @@ class FeedServiceTest {
 
     @Mock private FeedLogRepository feedLogRepository;
     @Mock private FeedStockRepository feedStockRepository;
+    @Mock private EntityManager entityManager;
     @InjectMocks private FeedService feedService;
+
+    @BeforeEach
+    void setUpTenantFilterStubs() {
+        Session session = mock(Session.class);
+        Filter filter = mock(Filter.class);
+        lenient().when(entityManager.unwrap(Session.class)).thenReturn(session);
+        lenient().when(session.enableFilter("tenantFilter")).thenReturn(filter);
+        lenient().when(filter.setParameter(anyString(), any())).thenReturn(filter);
+    }
 
     @AfterEach
     void cleanup() {
