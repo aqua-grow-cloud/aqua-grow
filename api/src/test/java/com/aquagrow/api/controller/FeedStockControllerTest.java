@@ -5,7 +5,11 @@ import com.aquagrow.api.model.FeedStock;
 import com.aquagrow.api.repository.FeedStockRepository;
 import com.aquagrow.api.security.TenantAuthorizationService;
 import com.aquagrow.api.security.TenantContext;
+import jakarta.persistence.EntityManager;
+import org.hibernate.Filter;
+import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -28,6 +32,16 @@ class FeedStockControllerTest {
     @Autowired private MockMvc mockMvc;
     @MockBean private FeedStockRepository feedStockRepository;
     @MockBean private TenantAuthorizationService tenantAuthorizationService;
+    @MockBean private EntityManager entityManager;
+
+    @BeforeEach
+    void setUpTenantFilterStubs() {
+        Session session = mock(Session.class);
+        Filter filter = mock(Filter.class);
+        when(entityManager.unwrap(Session.class)).thenReturn(session);
+        when(session.enableFilter("tenantFilter")).thenReturn(filter);
+        when(filter.setParameter(anyString(), any())).thenReturn(filter);
+    }
 
     @AfterEach
     void cleanup() {

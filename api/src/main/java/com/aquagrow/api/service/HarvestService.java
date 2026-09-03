@@ -243,15 +243,14 @@ public class HarvestService {
                 
                 batchRepository.save(batch);
                 log.info("Marked batch {} as final harvest for fishType: {}", 
-                    batch.getId(), targetTypeId != null ? targetTypeId : "ALL");
+                    batch.getId(), targetTypeId);
             }
         });
     }
 
     private void markSeedsAsHarvested(Batch batch, String targetTypeId) {
         batch.getFishSeeds().forEach(seed -> {
-            boolean match = targetTypeId == null || targetTypeId.equalsIgnoreCase(seed.getFishTypeId());
-            if (match) {
+            if (targetTypeId.equalsIgnoreCase(seed.getFishTypeId())) {
                 seed.setStatus("Harvested");
                 log.debug("Marked seed {} as Harvested", seed.getId());
             }

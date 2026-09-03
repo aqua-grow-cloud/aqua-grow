@@ -44,6 +44,9 @@ class HarvestServiceTest {
     @Mock
     private FishStockEventRepository fishStockEventRepository;
 
+    @Mock
+    private FishTypeRepository fishTypeRepository;
+
     @InjectMocks
     private HarvestService harvestService;
 
@@ -51,6 +54,22 @@ class HarvestServiceTest {
     private static final String TEST_BATCH_ID = "batch-456";
     private static final String TEST_POND_ID = "pond-789";
     private static final String TEST_FISH_TYPE_ID = "fishtype-101";
+    private static final double TEST_BIOMASS = 500.0;
+    private static final double TEST_BASIC_RATE = 100.0;
+
+    /**
+     * Stubs the fish-type lookup required by {@code validateAndRecalculateHarvest}.
+     * Uses SHRIMP cultivation so the recalculated rate equals the basic rate (no discount).
+     */
+    private void stubShrimpFishType() {
+        FishType fishType = FishType.builder()
+                .id(TEST_FISH_TYPE_ID)
+                .name("Vannamei")
+                .cultivationType(CultivationType.SHRIMP)
+                .tenantId(TEST_TENANT_ID)
+                .build();
+        when(fishTypeRepository.findById(TEST_FISH_TYPE_ID)).thenReturn(Optional.of(fishType));
+    }
 
     @BeforeEach
     void setUp() {
@@ -125,8 +144,11 @@ class HarvestServiceTest {
         HarvestLog log = HarvestLog.builder()
                 .batchId(TEST_BATCH_ID)
                 .pondId(TEST_POND_ID)
+                .fishTypeId(TEST_FISH_TYPE_ID)
                 .count(100)
                 .avgWeightGrams(250.0)
+                .biomassWeight(TEST_BIOMASS)
+                .basicRate(TEST_BASIC_RATE)
                 .date(LocalDate.now())
                 .build();
 
@@ -138,6 +160,7 @@ class HarvestServiceTest {
                 .tenantId(TEST_TENANT_ID)
                 .build();
 
+        stubShrimpFishType();
         when(harvestLogRepository.save(any(HarvestLog.class))).thenReturn(savedLog);
 
         // When
@@ -173,6 +196,8 @@ class HarvestServiceTest {
                 .fishTypeId(TEST_FISH_TYPE_ID)
                 .count(150)
                 .avgWeightGrams(300.0)
+                .biomassWeight(TEST_BIOMASS)
+                .basicRate(TEST_BASIC_RATE)
                 .date(LocalDate.now())
                 .build();
 
@@ -187,6 +212,7 @@ class HarvestServiceTest {
                 .date(LocalDate.now())
                 .build();
 
+        stubShrimpFishType();
         when(harvestLogRepository.save(any(HarvestLog.class))).thenReturn(savedLog);
 
         // When
@@ -210,6 +236,9 @@ class HarvestServiceTest {
         // Given
         HarvestLog log = HarvestLog.builder()
                 .batchId(TEST_BATCH_ID)
+                .fishTypeId(TEST_FISH_TYPE_ID)
+                .biomassWeight(TEST_BIOMASS)
+                .basicRate(TEST_BASIC_RATE)
                 .count(null)  // No count
                 .build();
 
@@ -218,6 +247,7 @@ class HarvestServiceTest {
                 .tenantId(TEST_TENANT_ID)
                 .build();
 
+        stubShrimpFishType();
         when(harvestLogRepository.save(any(HarvestLog.class))).thenReturn(savedLog);
 
         // When
@@ -257,6 +287,8 @@ class HarvestServiceTest {
                 .pondId(TEST_POND_ID)
                 .fishTypeId(TEST_FISH_TYPE_ID)
                 .count(100)
+                .biomassWeight(TEST_BIOMASS)
+                .basicRate(TEST_BASIC_RATE)
                 .isFinal(true)  // Final harvest
                 .date(LocalDate.now())
                 .build();
@@ -271,6 +303,7 @@ class HarvestServiceTest {
                 .date(LocalDate.now())
                 .build();
 
+        stubShrimpFishType();
         when(harvestLogRepository.save(any(HarvestLog.class))).thenReturn(savedLog);
         when(batchRepository.findById(TEST_BATCH_ID)).thenReturn(Optional.of(batch));
 
@@ -284,53 +317,26 @@ class HarvestServiceTest {
     }
 
     @Test
-    @DisplayName("recordHarvest - should mark all seeds as harvested when fishTypeId is null")
-    void recordHarvest_shouldMarkAllSeedsAsHarvestedWhenFishTypeIdIsNull() {
-        // Given
-        FishSeed seed1 = FishSeed.builder()
-                .id("seed-1")
-                .fishTypeId(TEST_FISH_TYPE_ID)
-                .status("Active")
-                .build();
-
-        FishSeed seed2 = FishSeed.builder()
-                .id("seed-2")
-                .fishTypeId("other-type")
-                .status("Active")
-                .build();
-
-        Batch batch = Batch.builder()
-                .id(TEST_BATCH_ID)
-                .fishSeeds(new ArrayList<>(List.of(seed1, seed2)))
-                .build();
-
+    @DisplayName("recordHarvest - should reject harvest when fishTypeId is null")
+    void recordHarvest_shouldRejectWhenFishTypeIdIsNull() {
+        // Given: a harvest without a fish type. Harvesting "all" seeds via a null
+        // fishTypeId is not a valid case and the feature has been removed; recordHarvest
+        // must reject it and never touch the batch.
         HarvestLog log = HarvestLog.builder()
                 .batchId(TEST_BATCH_ID)
-                .fishTypeId(null)  // No specific type = harvest all
+                .fishTypeId(null)  // No specific type
                 .count(100)
                 .isFinal(true)
                 .date(LocalDate.now())
                 .build();
 
-        HarvestLog savedLog = HarvestLog.builder()
-                .id("harvest-1")
-                .batchId(TEST_BATCH_ID)
-                .tenantId(TEST_TENANT_ID)
-                .count(100)
-                .isFinal(true)
-                .date(LocalDate.now())
-                .build();
+        // When / Then
+        assertThatThrownBy(() -> harvestService.recordHarvest(log))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("Fish type is required");
 
-        when(harvestLogRepository.save(any(HarvestLog.class))).thenReturn(savedLog);
-        when(batchRepository.findById(TEST_BATCH_ID)).thenReturn(Optional.of(batch));
-
-        // When
-        harvestService.recordHarvest(log);
-
-        // Then
-        assertThat(seed1.getStatus()).isEqualTo("Harvested");
-        assertThat(seed2.getStatus()).isEqualTo("Harvested");  // All seeds harvested
-        verify(batchRepository).save(batch);
+        verify(harvestLogRepository, never()).save(any());
+        verify(batchRepository, never()).findById(any());
     }
 
     @Test
@@ -359,6 +365,8 @@ class HarvestServiceTest {
                 .pondId(TEST_POND_ID)
                 .fishTypeId(TEST_FISH_TYPE_ID)
                 .count(100)
+                .biomassWeight(TEST_BIOMASS)
+                .basicRate(TEST_BASIC_RATE)
                 .isFinal(true)
                 .date(LocalDate.now())
                 .build();
@@ -372,6 +380,7 @@ class HarvestServiceTest {
                 .date(LocalDate.now())
                 .build();
 
+        stubShrimpFishType();
         when(harvestLogRepository.save(any(HarvestLog.class))).thenReturn(savedLog);
         when(batchRepository.findById(TEST_BATCH_ID)).thenReturn(Optional.of(batch));
         when(pondRepository.findById(TEST_POND_ID)).thenReturn(Optional.of(pond));
@@ -417,6 +426,8 @@ class HarvestServiceTest {
                 .pondId(TEST_POND_ID)
                 .fishTypeId(TEST_FISH_TYPE_ID)  // Only harvest this type
                 .count(100)
+                .biomassWeight(TEST_BIOMASS)
+                .basicRate(TEST_BASIC_RATE)
                 .isFinal(true)
                 .date(LocalDate.now())
                 .build();
@@ -431,6 +442,7 @@ class HarvestServiceTest {
                 .date(LocalDate.now())
                 .build();
 
+        stubShrimpFishType();
         when(harvestLogRepository.save(any(HarvestLog.class))).thenReturn(savedLog);
         when(batchRepository.findById(TEST_BATCH_ID)).thenReturn(Optional.of(batch));
 
@@ -448,7 +460,10 @@ class HarvestServiceTest {
         // Given
         HarvestLog log = HarvestLog.builder()
                 .batchId(TEST_BATCH_ID)
+                .fishTypeId(TEST_FISH_TYPE_ID)
                 .count(100)
+                .biomassWeight(TEST_BIOMASS)
+                .basicRate(TEST_BASIC_RATE)
                 .isFinal(false)  // Not final
                 .date(LocalDate.now())
                 .build();
@@ -460,6 +475,7 @@ class HarvestServiceTest {
                 .date(LocalDate.now())
                 .build();
 
+        stubShrimpFishType();
         when(harvestLogRepository.save(any(HarvestLog.class))).thenReturn(savedLog);
 
         // When
@@ -499,6 +515,8 @@ class HarvestServiceTest {
                 .batchId(TEST_BATCH_ID)
                 .fishTypeId(TEST_FISH_TYPE_ID)
                 .count(200)
+                .biomassWeight(TEST_BIOMASS)
+                .basicRate(TEST_BASIC_RATE)
                 .isFinal(true)
                 .date(LocalDate.now())
                 .build();
@@ -512,6 +530,7 @@ class HarvestServiceTest {
                 .date(LocalDate.now())
                 .build();
 
+        stubShrimpFishType();
         when(harvestLogRepository.save(any(HarvestLog.class))).thenReturn(savedLog);
         when(batchRepository.findById(TEST_BATCH_ID)).thenReturn(Optional.of(batch));
         when(pondRepository.findById("pond-A")).thenReturn(Optional.of(pondA));

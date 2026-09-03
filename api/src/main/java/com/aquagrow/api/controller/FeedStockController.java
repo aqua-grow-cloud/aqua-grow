@@ -4,6 +4,7 @@ import com.aquagrow.api.model.FeedStock;
 import com.aquagrow.api.repository.FeedStockRepository;
 import com.aquagrow.api.security.TenantAuthorizationService;
 import com.aquagrow.api.security.TenantContext;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -20,17 +21,33 @@ public class FeedStockController {
 
     private final FeedStockRepository feedStockRepository;
     private final TenantAuthorizationService tenantAuthorizationService;
+    private final EntityManager entityManager;
 
     @GetMapping
     public List<FeedStock> getAllFeedStock() {
         String effectiveTenantId = TenantContext.getEffectiveFeedTenantId();
+        scopeTenantFilterTo(effectiveTenantId);
         return feedStockRepository.findByTenantId(effectiveTenantId);
     }
 
     @GetMapping("/low")
     public List<FeedStock> getLowStock() {
         String effectiveTenantId = TenantContext.getEffectiveFeedTenantId();
+        scopeTenantFilterTo(effectiveTenantId);
         return feedStockRepository.findLowStockByTenantId(effectiveTenantId);
+    }
+
+    /**
+     * Re-scopes the Hibernate {@code tenantFilter} to the effective feed tenant id.
+     * TenantAspect enables the filter pinned to the current (possibly sub-) tenant on
+     * every controller call; for feed-stock reads a sub-tenant must see its root/parent
+     * tenant's stock, so we override the filter parameter to the effective tenant id.
+     * This keeps defense-in-depth filtering active while scoped to the correct tenant.
+     */
+    private void scopeTenantFilterTo(String effectiveTenantId) {
+        entityManager.unwrap(org.hibernate.Session.class)
+                .enableFilter("tenantFilter")
+                .setParameter("tenantId", effectiveTenantId);
     }
 
     @PostMapping
