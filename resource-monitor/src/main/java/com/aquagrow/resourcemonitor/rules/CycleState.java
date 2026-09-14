@@ -1,8 +1,11 @@
 package com.aquagrow.resourcemonitor.rules;
 
+import org.springframework.stereotype.Component;
+
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
+@Component
 public class CycleState {
 
     private final Map<String, Integer> cpuHighStreaks = new ConcurrentHashMap<>();

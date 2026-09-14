@@ -3,11 +3,13 @@ package com.aquagrow.resourcemonitor.rules;
 import com.aquagrow.resourcemonitor.config.MonitorProperties;
 import com.aquagrow.resourcemonitor.model.Classification;
 import com.aquagrow.resourcemonitor.model.PodSnapshot;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+@Component
 public class AnomalyClassifier {
 
     private static final Set<String> ALERT_EVENT_REASONS = Set.of("OOMKilling", "Evicted");

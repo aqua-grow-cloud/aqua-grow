@@ -7,10 +7,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 
 @Slf4j
+@Component
 public class ResourceLogger {
 
     private final ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
