@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: aqua-grow-resource-monitor
+
+server:
+  port: ${SERVER_PORT:8091}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+monitor:
+  namespace: ${TARGET_NAMESPACE:aqua-grow}
+  poll-interval-seconds: ${POLL_INTERVAL_SECONDS:60}
+  selectors:
+    - app=aqua-grow-api
+    - app=postgres-api
+  thresholds:
+    mem-warn-pct: ${MEM_WARN_PCT:85}
+    mem-alert-pct: ${MEM_ALERT_PCT:95}
+    cpu-warn-pct: ${CPU_WARN_PCT:90}
+    cpu-warn-consecutive-cycles: ${CPU_WARN_CONSECUTIVE_CYCLES:2}
+    not-ready-alert-consecutive-cycles: ${NOT_READY_ALERT_CONSECUTIVE_CYCLES:3}
+
+logging:
+  level:
+    root: INFO
+    com.aquagrow.resourcemonitor: INFO
