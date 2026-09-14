@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -28,15 +29,30 @@ public class PodMetricsClient {
 
     public List<PodSnapshot> fetchSnapshots(String namespace, List<String> selectors) {
         List<PodSnapshot> snapshots = new ArrayList<>();
+        for (List<PodSnapshot> selectorSnapshots : fetchSnapshotsBySelector(namespace, selectors).values()) {
+            snapshots.addAll(selectorSnapshots);
+        }
+        return snapshots;
+    }
+
+    /**
+     * Same as {@link #fetchSnapshots(String, List)} but keeps the per-selector grouping so
+     * callers can detect which individual selectors matched zero pods, rather than only being
+     * able to tell that the aggregate result across ALL selectors was empty.
+     */
+    public Map<String, List<PodSnapshot>> fetchSnapshotsBySelector(String namespace, List<String> selectors) {
+        Map<String, List<PodSnapshot>> snapshotsBySelector = new LinkedHashMap<>();
         List<Event> events = fetchEvents(namespace);
         Map<String, PodMetrics> metricsByPodName = fetchUsageForNamespace(namespace);
         for (String selector : selectors) {
             List<Pod> pods = client.pods().inNamespace(namespace).withLabelSelector(selector).list().getItems();
+            List<PodSnapshot> snapshots = new ArrayList<>();
             for (Pod pod : pods) {
                 snapshots.addAll(toSnapshots(pod, events, metricsByPodName));
             }
+            snapshotsBySelector.put(selector, snapshots);
         }
-        return snapshots;
+        return snapshotsBySelector;
     }
 
     private List<PodSnapshot> toSnapshots(Pod pod, List<Event> events, Map<String, PodMetrics> metricsByPodName) {
