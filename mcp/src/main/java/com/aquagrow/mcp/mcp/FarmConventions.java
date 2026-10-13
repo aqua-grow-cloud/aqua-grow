@@ -38,6 +38,10 @@ public class FarmConventions {
         this.previewTtl = previewTtl;
     }
 
+    public String currency() {
+        return currency;
+    }
+
     public String text() {
         double bag = feeding.defaultBagSizeKg();
         BigDecimal perDay = BigDecimal.valueOf(bag).multiply(BigDecimal.valueOf(EXAMPLE_BAGS));
@@ -70,6 +74,12 @@ public class FarmConventions {
                 - If the batch, feed type, fish type, dates, quantity or bag size is missing or ambiguous, ask the user. When a tool lists several candidates, ask which one is meant.
                 - Batches can be named by batch name or by pond name (for example "Pond 3").
                 - Do not invent numbers for analysis: quote what the tools return, with their units and date ranges, and mention any data-quality notes.
+
+                ## Money and analysis
+                - Harvest revenue is NET of commission. Salaries are a farm-wide fixed cost and are never allocated to a batch.
+                - A batch is "provisional" until all its fish are harvested: do not present its profit as final.
+                - Feed orders have no price recorded, so unpaid orders are shown by quantity only. Say so rather than estimating an amount.
+                - Tool results carry notes about data quality (missing data, double-counting guards). Pass the relevant ones on to the user.
 
                 ## Access
                 - Every tool is automatically limited to the signed-in user's own farm data. Never ask for or pass a tenant or account id.

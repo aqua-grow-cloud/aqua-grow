@@ -33,13 +33,14 @@ public class AquaGrowMcpApplication {
             CatalogMcpService catalogService,
             FeedingWriteMcpService feedingWriteService,
             SamplingWriteMcpService samplingWriteService,
+            FinanceMcpService financeService,
             @Value("${aquagrow.mcp.legacy-write-tools.enabled:false}") boolean legacyWriteToolsEnabled) {
 
         ToolCallbackProvider all = MethodToolCallbackProvider.builder()
             .toolObjects(pondService, batchService, feedService,
                          monitoringService, harvestService,
                          hrFinanceService, catalogService,
-                         feedingWriteService, samplingWriteService)
+                         feedingWriteService, samplingWriteService, financeService)
             .build();
         return new WriteToolFilteringProvider(all, legacyWriteToolsEnabled);
     }

@@ -46,7 +46,12 @@ public class ResolverService {
     private final TenantFilterActivator tenantFilterActivator;
     private final AquaGrowApiClient apiClient;
 
-    public record ResolvedBatch(String id, String name, List<String> pondNames, LocalDate stockingDate) {
+    public record ResolvedBatch(String id, String name, List<String> pondNames, LocalDate stockingDate, String status) {
+
+        /** Convenience for callers that only deal with active batches. */
+        public ResolvedBatch(String id, String name, List<String> pondNames, LocalDate stockingDate) {
+            this(id, name, pondNames, stockingDate, "Active");
+        }
     }
 
     public record ResolvedFishType(String id, String name, List<String> pondNames) {
@@ -61,8 +66,19 @@ public class ResolverService {
 
     // ---- batches ----
 
+    /** Resolves to a single ACTIVE batch (for logging feed or samples). */
     @Transactional(readOnly = true)
     public ResolvedBatch resolveBatch(String reference) {
+        return resolve(reference, true);
+    }
+
+    /** Resolves to a single batch of any status, completed ones included (for reading and analysis). */
+    @Transactional(readOnly = true)
+    public ResolvedBatch resolveAnyBatch(String reference) {
+        return resolve(reference, false);
+    }
+
+    private ResolvedBatch resolve(String reference, boolean activeOnly) {
         String raw = reference == null ? "" : reference.trim();
         String needle = normalize(raw);
         if (needle.isEmpty()) {
@@ -88,14 +104,14 @@ public class ResolverService {
             if (matches.isEmpty()) {
                 continue;
             }
-            List<Batch> active = matches.stream().filter(ResolverService::isActive).toList();
-            if (active.size() == 1) {
-                return toResolved(active.get(0), pondsById);
+            List<Batch> candidates = activeOnly ? matches.stream().filter(ResolverService::isActive).toList() : matches;
+            if (candidates.size() == 1) {
+                return toResolved(candidates.get(0), pondsById);
             }
-            if (active.size() > 1) {
-                throw new AmbiguousReferenceException("More than one active batch matches '" + raw
-                        + "'. Ask the user which one they mean, then use its id:\n"
-                        + describeBatches(active, pondsById));
+            if (candidates.size() > 1) {
+                throw new AmbiguousReferenceException("More than one " + (activeOnly ? "active " : "") + "batch matches '"
+                        + raw + "'. Ask the user which one they mean, then use its id:\n"
+                        + describeBatches(candidates, pondsById));
             }
             matchedOnlyCompleted = true;
         }
@@ -104,11 +120,12 @@ public class ResolverService {
             throw new ToolUserException("Batch '" + raw
                     + "' is already completed (all its fish are harvested), so it cannot be used here.");
         }
-        List<Batch> allActive = batches.stream().filter(ResolverService::isActive).toList();
-        throw new ToolUserException("No active batch matches '" + raw + "'. "
-                + (allActive.isEmpty()
-                ? "There are no active batches."
-                : "Active batches:\n" + describeBatches(allActive, pondsById)));
+        List<Batch> listed = activeOnly ? batches.stream().filter(ResolverService::isActive).toList() : batches;
+        String kind = activeOnly ? "active batch" : "batch";
+        throw new ToolUserException("No " + kind + " matches '" + raw + "'. "
+                + (listed.isEmpty()
+                ? "There are no " + kind + "es."
+                : (activeOnly ? "Active batches" : "Batches") + ":\n" + describeBatches(listed, pondsById)));
     }
 
     private static boolean isActive(Batch batch) {
@@ -132,7 +149,7 @@ public class ResolverService {
 
     private ResolvedBatch toResolved(Batch batch, Map<String, Pond> pondsById) {
         List<String> pondNames = pondsOf(batch, pondsById).stream().map(Pond::getName).toList();
-        return new ResolvedBatch(batch.getId(), batch.getName(), pondNames, batch.getStockingDate());
+        return new ResolvedBatch(batch.getId(), batch.getName(), pondNames, batch.getStockingDate(), batch.getStatus());
     }
 
     private String describeBatches(List<Batch> batches, Map<String, Pond> pondsById) {
@@ -149,6 +166,7 @@ public class ResolverService {
             if (b.getStockingDate() != null) {
                 parts.add("stocked " + b.getStockingDate());
             }
+            parts.add(b.getStatus());
             out.append("- [").append(b.getId()).append("] ")
                     .append(b.getName() == null || b.getName().isBlank() ? "(unnamed)" : b.getName())
                     .append(parts.isEmpty() ? "" : " (" + String.join(", ", parts) + ")")

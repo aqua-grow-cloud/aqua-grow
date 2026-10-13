@@ -46,6 +46,7 @@ class WriteToolFilteringTest {
                 service(CatalogMcpService.class),
                 service(FeedingWriteMcpService.class),
                 service(SamplingWriteMcpService.class),
+                service(FinanceMcpService.class),
                 legacyEnabled);
         return Arrays.stream(provider.getToolCallbacks())
                 .map(ToolCallback::getToolDefinition)
@@ -77,7 +78,8 @@ class WriteToolFilteringTest {
                 service(PondMcpService.class), service(BatchMcpService.class), service(FeedMcpService.class),
                 service(MonitoringMcpService.class), service(HarvestMcpService.class),
                 service(HRFinanceMcpService.class), service(CatalogMcpService.class),
-                service(FeedingWriteMcpService.class), service(SamplingWriteMcpService.class), false);
+                service(FeedingWriteMcpService.class), service(SamplingWriteMcpService.class),
+                service(FinanceMcpService.class), false);
         var byName = Arrays.stream(provider.getToolCallbacks())
                 .collect(Collectors.toMap(c -> c.getToolDefinition().name(), c -> c.getToolDefinition()));
 
@@ -103,6 +105,13 @@ class WriteToolFilteringTest {
         assertThat(sampleRequired).containsExactlyInAnyOrder("batch", "date", "sampleCount", "totalSampleWeightGrams");
         assertThat(byName.get("preview_sample").description()).contains("DOES NOT SAVE").contains("GRAMS");
         assertThat(byName.get("confirm_sample").description()).contains("ONLY after the user has clearly approved");
+    }
+
+    @Test
+    void financeToolsAreRegisteredAndReadOnly() throws Exception {
+        Set<String> tools = registeredTools(false);
+
+        assertThat(tools).contains("get_batch_financials", "get_farm_pnl", "get_outstanding_payables", "get_feed_efficiency");
     }
 
     @Test

@@ -205,6 +205,40 @@ class ResolverServiceTest {
         verifyNoMoreInteractions(batchRepository, pondRepository);
     }
 
+    // ---- any status (for reading and analysis) ----
+
+    @Test
+    void resolveAnyBatch_findsCompletedBatchesTooAndReportsStatus() {
+        givenFarm(List.of(batch("b-2", "Old Batch", "p-2", "Harvested")), List.of(pond("p-2", "Pond 2")));
+
+        ResolvedBatch resolved = resolver.resolveAnyBatch("old batch");
+
+        assertThat(resolved.id()).isEqualTo("b-2");
+        assertThat(resolved.status()).isEqualTo("Completed");
+    }
+
+    @Test
+    void resolveAnyBatch_activeAndCompletedWithSameName_isAmbiguousAndShowsStatus() {
+        givenFarm(List.of(batch("b-old", "Tilapia", "p-1", "Harvested"), batch("b-new", "Tilapia", "p-1", "Active")),
+                List.of(pond("p-1", "Pond 1")));
+
+        assertThatThrownBy(() -> resolver.resolveAnyBatch("tilapia"))
+                .isInstanceOf(AmbiguousReferenceException.class)
+                .hasMessageContaining("b-old").hasMessageContaining("b-new")
+                .hasMessageContaining("Completed").hasMessageContaining("Active");
+    }
+
+    @Test
+    void resolveAnyBatch_noMatch_listsAllBatches() {
+        givenFarm(List.of(batch("b-1", "Sept", "p-1", "Active"), batch("b-2", "Old Batch", "p-2", "Harvested")),
+                List.of(pond("p-1", "Pond 1"), pond("p-2", "Pond 2")));
+
+        assertThatThrownBy(() -> resolver.resolveAnyBatch("zebra"))
+                .isInstanceOf(ToolUserException.class)
+                .hasMessageContaining("No batch matches 'zebra'")
+                .hasMessageContaining("Sept").hasMessageContaining("Old Batch");
+    }
+
     // ---- fish type within a batch ----
 
     private void givenBatchWithFishTypes(Batch batch, List<FishType> types, List<Pond> ponds) {
