@@ -39,6 +39,7 @@ class WriteToolFilteringTest {
                 service(HarvestMcpService.class),
                 service(HRFinanceMcpService.class),
                 service(CatalogMcpService.class),
+                service(FeedingWriteMcpService.class),
                 legacyEnabled);
         return Arrays.stream(provider.getToolCallbacks())
                 .map(ToolCallback::getToolDefinition)
@@ -57,6 +58,38 @@ class WriteToolFilteringTest {
                 .doesNotStartWith("delete_"));
         assertThat(tools).contains("list_ponds", "list_feed_stock", "list_feed_logs",
                 "list_sample_logs", "list_harvest_logs", "list_expenditures");
+    }
+
+    @Test
+    void previewAndConfirmFeedingToolsAreRegisteredWithoutTheLegacyFlag() throws Exception {
+        assertThat(registeredTools(false)).contains("preview_feeding", "confirm_feeding");
+    }
+
+    @Test
+    void feedingToolSchemaMarksOnlyTheUnambiguousInputsAsRequired() throws Exception {
+        ToolCallbackProvider provider = new AquaGrowMcpApplication().aquaGrowToolCallbacks(
+                service(PondMcpService.class), service(BatchMcpService.class), service(FeedMcpService.class),
+                service(MonitoringMcpService.class), service(HarvestMcpService.class),
+                service(HRFinanceMcpService.class), service(CatalogMcpService.class),
+                service(FeedingWriteMcpService.class), false);
+        var byName = Arrays.stream(provider.getToolCallbacks())
+                .collect(Collectors.toMap(c -> c.getToolDefinition().name(), c -> c.getToolDefinition()));
+
+        var schema = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(byName.get("preview_feeding").inputSchema());
+        var required = new java.util.HashSet<String>();
+        schema.get("required").forEach(n -> required.add(n.asText()));
+
+        assertThat(required).containsExactlyInAnyOrder("batch", "feedType", "startDate", "endDate");
+        assertThat(schema.get("properties").fieldNames()).toIterable()
+                .contains("bagsPerDay", "kgPerDay", "bagSizeKg", "overlap");
+        assertThat(schema.get("properties").get("bagsPerDay").get("description").asText()).contains("PER DAY");
+
+        var confirm = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(byName.get("confirm_feeding").inputSchema());
+        assertThat(confirm.get("required").get(0).asText()).isEqualTo("previewToken");
+        assertThat(byName.get("preview_feeding").description()).contains("DOES NOT SAVE");
+        assertThat(byName.get("confirm_feeding").description()).contains("ONLY after the user has clearly approved");
     }
 
     @Test
