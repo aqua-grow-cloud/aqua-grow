@@ -58,7 +58,7 @@ class FarmDataClientTest {
     void setUp() {
         RestClient.Builder builder = RestClient.builder().baseUrl(BASE);
         server = MockRestServiceServer.bindTo(builder).build();
-        client = new FarmDataClient(builder.build());
+        client = new FarmDataClient(builder.build(), 500, 100);
         Jwt jwt = Jwt.withTokenValue("the-token").header("alg", "none").subject("user-1")
                 .claim("tenant_id", "t1").issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
         SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt));
@@ -277,8 +277,8 @@ class FarmDataClientTest {
 
     @Test
     void pagedList_walksEveryPageUntilTheLastOne() {
-        expectGet("/api/monitoring-logs?page=0&size=500", "monitoring-logs-page");
-        expectGet("/api/monitoring-logs?page=1&size=500", "monitoring-logs-page-last");
+        expectGet("/api/monitoring-logs?page=0&size=500&sort=date,asc&sort=id,asc", "monitoring-logs-page");
+        expectGet("/api/monitoring-logs?page=1&size=500&sort=date,asc&sort=id,asc", "monitoring-logs-page-last");
 
         List<MonitoringLog> logs = client.monitoringLogs();
 
@@ -288,9 +288,33 @@ class FarmDataClientTest {
     }
 
     @Test
+    void pagedRequests_askForAFixedOrder_soNoRowIsRepeatedOrSkippedBetweenPages() {
+        // Without a sort the database may return rows in a different order on each page request.
+        server.expect(requestTo(BASE + "/api/monitoring-logs?page=0&size=500&sort=date,asc&sort=id,asc"))
+                .andRespond(withSuccess("{\"content\":[],\"last\":true,\"number\":0}", MediaType.APPLICATION_JSON));
+
+        client.monitoringLogs();
+
+        server.verify();
+    }
+
+    @Test
+    void pageSizeComesFromTheConstructor_soADeployCanTuneIt() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(BASE);
+        MockRestServiceServer tuned = MockRestServiceServer.bindTo(builder).build();
+        FarmDataClient small = new FarmDataClient(builder.build(), 2, 100);
+        tuned.expect(requestTo(BASE + "/api/sample-logs?page=0&size=2&sort=date,asc&sort=id,asc"))
+                .andRespond(withSuccess("{\"content\":[],\"last\":true,\"number\":0}", MediaType.APPLICATION_JSON));
+
+        small.sampleLogs();
+
+        tuned.verify();
+    }
+
+    @Test
     void pagedSampleLogs_stopOnTheFirstPageWhenItIsTheLast() {
         String lastPage = fixture("sample-logs-page").replace("\"last\": false", "\"last\": true");
-        server.expect(requestTo(BASE + "/api/sample-logs?page=0&size=500"))
+        server.expect(requestTo(BASE + "/api/sample-logs?page=0&size=500&sort=date,asc&sort=id,asc"))
                 .andRespond(withSuccess(lastPage, MediaType.APPLICATION_JSON));
 
         List<SampleLog> logs = client.sampleLogs();
@@ -301,7 +325,7 @@ class FarmDataClientTest {
 
     @Test
     void pagedList_emptyPageEndsTheWalk() {
-        server.expect(requestTo(BASE + "/api/sample-logs?page=0&size=500"))
+        server.expect(requestTo(BASE + "/api/sample-logs?page=0&size=500&sort=date,asc&sort=id,asc"))
                 .andRespond(withSuccess("{\"content\":[],\"last\":false,\"number\":0}", MediaType.APPLICATION_JSON));
 
         assertThat(client.sampleLogs()).isEmpty();

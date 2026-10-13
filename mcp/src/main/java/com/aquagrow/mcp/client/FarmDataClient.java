@@ -17,6 +17,7 @@ import com.aquagrow.mcp.model.Supplier;
 import com.aquagrow.mcp.security.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.ResolvableType;
 import org.springframework.stereotype.Component;
@@ -49,12 +50,9 @@ public class FarmDataClient {
     private final int pageSize;
     private final int maxPages;
 
-    @org.springframework.beans.factory.annotation.Autowired
-    public FarmDataClient(@Qualifier("aquaGrowApiRestClient") RestClient restClient) {
-        this(restClient, DEFAULT_PAGE_SIZE, DEFAULT_MAX_PAGES);
-    }
-
-    FarmDataClient(RestClient restClient, int pageSize, int maxPages) {
+    public FarmDataClient(@Qualifier("aquaGrowApiRestClient") RestClient restClient,
+                          @Value("${aquagrow.mcp.api.page-size:" + DEFAULT_PAGE_SIZE + "}") int pageSize,
+                          @Value("${aquagrow.mcp.api.max-pages:" + DEFAULT_MAX_PAGES + "}") int maxPages) {
         this.http = new ApiHttp(restClient);
         this.pageSize = pageSize;
         this.maxPages = maxPages;
@@ -199,7 +197,9 @@ public class FarmDataClient {
     private <T> List<T> allPages(Class<T> type, String uriTemplate) {
         ParameterizedTypeReference<ApiPage<T>> pageType = ParameterizedTypeReference.forType(
                 ResolvableType.forClassWithGenerics(ApiPage.class, type).getType());
-        String template = uriTemplate + "?page={page}&size={size}";
+        // A fixed order is essential: without one the database may order rows differently on each page
+        // request, which would repeat some rows and skip others.
+        String template = uriTemplate + "?page={page}&size={size}&sort=date,asc&sort=id,asc";
         List<T> all = new ArrayList<>();
         for (int page = 0; page < maxPages; page++) {
             ApiPage<T> current = http.get(pageType, template, page, pageSize);
