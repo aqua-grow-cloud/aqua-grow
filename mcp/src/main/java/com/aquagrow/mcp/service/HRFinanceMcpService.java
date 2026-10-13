@@ -1,167 +1,113 @@
 package com.aquagrow.mcp.service;
 
-import com.aquagrow.mcp.config.TenantFilterActivator;
+import com.aquagrow.mcp.client.FarmDataClient;
 import com.aquagrow.mcp.model.Employee;
-import com.aquagrow.mcp.model.SalaryPayment;
 import com.aquagrow.mcp.model.Expenditure;
-import com.aquagrow.mcp.repository.EmployeeRepository;
-import com.aquagrow.mcp.repository.SalaryPaymentRepository;
-import com.aquagrow.mcp.repository.ExpenditureRepository;
+import com.aquagrow.mcp.model.SalaryPayment;
+import com.aquagrow.mcp.security.RootTenantOnly;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * MCP Tools for HR and Finance (employees, salary payments, expenditures).
- * Tenant scoping is derived from the authenticated caller's JWT
- * (see TenantFilter/TenantContext) — never from an LLM-supplied parameter.
+ * Read-only HR and expenditure tools. Employee and salary tools are limited to the main farm account
+ * (see {@link RootTenantOnly}).
  */
 @Service
 @RequiredArgsConstructor
 public class HRFinanceMcpService {
 
-    private final EmployeeRepository employeeRepository;
-    private final SalaryPaymentRepository salaryPaymentRepository;
-    private final ExpenditureRepository expenditureRepository;
-    private final TenantFilterActivator tenantFilterActivator;
+    private final FarmDataClient farmData;
+    private final ResolverService resolver;
 
-    // ---- Employees ----
+    // ---- Employees and salaries: main farm account only ----
 
     @Tool(name = "list_employees",
-          description = "List all employees for the current tenant including role, salary, and status.")
-    @Transactional(readOnly = true)
+          description = "List all employees with role, salary, advance taken and status. Main farm account only.")
     public List<Employee> listEmployees() {
-        String tenantId = tenantFilterActivator.activate();
-        return employeeRepository.findByTenantId(tenantId);
+        RootTenantOnly.require();
+        return farmData.employees();
     }
 
     @Tool(name = "list_active_employees",
-          description = "List all active employees for the current tenant.")
-    @Transactional(readOnly = true)
+          description = "List the active employees. Main farm account only.")
     public List<Employee> listActiveEmployees() {
-        String tenantId = tenantFilterActivator.activate();
-        return employeeRepository.findByTenantIdAndStatus(tenantId, "Active");
+        RootTenantOnly.require();
+        return farmData.employees().stream().filter(e -> "Active".equalsIgnoreCase(e.getStatus())).toList();
     }
-
-    @Tool(name = "create_employee",
-          description = "Create a new employee record. Provide name, role, salary, joinedDate (YYYY-MM-DD), and optional whatsappNumber.")
-    @Transactional
-    public Employee createEmployee(String name, String role, Double salary,
-                                    String joinedDate, String whatsappNumber) {
-        String tenantId = tenantFilterActivator.activate();
-        Employee employee = Employee.builder()
-            .tenantId(tenantId)
-            .name(name)
-            .role(role)
-            .salary(salary)
-            .status("Active")
-            .joinedDate(joinedDate != null ? LocalDate.parse(joinedDate) : null)
-            .whatsappNumber(whatsappNumber)
-            .advanceTaken(0.0)
-            .build();
-        return employeeRepository.save(employee);
-    }
-
-    @Tool(name = "update_employee_advance",
-          description = "Update the advance taken amount for an employee.")
-    @Transactional
-    public Employee updateEmployeeAdvance(String employeeId, Double advanceTaken) {
-        String tenantId = tenantFilterActivator.activate();
-        Employee employee = employeeRepository.findById(employeeId)
-            .filter(e -> tenantId.equals(e.getTenantId()))
-            .orElseThrow(() -> new IllegalArgumentException("Employee not found: " + employeeId));
-        employee.setAdvanceTaken(advanceTaken);
-        return employeeRepository.save(employee);
-    }
-
-    // ---- Salary Payments ----
 
     @Tool(name = "list_salary_payments",
-          description = "List all salary payment records for the current tenant.")
-    @Transactional(readOnly = true)
+          description = "List all salary payments (month, base salary, advance deduction, bonus, net amount). Main farm account only.")
     public List<SalaryPayment> listSalaryPayments() {
-        String tenantId = tenantFilterActivator.activate();
-        return salaryPaymentRepository.findByTenantId(tenantId);
+        RootTenantOnly.require();
+        return farmData.salaryPayments();
     }
 
     @Tool(name = "list_salary_payments_by_employee",
-          description = "List salary payment history for a specific employee.")
-    @Transactional(readOnly = true)
-    public List<SalaryPayment> listSalaryPaymentsByEmployee(String employeeId) {
-        String tenantId = tenantFilterActivator.activate();
-        return salaryPaymentRepository.findByTenantIdAndEmployeeId(tenantId, employeeId);
-    }
-
-    @Tool(name = "create_salary_payment",
-          description = "Record a salary payment. Provide employeeId, date (YYYY-MM-DD), baseSalary, advanceDeduction, bonus, netAmount, and month (YYYY-MM).")
-    @Transactional
-    public SalaryPayment createSalaryPayment(String employeeId, String date,
-                                              Double baseSalary, Double advanceDeduction,
-                                              Double bonus, Double netAmount, String month) {
-        String tenantId = tenantFilterActivator.activate();
-        SalaryPayment payment = SalaryPayment.builder()
-            .tenantId(tenantId)
-            .employeeId(employeeId)
-            .date(LocalDate.parse(date))
-            .baseSalary(baseSalary)
-            .advanceDeduction(advanceDeduction)
-            .bonus(bonus)
-            .netAmount(netAmount)
-            .month(month)
-            .build();
-        return salaryPaymentRepository.save(payment);
+          description = "List the salary payments of one employee. Main farm account only.")
+    public List<SalaryPayment> listSalaryPaymentsByEmployee(
+            @ToolParam(description = "The employee id (from list_employees)") String employeeId) {
+        RootTenantOnly.require();
+        return farmData.salaryPaymentsByEmployee(employeeId);
     }
 
     // ---- Expenditures ----
 
     @Tool(name = "list_expenditures",
-          description = "List all expenditures for the current tenant. Categories include Feed, Seed, Salary, Maintenance, Lease, etc.")
-    @Transactional(readOnly = true)
+          description = "List all expenditures (date, category, macro investment, amount, description).")
     public List<Expenditure> listExpenditures() {
-        String tenantId = tenantFilterActivator.activate();
-        return expenditureRepository.findByTenantId(tenantId);
+        return farmData.expenditures();
     }
 
     @Tool(name = "list_expenditures_by_batch",
-          description = "List expenditures for a specific batch.")
-    @Transactional(readOnly = true)
-    public List<Expenditure> listExpendituresByBatch(String batchId) {
-        String tenantId = tenantFilterActivator.activate();
-        return expenditureRepository.findByTenantIdAndBatchId(tenantId, batchId);
-    }
-
-    @Tool(name = "create_expenditure",
-          description = "Record an expenditure. Provide batchId (optional), date (YYYY-MM-DD), category, amount, and description.")
-    @Transactional
-    public Expenditure createExpenditure(String batchId, String date,
-                                          String category, String macroInvestment, String subType,
-                                          Double amount, String description) {
-        String tenantId = tenantFilterActivator.activate();
-        Expenditure exp = Expenditure.builder()
-            .tenantId(tenantId)
-            .batchId(batchId)
-            .date(LocalDate.parse(date))
-            .category(category)
-            .macroInvestment(macroInvestment)
-            .subType(subType)
-            .amount(amount)
-            .description(description)
-            .build();
-        return expenditureRepository.save(exp);
+          description = "List the expenditures tagged to one batch.")
+    public List<Expenditure> listExpendituresByBatch(
+            @ToolParam(description = "Batch id, batch name, or pond name (e.g. 'Pond 3')") String batchId) {
+        return farmData.expendituresByBatch(resolver.resolveAnyBatch(batchId).id());
     }
 
     @Tool(name = "get_total_expenditure_by_batch",
-          description = "Calculate the total expenditure amount for a specific batch.")
-    @Transactional(readOnly = true)
-    public double getTotalExpenditureByBatch(String batchId) {
-        String tenantId = tenantFilterActivator.activate();
-        return expenditureRepository.findByTenantIdAndBatchId(tenantId, batchId)
-            .stream()
-            .mapToDouble(e -> e.getAmount() != null ? e.getAmount() : 0)
-            .sum();
+          description = "Total expenditure tagged to one batch, leaving out Salary entries (salaries are a farm-wide cost, "
+                  + "not a batch cost). For the full picture use get_batch_financials.")
+    public BatchTotal getTotalExpenditureByBatch(
+            @ToolParam(description = "Batch id, batch name, or pond name (e.g. 'Pond 3')") String batchId) {
+        var batch = resolver.resolveAnyBatch(batchId);
+        List<Expenditure> all = farmData.expendituresByBatch(batch.id());
+
+        double total = 0;
+        double salaryAmount = 0;
+        int salaryRows = 0;
+        int missingAmount = 0;
+        for (Expenditure e : all) {
+            boolean salary = e.getCategory() != null && "salary".equalsIgnoreCase(e.getCategory().trim());
+            if (salary) {
+                salaryRows++;
+                salaryAmount += e.getAmount() == null ? 0 : e.getAmount();
+            } else if (e.getAmount() == null) {
+                missingAmount++;
+            } else {
+                total += e.getAmount();
+            }
+        }
+
+        List<String> notes = new ArrayList<>();
+        if (salaryRows > 0) {
+            notes.add(salaryRows + " expenditure(s) of category Salary totalling " + plain(salaryAmount)
+                    + " are tagged to this batch and left out: salaries are farm-wide, not batch costs.");
+        }
+        if (missingAmount > 0) {
+            notes.add(missingAmount + " expenditure(s) have no amount and were ignored.");
+        }
+        return new BatchTotal(batch.id(), batch.name(), total, all.size(), notes);
+    }
+
+    private static String plain(double v) {
+        return BigDecimal.valueOf(v).setScale(2, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString();
     }
 }

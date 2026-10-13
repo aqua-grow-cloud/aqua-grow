@@ -1,81 +1,39 @@
 package com.aquagrow.mcp.service;
 
-import com.aquagrow.mcp.config.TenantFilterActivator;
+import com.aquagrow.mcp.client.FarmDataClient;
 import com.aquagrow.mcp.model.Pond;
-import com.aquagrow.mcp.repository.PondRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 /**
- * MCP Tools for Pond management.
- * Tenant scoping is derived from the authenticated caller's JWT
- * (see TenantFilter/TenantContext) — never from an LLM-supplied parameter.
+ * Read-only pond tools. Data comes from aqua-grow-api as the signed-in caller, so the API applies the
+ * farm (tenant) rules; no tenant is ever taken from a tool parameter.
  */
 @Service
 @RequiredArgsConstructor
 public class PondMcpService {
 
-    private final PondRepository pondRepository;
-    private final TenantFilterActivator tenantFilterActivator;
+    private final FarmDataClient farmData;
 
     @Tool(name = "list_ponds",
-          description = "List all ponds for the current tenant. Returns pond details including area, depth, type, status, and GPS coordinates.")
-    @Transactional(readOnly = true)
+          description = "List all ponds of the signed-in farm. Returns pond details including area, depth, type, status, and GPS coordinates.")
     public List<Pond> listPonds() {
-        String tenantId = tenantFilterActivator.activate();
-        return pondRepository.findByTenantId(tenantId);
+        return farmData.ponds();
     }
 
     @Tool(name = "get_pond",
-          description = "Get a specific pond by its ID for the current tenant.")
-    @Transactional(readOnly = true)
-    public Pond getPond(String pondId) {
-        String tenantId = tenantFilterActivator.activate();
-        return pondRepository.findById(pondId)
-            .filter(p -> tenantId.equals(p.getTenantId()))
-            .orElseThrow(() -> new IllegalArgumentException("Pond not found: " + pondId));
+          description = "Get one pond by its id.")
+    public Pond getPond(@ToolParam(description = "The pond id (from list_ponds)") String pondId) {
+        return farmData.pond(pondId);
     }
 
     @Tool(name = "list_active_ponds",
-          description = "List all ponds with status 'Active' for the current tenant.")
-    @Transactional(readOnly = true)
+          description = "List all ponds with status 'Active'.")
     public List<Pond> listActivePonds() {
-        String tenantId = tenantFilterActivator.activate();
-        return pondRepository.findByTenantIdAndStatus(tenantId, "Active");
-    }
-
-    @Tool(name = "create_pond",
-          description = "Create a new pond for the current tenant. Required: name, status (Active/Maintenance/Inactive). Optional: area (m2), depth (m), type, latitude, longitude.")
-    @Transactional
-    public Pond createPond(String name, String status, Double area,
-                           Double depth, String type, Double latitude, Double longitude) {
-        String tenantId = tenantFilterActivator.activate();
-        Pond pond = Pond.builder()
-            .tenantId(tenantId)
-            .name(name)
-            .status(status)
-            .area(area)
-            .depth(depth)
-            .type(type)
-            .latitude(latitude)
-            .longitude(longitude)
-            .build();
-        return pondRepository.save(pond);
-    }
-
-    @Tool(name = "update_pond_status",
-          description = "Update the status of a pond. Valid statuses: Active, Maintenance, Inactive.")
-    @Transactional
-    public Pond updatePondStatus(String pondId, String status) {
-        String tenantId = tenantFilterActivator.activate();
-        Pond pond = pondRepository.findById(pondId)
-            .filter(p -> tenantId.equals(p.getTenantId()))
-            .orElseThrow(() -> new IllegalArgumentException("Pond not found: " + pondId));
-        pond.setStatus(status);
-        return pondRepository.save(pond);
+        return farmData.activePonds();
     }
 }

@@ -1,63 +1,53 @@
 package com.aquagrow.mcp.service;
 
-import com.aquagrow.mcp.config.TenantFilterActivator;
-import com.aquagrow.mcp.model.Batch;
-import com.aquagrow.mcp.repository.BatchRepository;
+import com.aquagrow.mcp.client.FarmDataClient;
+import com.aquagrow.mcp.client.ToolUserException;
+import com.aquagrow.mcp.model.*;
+import com.aquagrow.mcp.security.TenantContext;
+import com.aquagrow.mcp.service.ResolverService.ResolvedBatch;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class BatchMcpServiceTest {
 
-    @Mock
-    private BatchRepository batchRepository;
+    @Mock FarmDataClient farmData;
+    @Mock ResolverService resolver;
+    private BatchMcpService service;
 
-    @Mock
-    private TenantFilterActivator tenantFilterActivator;
-
-    @InjectMocks
-    private BatchMcpService batchMcpService;
-
-    @Test
-    void listBatches_usesTenantFromActivator_notAParameter() {
-        when(tenantFilterActivator.activate()).thenReturn("tenant-a");
-        Batch batch = Batch.builder().id("b1").tenantId("tenant-a").name("Batch 1").build();
-        when(batchRepository.findByTenantId("tenant-a")).thenReturn(List.of(batch));
-
-        List<Batch> result = batchMcpService.listBatches();
-
-        assertThat(result).containsExactly(batch);
-        verify(batchRepository).findByTenantId("tenant-a");
+    @BeforeEach
+    void setUp() {
+        service = new BatchMcpService(farmData, resolver);
     }
 
     @Test
-    void getBatch_belongingToDifferentTenant_isNotReturned() {
-        when(tenantFilterActivator.activate()).thenReturn("tenant-a");
-        Batch otherTenantsBatch = Batch.builder().id("b1").tenantId("tenant-b").name("Batch 1").build();
-        when(batchRepository.findById("b1")).thenReturn(Optional.of(otherTenantsBatch));
+    void listBatches_returnsWhatTheApiReturns() {
+        Batch batch = Batch.builder().id("b-1").name("Sept").stockingDate(LocalDate.of(2026, 9, 1)).build();
+        when(farmData.batches()).thenReturn(List.of(batch));
 
-        assertThatThrownBy(() -> batchMcpService.getBatch("b1"))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("not found");
+        assertThat(service.listBatches()).containsExactly(batch);
     }
 
     @Test
-    void createBatch_assignsTenantIdFromContext() {
-        when(tenantFilterActivator.activate()).thenReturn("tenant-a");
-        when(batchRepository.save(any(Batch.class))).thenAnswer(inv -> inv.getArgument(0));
+    void getBatch_acceptsAnIdNameOrPondName_andReturnsTheBatchWithItsSeeds() {
+        Batch batch = Batch.builder().id("b-1").name("Sept").fishSeeds(List.of(FishSeed.builder().pondId("p-1").quantity(10).build())).build();
+        when(resolver.resolveAnyBatch("pond 3")).thenReturn(new ResolvedBatch("b-1", "Sept", List.of("Pond 3"), null, "Active"));
+        when(farmData.batch("b-1")).thenReturn(batch);
 
-        Batch created = batchMcpService.createBatch("New Batch", "2026-01-01", null);
-
-        assertThat(created.getTenantId()).isEqualTo("tenant-a");
+        assertThat(service.getBatch("pond 3")).isSameAs(batch);
     }
 }

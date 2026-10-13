@@ -1,63 +1,62 @@
 package com.aquagrow.mcp.service;
 
-import com.aquagrow.mcp.config.TenantFilterActivator;
-import com.aquagrow.mcp.model.Pond;
-import com.aquagrow.mcp.repository.PondRepository;
+import com.aquagrow.mcp.client.FarmDataClient;
+import com.aquagrow.mcp.client.ToolUserException;
+import com.aquagrow.mcp.model.*;
+import com.aquagrow.mcp.security.TenantContext;
+import com.aquagrow.mcp.service.ResolverService.ResolvedBatch;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PondMcpServiceTest {
 
-    @Mock
-    private PondRepository pondRepository;
+    @Mock FarmDataClient farmData;
+    private PondMcpService service;
 
-    @Mock
-    private TenantFilterActivator tenantFilterActivator;
-
-    @InjectMocks
-    private PondMcpService pondMcpService;
-
-    @Test
-    void listPonds_usesTenantFromActivator_notAParameter() {
-        when(tenantFilterActivator.activate()).thenReturn("tenant-a");
-        Pond pond = Pond.builder().id("p1").tenantId("tenant-a").name("Pond 1").status("Active").build();
-        when(pondRepository.findByTenantId("tenant-a")).thenReturn(List.of(pond));
-
-        List<Pond> result = pondMcpService.listPonds();
-
-        assertThat(result).containsExactly(pond);
-        verify(pondRepository).findByTenantId("tenant-a");
+    @BeforeEach
+    void setUp() {
+        service = new PondMcpService(farmData);
     }
 
     @Test
-    void getPond_belongingToDifferentTenant_isNotReturned() {
-        when(tenantFilterActivator.activate()).thenReturn("tenant-a");
-        Pond otherTenantsPond = Pond.builder().id("p1").tenantId("tenant-b").name("Pond 1").status("Active").build();
-        when(pondRepository.findById("p1")).thenReturn(Optional.of(otherTenantsPond));
+    void listPonds_returnsWhatTheApiReturns() {
+        Pond pond = Pond.builder().id("p-1").name("Pond 1").status("Active").build();
+        when(farmData.ponds()).thenReturn(List.of(pond));
 
-        assertThatThrownBy(() -> pondMcpService.getPond("p1"))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("not found");
+        assertThat(service.listPonds()).containsExactly(pond);
     }
 
     @Test
-    void createPond_assignsTenantIdFromContext() {
-        when(tenantFilterActivator.activate()).thenReturn("tenant-a");
-        when(pondRepository.save(any(Pond.class))).thenAnswer(inv -> inv.getArgument(0));
+    void listActivePonds_usesTheActiveEndpoint() {
+        Pond pond = Pond.builder().id("p-1").name("Pond 1").status("Active").build();
+        when(farmData.activePonds()).thenReturn(List.of(pond));
 
-        Pond created = pondMcpService.createPond("New Pond", "Active", 100.0, 2.0, "Freshwater", null, null);
+        assertThat(service.listActivePonds()).containsExactly(pond);
+        verify(farmData, never()).ponds();
+    }
 
-        assertThat(created.getTenantId()).isEqualTo("tenant-a");
+    @Test
+    void getPond_returnsThePond_andPassesNotFoundThrough() {
+        Pond pond = Pond.builder().id("p-1").name("Pond 1").build();
+        when(farmData.pond("p-1")).thenReturn(pond);
+        when(farmData.pond("nope")).thenThrow(new ToolUserException("Pond not found: nope"));
+
+        assertThat(service.getPond("p-1")).isSameAs(pond);
+        assertThatThrownBy(() -> service.getPond("nope")).isInstanceOf(ToolUserException.class).hasMessage("Pond not found: nope");
     }
 }

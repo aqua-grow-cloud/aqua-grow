@@ -66,7 +66,7 @@ class AnalysisPromptsTest {
 
     @Test
     void everyToolNamedInAnyPromptIsActuallyRegistered() throws Exception {
-        Set<String> registered = TestToolRegistry.registeredTools(false);
+        Set<String> registered = TestToolRegistry.registeredTools();
         int checked = 0;
         for (var p : prompts) {
             String name = p.prompt().name();

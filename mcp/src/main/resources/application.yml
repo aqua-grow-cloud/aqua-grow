@@ -66,10 +66,6 @@ aquagrow:
     feeding:
       max-kg-per-day: 5000
       max-days: 62
-    # Legacy create_/update_/delete_ tools write directly to the database and
-    # bypass aqua-grow-api business rules. Keep hidden unless explicitly enabled.
-    legacy-write-tools:
-      enabled: ${MCP_LEGACY_WRITE_TOOLS_ENABLED:false}
 
 server:
   port: ${SERVER_PORT:8090}

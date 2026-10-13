@@ -23,17 +23,17 @@ final class TestToolRegistry {
         return type.cast(ctor.newInstance(args));
     }
 
-    static ToolCallbackProvider provider(boolean legacyEnabled) throws Exception {
+    static ToolCallbackProvider provider() throws Exception {
         return new AquaGrowMcpApplication().aquaGrowToolCallbacks(
                 service(PondMcpService.class), service(BatchMcpService.class), service(FeedMcpService.class),
                 service(MonitoringMcpService.class), service(HarvestMcpService.class),
                 service(HRFinanceMcpService.class), service(CatalogMcpService.class),
                 service(FeedingWriteMcpService.class), service(SamplingWriteMcpService.class),
-                service(FinanceMcpService.class), legacyEnabled);
+                service(FinanceMcpService.class));
     }
 
-    static Set<String> registeredTools(boolean legacyEnabled) throws Exception {
-        return Arrays.stream(provider(legacyEnabled).getToolCallbacks())
+    static Set<String> registeredTools() throws Exception {
+        return Arrays.stream(provider().getToolCallbacks())
                 .map(ToolCallback::getToolDefinition)
                 .map(d -> d.name())
                 .collect(Collectors.toSet());
