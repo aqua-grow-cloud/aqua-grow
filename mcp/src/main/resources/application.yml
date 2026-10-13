@@ -2,32 +2,6 @@ spring:
   application:
     name: aqua-grow-mcp
 
-  # Connect to the same PostgreSQL database as aqua-grow-api
-  datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/aquagrow}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      pool-name: AquaGrowMcpPool
-      maximum-pool-size: 5
-      minimum-idle: 2
-      connection-timeout: 30000
-
-  jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    # Never modify schema from MCP server - the main API owns migrations
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: true
-
-  # Disable Liquibase - schema is managed by aqua-grow-api
-  liquibase:
-    enabled: false
-
   security:
     oauth2:
       resourceserver:
@@ -83,4 +57,3 @@ logging:
   level:
     root: INFO
     com.aquagrow.mcp: DEBUG
-    org.hibernate.SQL: WARN

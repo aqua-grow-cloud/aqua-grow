@@ -1,30 +1,26 @@
 package com.aquagrow.mcp.model;
 
-import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "feed_orders")
 @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
 @Data @AllArgsConstructor @Builder
-@org.hibernate.annotations.Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class FeedOrder {
-    @Id @Builder.Default
+    @Builder.Default
     private String id = java.util.UUID.randomUUID().toString();
-    @Column(name = "feed_type", nullable = false) private String feedType;
-    @Column(nullable = false) private Double quantity;
-    @Enumerated(EnumType.STRING) @Column(nullable = false) @Builder.Default
+    private String feedType;
+    private Double quantity;
+    @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
-    @Column(name = "supplier_id", nullable = false) private String supplierId;
-    @Column(name = "order_date", nullable = false) @Builder.Default
+    private String supplierId;
+    @Builder.Default
     private LocalDateTime orderDate = LocalDateTime.now();
-    @Column(name = "confirmation_date") private LocalDateTime confirmationDate;
-    @Column(name = "received_date") private LocalDateTime receivedDate;
-    @Enumerated(EnumType.STRING) @Column(name = "payment_status", nullable = false) @Builder.Default
+    private LocalDateTime confirmationDate;
+    private LocalDateTime receivedDate;
+    @Builder.Default
     private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
-    @Column(length = 1000) private String notes;
-    @Column(name = "tenant_id", nullable = false) private String tenantId;
+    private String notes;
+    private String tenantId;
 
     public FeedOrder() {
         this.id = java.util.UUID.randomUUID().toString();

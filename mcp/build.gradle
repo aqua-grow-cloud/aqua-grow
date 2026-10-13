@@ -35,12 +35,7 @@ dependencies {
     // Spring AI MCP Server (SSE transport via webmvc)
     implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc'
 
-    // Spring Data JPA + PostgreSQL (same DB as aqua-grow-api)
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    runtimeOnly 'org.postgresql:postgresql'
 
-    // AOP for tenant filter activation
-    implementation 'org.springframework.boot:spring-boot-starter-aop'
 
     // Security: OAuth2 Resource Server (validates Keycloak-issued JWTs for
     // Claude's remote MCP connector and any other MCP client)
