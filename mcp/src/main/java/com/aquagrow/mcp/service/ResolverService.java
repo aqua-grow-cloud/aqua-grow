@@ -49,6 +49,9 @@ public class ResolverService {
     public record ResolvedBatch(String id, String name, List<String> pondNames, LocalDate stockingDate) {
     }
 
+    public record ResolvedFishType(String id, String name, List<String> pondNames) {
+    }
+
     /** More than one thing matches; the message lists them so the user can choose. */
     public static class AmbiguousReferenceException extends ToolUserException {
         public AmbiguousReferenceException(String message) {
@@ -155,6 +158,67 @@ public class ResolverService {
             out.append("...and ").append(batches.size() - MAX_LISTED).append(" more\n");
         }
         return out.toString().stripTrailing();
+    }
+
+    // ---- fish type within a batch ----
+
+    /**
+     * Picks the fish type being worked on within a batch. A batch with a single fish type
+     * needs no reference; with several, the user must say which. The ponds returned are
+     * those holding that fish type in this batch (what a sampling stock event is tied to).
+     */
+    @Transactional(readOnly = true)
+    public ResolvedFishType resolveFishType(String batchId, String reference) {
+        String tenantId = tenantFilterActivator.activate();
+        Batch batch = batchRepository.findById(batchId)
+                .filter(b -> tenantId.equals(b.getTenantId()))
+                .orElseThrow(() -> new ToolUserException("Batch not found: " + batchId));
+
+        Map<String, String> namesById = fishTypeRepository.findByTenantId(tenantId).stream()
+                .collect(Collectors.toMap(FishType::getId, FishType::getName, (a, b) -> a));
+        List<FishSeed> seeds = batch.getFishSeeds() == null ? List.of() : batch.getFishSeeds();
+        List<String> typeIds = seeds.stream().map(FishSeed::getFishTypeId).filter(Objects::nonNull).distinct().toList();
+        if (typeIds.isEmpty()) {
+            throw new ToolUserException("This batch has no fish types recorded, so it cannot be used here.");
+        }
+
+        String raw = reference == null ? "" : reference.trim();
+        String needle = normalize(raw);
+        String chosen;
+        if (needle.isEmpty()) {
+            if (typeIds.size() > 1) {
+                throw new AmbiguousReferenceException("This batch has several fish types: "
+                        + describeFishTypes(typeIds, namesById) + ". Ask the user which one they mean.");
+            }
+            chosen = typeIds.get(0);
+        } else {
+            List<String> exact = typeIds.stream()
+                    .filter(id -> raw.equalsIgnoreCase(id) || normalize(namesById.get(id)).equals(needle)).toList();
+            List<String> matches = exact.isEmpty()
+                    ? typeIds.stream().filter(id -> normalize(namesById.get(id)).contains(needle)).toList()
+                    : exact;
+            if (matches.size() > 1) {
+                throw new AmbiguousReferenceException("More than one fish type in this batch matches '" + raw + "': "
+                        + describeFishTypes(matches, namesById) + ". Ask the user which one they mean.");
+            }
+            if (matches.isEmpty()) {
+                throw new ToolUserException("No fish type matches '" + raw + "' in this batch. Fish types in this batch: "
+                        + describeFishTypes(typeIds, namesById));
+            }
+            chosen = matches.get(0);
+        }
+
+        Map<String, Pond> pondsById = pondRepository.findByTenantId(tenantId).stream()
+                .collect(Collectors.toMap(Pond::getId, p -> p, (a, b) -> a));
+        List<String> pondNames = seeds.stream()
+                .filter(sd -> chosen.equals(sd.getFishTypeId())).map(FishSeed::getPondId)
+                .filter(Objects::nonNull).distinct().map(pondsById::get).filter(Objects::nonNull)
+                .map(Pond::getName).toList();
+        return new ResolvedFishType(chosen, namesById.getOrDefault(chosen, chosen), pondNames);
+    }
+
+    private static String describeFishTypes(List<String> ids, Map<String, String> namesById) {
+        return ids.stream().map(id -> namesById.getOrDefault(id, id)).collect(Collectors.joining(", "));
     }
 
     // ---- feed types ----

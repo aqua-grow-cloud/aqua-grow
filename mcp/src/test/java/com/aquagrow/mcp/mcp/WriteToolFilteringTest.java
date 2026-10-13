@@ -40,6 +40,7 @@ class WriteToolFilteringTest {
                 service(HRFinanceMcpService.class),
                 service(CatalogMcpService.class),
                 service(FeedingWriteMcpService.class),
+                service(SamplingWriteMcpService.class),
                 legacyEnabled);
         return Arrays.stream(provider.getToolCallbacks())
                 .map(ToolCallback::getToolDefinition)
@@ -62,7 +63,7 @@ class WriteToolFilteringTest {
 
     @Test
     void previewAndConfirmFeedingToolsAreRegisteredWithoutTheLegacyFlag() throws Exception {
-        assertThat(registeredTools(false)).contains("preview_feeding", "confirm_feeding");
+        assertThat(registeredTools(false)).contains("preview_feeding", "confirm_feeding", "preview_sample", "confirm_sample");
     }
 
     @Test
@@ -71,7 +72,7 @@ class WriteToolFilteringTest {
                 service(PondMcpService.class), service(BatchMcpService.class), service(FeedMcpService.class),
                 service(MonitoringMcpService.class), service(HarvestMcpService.class),
                 service(HRFinanceMcpService.class), service(CatalogMcpService.class),
-                service(FeedingWriteMcpService.class), false);
+                service(FeedingWriteMcpService.class), service(SamplingWriteMcpService.class), false);
         var byName = Arrays.stream(provider.getToolCallbacks())
                 .collect(Collectors.toMap(c -> c.getToolDefinition().name(), c -> c.getToolDefinition()));
 
@@ -90,6 +91,13 @@ class WriteToolFilteringTest {
         assertThat(confirm.get("required").get(0).asText()).isEqualTo("previewToken");
         assertThat(byName.get("preview_feeding").description()).contains("DOES NOT SAVE");
         assertThat(byName.get("confirm_feeding").description()).contains("ONLY after the user has clearly approved");
+
+        var sample = new com.fasterxml.jackson.databind.ObjectMapper().readTree(byName.get("preview_sample").inputSchema());
+        var sampleRequired = new java.util.HashSet<String>();
+        sample.get("required").forEach(n -> sampleRequired.add(n.asText()));
+        assertThat(sampleRequired).containsExactlyInAnyOrder("batch", "date", "sampleCount", "totalSampleWeightGrams");
+        assertThat(byName.get("preview_sample").description()).contains("DOES NOT SAVE").contains("GRAMS");
+        assertThat(byName.get("confirm_sample").description()).contains("ONLY after the user has clearly approved");
     }
 
     @Test

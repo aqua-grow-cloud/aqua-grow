@@ -13,6 +13,7 @@ import com.aquagrow.mcp.repository.FishTypeRepository;
 import com.aquagrow.mcp.repository.PondRepository;
 import com.aquagrow.mcp.service.ResolverService.AmbiguousReferenceException;
 import com.aquagrow.mcp.service.ResolverService.ResolvedBatch;
+import com.aquagrow.mcp.service.ResolverService.ResolvedFishType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -201,6 +203,98 @@ class ResolverServiceTest {
         verify(batchRepository).findByTenantId(TENANT);
         verify(pondRepository).findByTenantId(TENANT);
         verifyNoMoreInteractions(batchRepository, pondRepository);
+    }
+
+    // ---- fish type within a batch ----
+
+    private void givenBatchWithFishTypes(Batch batch, List<FishType> types, List<Pond> ponds) {
+        when(tenantFilterActivator.activate()).thenReturn(TENANT);
+        when(batchRepository.findById(batch.getId())).thenReturn(Optional.of(batch));
+        when(fishTypeRepository.findByTenantId(TENANT)).thenReturn(types);
+        lenient().when(pondRepository.findByTenantId(TENANT)).thenReturn(ponds);
+    }
+
+    private static FishType fishType(String id, String name) {
+        return FishType.builder().id(id).name(name).tenantId(TENANT).build();
+    }
+
+    private static Batch mixedBatch() {
+        FishSeed tilapia = FishSeed.builder().pondId("p-1").fishTypeId("ft-1").status("Active").tenantId(TENANT).build();
+        FishSeed catfish = FishSeed.builder().pondId("p-2").fishTypeId("ft-2").status("Active").tenantId(TENANT).build();
+        return Batch.builder().id("b-1").name("Mixed").tenantId(TENANT).fishSeeds(List.of(tilapia, catfish)).build();
+    }
+
+    @Test
+    void resolveFishType_singleTypeBatchNeedsNoReference() {
+        givenBatchWithFishTypes(batch("b-1", "Sept", "p-1", "Active"),
+                List.of(fishType("ft-1", "Tilapia"), fishType("ft-9", "Unused")), List.of(pond("p-1", "Pond 1")));
+
+        ResolvedFishType resolved = resolver.resolveFishType("b-1", null);
+
+        assertThat(resolved.id()).isEqualTo("ft-1");
+        assertThat(resolved.name()).isEqualTo("Tilapia");
+        assertThat(resolved.pondNames()).containsExactly("Pond 1");
+    }
+
+    @Test
+    void resolveFishType_multipleTypesWithoutReference_asksWhich() {
+        givenBatchWithFishTypes(mixedBatch(), List.of(fishType("ft-1", "Tilapia"), fishType("ft-2", "Catfish")),
+                List.of(pond("p-1", "Pond 1"), pond("p-2", "Pond 2")));
+
+        assertThatThrownBy(() -> resolver.resolveFishType("b-1", " "))
+                .isInstanceOf(AmbiguousReferenceException.class)
+                .hasMessageContaining("Tilapia").hasMessageContaining("Catfish").hasMessageContaining("which");
+    }
+
+    @Test
+    void resolveFishType_byNameIgnoringCase_andPartial() {
+        givenBatchWithFishTypes(mixedBatch(), List.of(fishType("ft-1", "Tilapia"), fishType("ft-2", "Catfish")),
+                List.of(pond("p-1", "Pond 1"), pond("p-2", "Pond 2")));
+
+        assertThat(resolver.resolveFishType("b-1", "CATFISH").id()).isEqualTo("ft-2");
+        assertThat(resolver.resolveFishType("b-1", "til").id()).isEqualTo("ft-1");
+        assertThat(resolver.resolveFishType("b-1", "ft-2").pondNames()).containsExactly("Pond 2");
+    }
+
+    @Test
+    void resolveFishType_typeNotInThisBatch_listsTheBatchsTypes() {
+        givenBatchWithFishTypes(mixedBatch(), List.of(fishType("ft-1", "Tilapia"), fishType("ft-2", "Catfish"),
+                fishType("ft-3", "Shrimp")), List.of());
+
+        assertThatThrownBy(() -> resolver.resolveFishType("b-1", "shrimp"))
+                .isInstanceOf(ToolUserException.class)
+                .hasMessageContaining("No fish type matches 'shrimp'")
+                .hasMessageContaining("Tilapia").hasMessageContaining("Catfish");
+    }
+
+    @Test
+    void resolveFishType_sameTypeInTwoPonds_reportsBothPonds() {
+        FishSeed a = FishSeed.builder().pondId("p-1").fishTypeId("ft-1").status("Active").tenantId(TENANT).build();
+        FishSeed b = FishSeed.builder().pondId("p-2").fishTypeId("ft-1").status("Active").tenantId(TENANT).build();
+        Batch twoPonds = Batch.builder().id("b-1").name("Two").tenantId(TENANT).fishSeeds(List.of(a, b)).build();
+        givenBatchWithFishTypes(twoPonds, List.of(fishType("ft-1", "Tilapia")),
+                List.of(pond("p-1", "Pond 1"), pond("p-2", "Pond 2")));
+
+        assertThat(resolver.resolveFishType("b-1", null).pondNames()).containsExactlyInAnyOrder("Pond 1", "Pond 2");
+    }
+
+    @Test
+    void resolveFishType_batchWithoutFishTypes() {
+        Batch empty = Batch.builder().id("b-1").name("Empty").tenantId(TENANT).fishSeeds(List.of()).build();
+        givenBatchWithFishTypes(empty, List.of(), List.of());
+
+        assertThatThrownBy(() -> resolver.resolveFishType("b-1", null))
+                .isInstanceOf(ToolUserException.class).hasMessageContaining("no fish");
+    }
+
+    @Test
+    void resolveFishType_batchFromAnotherTenantIsNotFound() {
+        Batch foreign = Batch.builder().id("b-x").name("Foreign").tenantId("other").fishSeeds(List.of()).build();
+        when(tenantFilterActivator.activate()).thenReturn(TENANT);
+        when(batchRepository.findById("b-x")).thenReturn(Optional.of(foreign));
+
+        assertThatThrownBy(() -> resolver.resolveFishType("b-x", null))
+                .isInstanceOf(ToolUserException.class).hasMessageContaining("Batch not found");
     }
 
     // ---- feed types ----
