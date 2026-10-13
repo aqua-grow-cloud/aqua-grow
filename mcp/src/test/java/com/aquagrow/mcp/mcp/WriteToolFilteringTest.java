@@ -1,6 +1,7 @@
 package com.aquagrow.mcp.mcp;
 
 import com.aquagrow.mcp.AquaGrowMcpApplication;
+import com.aquagrow.mcp.config.FeedingProperties;
 import com.aquagrow.mcp.service.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -8,6 +9,10 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 
 import java.lang.reflect.Constructor;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -98,6 +103,21 @@ class WriteToolFilteringTest {
         assertThat(sampleRequired).containsExactlyInAnyOrder("batch", "date", "sampleCount", "totalSampleWeightGrams");
         assertThat(byName.get("preview_sample").description()).contains("DOES NOT SAVE").contains("GRAMS");
         assertThat(byName.get("confirm_sample").description()).contains("ONLY after the user has clearly approved");
+    }
+
+    @Test
+    void conventionsOnlyMentionWriteToolsThatExist() throws Exception {
+        Clock clock = Clock.fixed(Instant.parse("2026-10-13T10:00:00Z"), ZoneOffset.UTC);
+        String text = new FarmConventions(new FeedingProperties(40.0, 5000.0, 62), clock, "INR", Duration.ofMinutes(10)).text();
+        Set<String> registered = registeredTools(false);
+
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\b(?:preview|confirm)_[a-z_]+\\b").matcher(text);
+        int mentioned = 0;
+        while (m.find()) {
+            mentioned++;
+            assertThat(registered).as("tool named in conventions: %s", m.group()).contains(m.group());
+        }
+        assertThat(mentioned).isGreaterThanOrEqualTo(4);
     }
 
     @Test

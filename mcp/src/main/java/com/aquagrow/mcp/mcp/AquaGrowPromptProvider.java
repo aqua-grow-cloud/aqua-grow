@@ -21,9 +21,19 @@ import java.util.Map;
 @Configuration
 public class AquaGrowPromptProvider {
 
+    private final FarmConventions conventions;
+
+    public AquaGrowPromptProvider(FarmConventions conventions) {
+        this.conventions = conventions;
+    }
+
     @Bean
     public List<McpServerFeatures.SyncPromptSpecification> aquaGrowPrompts() {
         return List.of(
+            promptSpec("farm_conventions",
+                "Load this farm's conventions (kg and 40 kg bags, per-day feeding, grams for samples, "
+                    + "preview-then-confirm for saving). Use before logging feed or samples.",
+                List.of()),
             promptSpec("batch_profitability_analysis",
                 "Analyse the profitability (revenue, costs, ROI, FCR) of a cultivation batch",
                 List.of(
@@ -91,6 +101,7 @@ public class AquaGrowPromptProvider {
 
     private String buildMessage(String name, Map<String, String> args) {
         return switch (name) {
+            case "farm_conventions" -> conventions.text();
             case "batch_profitability_analysis" -> {
                 String batchId = args.getOrDefault("batchId", "<batchId>");
                 yield """

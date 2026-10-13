@@ -58,6 +58,14 @@ aquagrow:
       read-timeout: PT15S
     # How long a write preview stays confirmable
     preview-ttl: PT10M
+    # Farm conventions served to the model (resource aquagrow://conventions, prompt farm_conventions)
+    conventions:
+      default-bag-size-kg: 40
+      timezone: ${FARM_TIMEZONE:Asia/Kolkata}
+      currency: ${FARM_CURRENCY:INR}
+    feeding:
+      max-kg-per-day: 5000
+      max-days: 62
     # Legacy create_/update_/delete_ tools write directly to the database and
     # bypass aqua-grow-api business rules. Keep hidden unless explicitly enabled.
     legacy-write-tools:

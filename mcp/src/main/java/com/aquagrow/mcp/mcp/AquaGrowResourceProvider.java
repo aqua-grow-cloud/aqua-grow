@@ -21,8 +21,9 @@ import java.util.List;
 public class AquaGrowResourceProvider {
 
     @Bean
-    public List<McpServerFeatures.SyncResourceSpecification> aquaGrowResources() {
+    public List<McpServerFeatures.SyncResourceSpecification> aquaGrowResources(FarmConventions conventions) {
         return List.of(
+            conventionsSpec(conventions),
             spec("aquagrow://ponds", "Ponds",
                 "All ponds in the aquaculture facility. Area, depth, type, status, and GPS coordinates."),
             spec("aquagrow://batches", "Batches",
@@ -54,6 +55,18 @@ public class AquaGrowResourceProvider {
             spec("aquagrow://suppliers", "Suppliers",
                 "Feed and seed supplier directory with contact information.")
         );
+    }
+
+    /** The farm's working conventions (units, bag size, confirmation rules), generated fresh on each read. */
+    private McpServerFeatures.SyncResourceSpecification conventionsSpec(FarmConventions conventions) {
+        String uri = "aquagrow://conventions";
+        McpSchema.Resource resource = new McpSchema.Resource(uri, "Farm conventions",
+            "How this farm measures things (kg, 40 kg bags, grams for samples), how quantities are read (per day), "
+                + "today's date, and the preview-then-confirm rule for saving data. Read this before logging feed or samples.",
+            "text/markdown", null);
+        return new McpServerFeatures.SyncResourceSpecification(resource, (exchange, request) ->
+            new McpSchema.ReadResourceResult(List.of(
+                new McpSchema.TextResourceContents(uri, "text/markdown", conventions.text()))));
     }
 
     private McpServerFeatures.SyncResourceSpecification spec(String uri, String name, String description) {
