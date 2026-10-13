@@ -82,27 +82,4 @@ public class MonitoringMcpService {
         String tenantId = tenantFilterActivator.activate();
         return sampleLogRepository.findByTenantIdAndBatchId(tenantId, batchId);
     }
-
-    @Tool(name = "create_sample_log",
-          description = "Record a fish growth sampling event. Provide batchId, date (YYYY-MM-DD), sampleCount, totalSampleWeight (g), averageLength (cm), and optional survivalEstimate (%).")
-    @Transactional
-    public SampleLog createSampleLog(String batchId, String fishTypeId,
-                                      String date, Integer sampleCount, Double totalSampleWeight,
-                                      Double averageLength, Double survivalEstimate) {
-        String tenantId = tenantFilterActivator.activate();
-        double avgWeight = sampleCount != null && sampleCount > 0
-            ? totalSampleWeight / sampleCount : 0;
-        SampleLog log = SampleLog.builder()
-            .tenantId(tenantId)
-            .batchId(batchId)
-            .fishTypeId(fishTypeId)
-            .date(LocalDate.parse(date))
-            .sampleCount(sampleCount)
-            .totalSampleWeight(totalSampleWeight)
-            .averageWeight(avgWeight)
-            .averageLength(averageLength)
-            .survivalEstimate(survivalEstimate)
-            .build();
-        return sampleLogRepository.save(log);
-    }
 }

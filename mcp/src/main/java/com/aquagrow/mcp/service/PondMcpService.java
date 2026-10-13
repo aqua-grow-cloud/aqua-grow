@@ -78,16 +78,4 @@ public class PondMcpService {
         pond.setStatus(status);
         return pondRepository.save(pond);
     }
-
-    @Tool(name = "delete_pond",
-          description = "Delete a pond by ID. Use with caution - this is irreversible.")
-    @Transactional
-    public String deletePond(String pondId) {
-        String tenantId = tenantFilterActivator.activate();
-        Pond pond = pondRepository.findById(pondId)
-            .filter(p -> tenantId.equals(p.getTenantId()))
-            .orElseThrow(() -> new IllegalArgumentException("Pond not found: " + pondId));
-        pondRepository.delete(pond);
-        return "Pond " + pondId + " deleted successfully";
-    }
 }

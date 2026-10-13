@@ -13,7 +13,6 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -48,23 +47,6 @@ public class FeedMcpService {
         return feedLogRepository.findByTenantIdAndBatchId(tenantId, batchId);
     }
 
-    @Tool(name = "create_feed_log",
-          description = "Log a feeding event. Provide batchId, date (YYYY-MM-DD), feedType, amount (kg), and optional time (HH:mm).")
-    @Transactional
-    public FeedLog createFeedLog(String batchId, String date,
-                                  String feedType, Double amount, String time) {
-        String tenantId = tenantFilterActivator.activate();
-        FeedLog log = FeedLog.builder()
-            .tenantId(tenantId)
-            .batchId(batchId)
-            .date(LocalDate.parse(date))
-            .feedType(feedType)
-            .amount(amount)
-            .time(time)
-            .build();
-        return feedLogRepository.save(log);
-    }
-
     // ---- Feed Stock ----
 
     @Tool(name = "list_feed_stock",
@@ -83,18 +65,6 @@ public class FeedMcpService {
         return feedStockRepository.findByTenantId(tenantId).stream()
             .filter(FeedStock::isLowStock)
             .toList();
-    }
-
-    @Tool(name = "update_feed_stock",
-          description = "Update the current stock quantity for a feed type (by stock ID).")
-    @Transactional
-    public FeedStock updateFeedStock(String stockId, Double newQuantity) {
-        String tenantId = tenantFilterActivator.activate();
-        FeedStock stock = feedStockRepository.findById(stockId)
-            .filter(s -> tenantId.equals(s.getTenantId()))
-            .orElseThrow(() -> new IllegalArgumentException("FeedStock not found: " + stockId));
-        stock.setCurrentStock(newQuantity);
-        return feedStockRepository.save(stock);
     }
 
     // ---- Feed Orders ----

@@ -1,8 +1,10 @@
 package com.aquagrow.mcp;
 
+import com.aquagrow.mcp.mcp.WriteToolFilteringProvider;
 import com.aquagrow.mcp.service.*;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -17,6 +19,8 @@ public class AquaGrowMcpApplication {
     /**
      * Register all MCP tool service beans so Spring AI discovers
      * the @Tool-annotated methods and exposes them to MCP clients.
+     * Legacy create_/update_/delete_ tools are hidden unless
+     * aquagrow.mcp.legacy-write-tools.enabled=true.
      */
     @Bean
     public ToolCallbackProvider aquaGrowToolCallbacks(
@@ -26,12 +30,14 @@ public class AquaGrowMcpApplication {
             MonitoringMcpService monitoringService,
             HarvestMcpService harvestService,
             HRFinanceMcpService hrFinanceService,
-            CatalogMcpService catalogService) {
+            CatalogMcpService catalogService,
+            @Value("${aquagrow.mcp.legacy-write-tools.enabled:false}") boolean legacyWriteToolsEnabled) {
 
-        return MethodToolCallbackProvider.builder()
+        ToolCallbackProvider all = MethodToolCallbackProvider.builder()
             .toolObjects(pondService, batchService, feedService,
                          monitoringService, harvestService,
                          hrFinanceService, catalogService)
             .build();
+        return new WriteToolFilteringProvider(all, legacyWriteToolsEnabled);
     }
 }

@@ -54,16 +54,4 @@ public class BatchMcpService {
             .build();
         return batchRepository.save(batch);
     }
-
-    @Tool(name = "delete_batch",
-          description = "Delete a batch and all its associated fish seeds. Use with caution.")
-    @Transactional
-    public String deleteBatch(String batchId) {
-        String tenantId = tenantFilterActivator.activate();
-        Batch batch = batchRepository.findById(batchId)
-            .filter(b -> tenantId.equals(b.getTenantId()))
-            .orElseThrow(() -> new IllegalArgumentException("Batch not found: " + batchId));
-        batchRepository.delete(batch);
-        return "Batch " + batchId + " deleted successfully";
-    }
 }

@@ -51,6 +51,10 @@ aquagrow:
     # Canonical resource identifier used in the OAuth protected-resource
     # metadata document (RFC 9728) that remote MCP clients discover.
     resource-uri: ${MCP_RESOURCE_URI:https://mcp.aqua-grow.cloud}
+    # Legacy create_/update_/delete_ tools write directly to the database and
+    # bypass aqua-grow-api business rules. Keep hidden unless explicitly enabled.
+    legacy-write-tools:
+      enabled: ${MCP_LEGACY_WRITE_TOOLS_ENABLED:false}
 
 server:
   port: ${SERVER_PORT:8090}
