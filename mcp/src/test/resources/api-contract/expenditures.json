@@ -1,0 +1,35 @@
+[
+  {
+    "amount": 50000.0,
+    "batchId": "a0e6f9c1-abc1-4fb0-bf9b-159e93362308",
+    "category": "Feed",
+    "date": "2026-09-02",
+    "description": "feed purchase",
+    "id": "31df2b1d-0217-4fdb-93fb-94aa4293d533",
+    "macroInvestment": "INVESTMENT",
+    "subType": null,
+    "tenantId": "farm-1"
+  },
+  {
+    "amount": 8000.0,
+    "batchId": null,
+    "category": "Lease",
+    "date": "2026-09-05",
+    "description": "pond lease",
+    "id": "e6605482-8742-46d8-9b4b-836399cbf4e6",
+    "macroInvestment": "LEASE",
+    "subType": null,
+    "tenantId": "farm-1"
+  },
+  {
+    "amount": 20000.0,
+    "batchId": null,
+    "category": "Salary",
+    "date": "2026-09-30",
+    "description": "Salary payment: Ravi",
+    "id": "1d1133e7-b276-4f88-875f-de6478db298c",
+    "macroInvestment": "NO_RETURN",
+    "subType": null,
+    "tenantId": "farm-1"
+  }
+]

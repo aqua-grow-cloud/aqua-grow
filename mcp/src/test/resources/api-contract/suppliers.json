@@ -1,0 +1,16 @@
+[
+  {
+    "address": null,
+    "createdAt": "2026-10-13T21:26:26.215",
+    "email": null,
+    "externalId": null,
+    "feedTypes": [],
+    "id": "92516b48-6f2d-479f-9d58-368f4aca576f",
+    "name": "Agro Feeds",
+    "orderTemplate": null,
+    "phone": "9999999999",
+    "tenantId": "farm-1",
+    "updatedAt": "2026-10-13T21:26:26.215011",
+    "whatsappNumber": null
+  }
+]

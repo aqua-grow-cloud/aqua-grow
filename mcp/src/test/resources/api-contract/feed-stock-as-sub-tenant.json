@@ -1,0 +1,28 @@
+[
+  {
+    "criticalStock": false,
+    "currentStock": 9960.0,
+    "feedType": "King Fish Feed",
+    "id": "23a10ee6-75bd-4a34-945b-e430a28385c8",
+    "lastStockingDate": null,
+    "lastUpdated": "2026-10-13T21:26:26.307896",
+    "lowStock": false,
+    "supplierId": null,
+    "tenantId": "farm-1",
+    "threshold": 100.0,
+    "unit": "kg"
+  },
+  {
+    "criticalStock": true,
+    "currentStock": 5.0,
+    "feedType": "Starter Crumble",
+    "id": "fdb1d6c2-495e-48cf-a7af-853b1f82ec93",
+    "lastStockingDate": null,
+    "lastUpdated": "2026-10-13T21:26:26.205393",
+    "lowStock": true,
+    "supplierId": null,
+    "tenantId": "farm-1",
+    "threshold": 100.0,
+    "unit": "kg"
+  }
+]

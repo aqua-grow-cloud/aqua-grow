@@ -1,0 +1,53 @@
+{
+  "content": [
+    {
+      "ammonia": 0.01,
+      "batchId": "a0e6f9c1-abc1-4fb0-bf9b-159e93362308",
+      "date": "2026-10-01",
+      "doLevel": 5.5,
+      "id": "401a4412-c42b-46b8-9d2b-fd7d4ce2b59e",
+      "ph": 7.8,
+      "salinity": 1.0,
+      "temperature": 28.0,
+      "tenantId": "farm-1",
+      "turbidity": 20.0
+    },
+    {
+      "ammonia": 0.01,
+      "batchId": "a0e6f9c1-abc1-4fb0-bf9b-159e93362308",
+      "date": "2026-10-02",
+      "doLevel": 5.6,
+      "id": "cc5aa058-aae0-4de6-a698-e808a67f78f8",
+      "ph": 7.8,
+      "salinity": 1.0,
+      "temperature": 28.0,
+      "tenantId": "farm-1",
+      "turbidity": 20.0
+    }
+  ],
+  "empty": false,
+  "first": true,
+  "last": false,
+  "number": 0,
+  "numberOfElements": 2,
+  "pageable": {
+    "offset": 0,
+    "pageNumber": 0,
+    "pageSize": 2,
+    "paged": true,
+    "sort": {
+      "empty": true,
+      "sorted": false,
+      "unsorted": true
+    },
+    "unpaged": false
+  },
+  "size": 2,
+  "sort": {
+    "empty": true,
+    "sorted": false,
+    "unsorted": true
+  },
+  "totalElements": 3,
+  "totalPages": 2
+}

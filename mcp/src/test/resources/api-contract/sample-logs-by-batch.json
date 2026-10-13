@@ -1,0 +1,38 @@
+[
+  {
+    "averageLength": 12.5,
+    "averageWeight": 50.0,
+    "batchId": "a0e6f9c1-abc1-4fb0-bf9b-159e93362308",
+    "date": "2026-10-01",
+    "fishTypeId": "4a070067-1a1b-4bbc-948b-afff717f2416",
+    "id": "e19104d7-0fb8-44ec-9fc7-c615c17e50e1",
+    "sampleCount": 20,
+    "survivalEstimate": 95.0,
+    "tenantId": "farm-1",
+    "totalSampleWeight": 1000.0
+  },
+  {
+    "averageLength": 12.5,
+    "averageWeight": 52.5,
+    "batchId": "a0e6f9c1-abc1-4fb0-bf9b-159e93362308",
+    "date": "2026-10-02",
+    "fishTypeId": "4a070067-1a1b-4bbc-948b-afff717f2416",
+    "id": "c46b6a44-e13e-45ca-9414-0676d1a2be6f",
+    "sampleCount": 20,
+    "survivalEstimate": 95.0,
+    "tenantId": "farm-1",
+    "totalSampleWeight": 1050.0
+  },
+  {
+    "averageLength": 12.5,
+    "averageWeight": 55.0,
+    "batchId": "a0e6f9c1-abc1-4fb0-bf9b-159e93362308",
+    "date": "2026-10-03",
+    "fishTypeId": "4a070067-1a1b-4bbc-948b-afff717f2416",
+    "id": "5cfc2715-c703-4bd8-9c36-adf4f372fcec",
+    "sampleCount": 20,
+    "survivalEstimate": 95.0,
+    "tenantId": "farm-1",
+    "totalSampleWeight": 1100.0
+  }
+]

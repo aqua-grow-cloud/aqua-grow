@@ -1,0 +1,8 @@
+{
+  "body": {
+    "fieldErrors": null,
+    "message": "Pond not found with id: does-not-exist",
+    "type": "BUSINESS_ERROR"
+  },
+  "status": 400
+}

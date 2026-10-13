@@ -1,0 +1,13 @@
+[
+  {
+    "amount": 50000.0,
+    "batchId": "a0e6f9c1-abc1-4fb0-bf9b-159e93362308",
+    "category": "Feed",
+    "date": "2026-09-02",
+    "description": "feed purchase",
+    "id": "31df2b1d-0217-4fdb-93fb-94aa4293d533",
+    "macroInvestment": "INVESTMENT",
+    "subType": null,
+    "tenantId": "farm-1"
+  }
+]

@@ -1,0 +1,41 @@
+{
+  "content": [
+    {
+      "ammonia": 0.01,
+      "batchId": "a0e6f9c1-abc1-4fb0-bf9b-159e93362308",
+      "date": "2026-10-03",
+      "doLevel": 5.7,
+      "id": "a47b618d-28ca-4271-ad20-451bdc0ffcb0",
+      "ph": 7.8,
+      "salinity": 1.0,
+      "temperature": 28.0,
+      "tenantId": "farm-1",
+      "turbidity": 20.0
+    }
+  ],
+  "empty": false,
+  "first": false,
+  "last": true,
+  "number": 1,
+  "numberOfElements": 1,
+  "pageable": {
+    "offset": 2,
+    "pageNumber": 1,
+    "pageSize": 2,
+    "paged": true,
+    "sort": {
+      "empty": true,
+      "sorted": false,
+      "unsorted": true
+    },
+    "unpaged": false
+  },
+  "size": 2,
+  "sort": {
+    "empty": true,
+    "sorted": false,
+    "unsorted": true
+  },
+  "totalElements": 3,
+  "totalPages": 2
+}
