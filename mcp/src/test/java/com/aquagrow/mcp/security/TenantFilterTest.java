@@ -71,6 +71,21 @@ class TenantFilterTest {
     }
 
     @Test
+    void doFilter_withBlankTenantIdClaim_returns403AndDoesNotContinueChain() throws Exception {
+        for (String blank : new String[]{"", "   "}) {
+            Jwt jwt = buildJwt(Map.of("sub", "user", "tenant_id", blank));
+            SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt));
+
+            MockHttpServletResponse response = new MockHttpServletResponse();
+            MockFilterChain chain = new MockFilterChain();
+            tenantFilter.doFilter(new MockHttpServletRequest(), response, chain);
+
+            assertThat(response.getStatus()).as("tenant_id='%s'", blank).isEqualTo(403);
+            assertThat(chain.getRequest()).as("chain must not continue").isNull();
+        }
+    }
+
+    @Test
     void doFilter_alwaysClearsTenantContextAfterChain() throws Exception {
         Jwt jwt = buildJwt(Map.of("tenant_id", "root-farm"));
         SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt));

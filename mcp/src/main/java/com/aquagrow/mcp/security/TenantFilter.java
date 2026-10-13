@@ -38,7 +38,7 @@ public class TenantFilter implements Filter {
                 Jwt jwt = (Jwt) authentication.getPrincipal();
                 String tenantId = jwt.getClaimAsString("tenant_id");
 
-                if (tenantId != null) {
+                if (tenantId != null && !tenantId.isBlank()) {
                     log.debug("Setting Tenant Context to: {}", tenantId);
                     TenantContext.setTenantId(tenantId);
                     String parentId = jwt.getClaimAsString("parent_tenant_id");
