@@ -4,9 +4,9 @@
     "fishSeeds": [
       {
         "date": "2026-09-01",
-        "fishTypeId": "4a070067-1a1b-4bbc-948b-afff717f2416",
-        "id": "ab4ce84b-bf19-4643-acd3-7fda284225d0",
-        "pondId": "bb3db6fe-daf3-45a7-a672-f451de481159",
+        "fishTypeId": "04f80f4b-8153-4dca-a677-7c9c5683fc5f",
+        "id": "b9e320da-2982-4e1e-930e-0798c8307deb",
+        "pondId": "3fb1686a-61f2-41a7-a2f8-f90ab3d87ccf",
         "quantity": 1000,
         "sizeGrams": 50.0,
         "sizeInches": null,
@@ -16,7 +16,7 @@
         "vendor": "Hatchery"
       }
     ],
-    "id": "a0e6f9c1-abc1-4fb0-bf9b-159e93362308",
+    "id": "08f31c2b-82f0-43be-922f-7a8898163eff",
     "name": "Oct Catfish",
     "status": "Active",
     "stockingDate": "2026-09-01",

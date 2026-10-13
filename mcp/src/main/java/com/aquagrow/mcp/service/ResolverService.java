@@ -1,19 +1,14 @@
 package com.aquagrow.mcp.service;
 
-import com.aquagrow.mcp.client.AquaGrowApiClient;
-import com.aquagrow.mcp.client.FeedStockView;
+import com.aquagrow.mcp.client.FarmDataClient;
 import com.aquagrow.mcp.client.ToolUserException;
-import com.aquagrow.mcp.config.TenantFilterActivator;
 import com.aquagrow.mcp.model.Batch;
+import com.aquagrow.mcp.model.FeedStock;
 import com.aquagrow.mcp.model.FishSeed;
 import com.aquagrow.mcp.model.FishType;
 import com.aquagrow.mcp.model.Pond;
-import com.aquagrow.mcp.repository.BatchRepository;
-import com.aquagrow.mcp.repository.FishTypeRepository;
-import com.aquagrow.mcp.repository.PondRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
@@ -40,11 +35,7 @@ public class ResolverService {
 
     private static final int MAX_LISTED = 10;
 
-    private final BatchRepository batchRepository;
-    private final PondRepository pondRepository;
-    private final FishTypeRepository fishTypeRepository;
-    private final TenantFilterActivator tenantFilterActivator;
-    private final AquaGrowApiClient apiClient;
+    private final FarmDataClient farmData;
 
     public record ResolvedBatch(String id, String name, List<String> pondNames, LocalDate stockingDate, String status) {
 
@@ -67,13 +58,11 @@ public class ResolverService {
     // ---- batches ----
 
     /** Resolves to a single ACTIVE batch (for logging feed or samples). */
-    @Transactional(readOnly = true)
     public ResolvedBatch resolveBatch(String reference) {
         return resolve(reference, true);
     }
 
     /** Resolves to a single batch of any status, completed ones included (for reading and analysis). */
-    @Transactional(readOnly = true)
     public ResolvedBatch resolveAnyBatch(String reference) {
         return resolve(reference, false);
     }
@@ -85,9 +74,8 @@ public class ResolverService {
             throw new ToolUserException("A batch is required: give a batch name, batch id or pond name.");
         }
 
-        String tenantId = tenantFilterActivator.activate();
-        List<Batch> batches = batchRepository.findByTenantId(tenantId);
-        Map<String, Pond> pondsById = pondRepository.findByTenantId(tenantId).stream()
+        List<Batch> batches = farmData.batches();
+        Map<String, Pond> pondsById = farmData.ponds().stream()
                 .collect(Collectors.toMap(Pond::getId, p -> p, (a, b) -> a));
 
         List<Predicate<Batch>> tiers = List.of(
@@ -153,7 +141,7 @@ public class ResolverService {
     }
 
     private String describeBatches(List<Batch> batches, Map<String, Pond> pondsById) {
-        Map<String, String> fishTypeNames = fishTypeRepository.findByTenantId(tenantFilterActivator.activate()).stream()
+        Map<String, String> fishTypeNames = farmData.fishTypes().stream()
                 .collect(Collectors.toMap(FishType::getId, FishType::getName, (a, b) -> a));
         StringBuilder out = new StringBuilder();
         batches.stream().limit(MAX_LISTED).forEach(b -> {
@@ -185,14 +173,10 @@ public class ResolverService {
      * needs no reference; with several, the user must say which. The ponds returned are
      * those holding that fish type in this batch (what a sampling stock event is tied to).
      */
-    @Transactional(readOnly = true)
     public ResolvedFishType resolveFishType(String batchId, String reference) {
-        String tenantId = tenantFilterActivator.activate();
-        Batch batch = batchRepository.findById(batchId)
-                .filter(b -> tenantId.equals(b.getTenantId()))
-                .orElseThrow(() -> new ToolUserException("Batch not found: " + batchId));
+        Batch batch = farmData.batch(batchId);   // the client hides batches that belong to another farm
 
-        Map<String, String> namesById = fishTypeRepository.findByTenantId(tenantId).stream()
+        Map<String, String> namesById = farmData.fishTypes().stream()
                 .collect(Collectors.toMap(FishType::getId, FishType::getName, (a, b) -> a));
         List<FishSeed> seeds = batch.getFishSeeds() == null ? List.of() : batch.getFishSeeds();
         List<String> typeIds = seeds.stream().map(FishSeed::getFishTypeId).filter(Objects::nonNull).distinct().toList();
@@ -226,7 +210,7 @@ public class ResolverService {
             chosen = matches.get(0);
         }
 
-        Map<String, Pond> pondsById = pondRepository.findByTenantId(tenantId).stream()
+        Map<String, Pond> pondsById = farmData.ponds().stream()
                 .collect(Collectors.toMap(Pond::getId, p -> p, (a, b) -> a));
         List<String> pondNames = seeds.stream()
                 .filter(sd -> chosen.equals(sd.getFishTypeId())).map(FishSeed::getPondId)
@@ -242,9 +226,8 @@ public class ResolverService {
     // ---- feed types ----
 
     /**
-     * Resolves a feed type against the stock the caller can actually use. Stock is
-     * read through aqua-grow-api because a sub-tenant's feed comes from its parent's
-     * global stock, which a tenant-filtered database read would not return.
+     * Resolves a feed type against the stock the caller can actually use. The API
+     * returns a sub-tenant's parent farm's global stock, which is what a sub-tenant can actually use.
      */
     public String resolveFeedType(String reference) {
         String raw = reference == null ? "" : reference.trim();
@@ -253,8 +236,8 @@ public class ResolverService {
             throw new ToolUserException("A feed type is required.");
         }
 
-        List<String> types = apiClient.getFeedStock().stream()
-                .map(FeedStockView::feedType).filter(Objects::nonNull).distinct().toList();
+        List<String> types = farmData.feedStock().stream()
+                .map(FeedStock::getFeedType).filter(Objects::nonNull).distinct().toList();
         if (types.isEmpty()) {
             throw new ToolUserException("There is no feed stock set up, so no feed type can be used.");
         }

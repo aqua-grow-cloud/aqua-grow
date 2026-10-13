@@ -1,8 +1,7 @@
 package com.aquagrow.mcp.service;
 
-import com.aquagrow.mcp.config.TenantFilterActivator;
+import com.aquagrow.mcp.client.FarmDataClient;
 import com.aquagrow.mcp.model.SampleLog;
-import com.aquagrow.mcp.repository.SampleLogRepository;
 import com.aquagrow.mcp.service.SampleLogLookup.Context;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,8 +20,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class SampleLogLookupTest {
 
-    @Mock SampleLogRepository sampleLogRepository;
-    @Mock TenantFilterActivator tenantFilterActivator;
+    @Mock FarmDataClient farmData;
     @InjectMocks SampleLogLookup lookup;
 
     private static SampleLog sample(String date, String fishTypeId, Integer count, Double abw) {
@@ -32,8 +30,7 @@ class SampleLogLookupTest {
 
     @Test
     void findsSameDaySamplesOfTheSameFishTypeAndTheLatestEarlierOne() {
-        when(tenantFilterActivator.activate()).thenReturn("t1");
-        when(sampleLogRepository.findByTenantIdAndBatchId("t1", "b-1")).thenReturn(List.of(
+        when(farmData.sampleLogsByBatch("b-1")).thenReturn(List.of(
                 sample("2026-10-12", "ft-1", 20, 50.0),      // same day, same type -> duplicate
                 sample("2026-10-12", "ft-2", 10, 80.0),      // same day, other type -> ignored
                 sample("2026-09-20", "ft-1", 20, 30.0),      // earlier
@@ -49,14 +46,13 @@ class SampleLogLookupTest {
         assertThat(ctx.previous()).isNotNull();
         assertThat(ctx.previous().date()).isEqualTo("2026-10-01");
         assertThat(ctx.previous().averageWeight()).isEqualTo(40.0);
-        verify(sampleLogRepository).findByTenantIdAndBatchId("t1", "b-1");
-        verifyNoMoreInteractions(sampleLogRepository);
+        verify(farmData).sampleLogsByBatch("b-1");
+        verifyNoMoreInteractions(farmData);
     }
 
     @Test
     void noHistory_givesEmptyContext() {
-        when(tenantFilterActivator.activate()).thenReturn("t1");
-        when(sampleLogRepository.findByTenantIdAndBatchId("t1", "b-1")).thenReturn(List.of());
+        when(farmData.sampleLogsByBatch("b-1")).thenReturn(List.of());
 
         Context ctx = lookup.context("b-1", "ft-1", LocalDate.of(2026, 10, 12));
 

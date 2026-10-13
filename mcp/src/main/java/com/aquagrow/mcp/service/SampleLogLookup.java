@@ -1,11 +1,9 @@
 package com.aquagrow.mcp.service;
 
-import com.aquagrow.mcp.config.TenantFilterActivator;
+import com.aquagrow.mcp.client.FarmDataClient;
 import com.aquagrow.mcp.model.SampleLog;
-import com.aquagrow.mcp.repository.SampleLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -13,9 +11,8 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Short read-only lookups of past samples for the sampling tools, in their own
- * transactional bean so the tools never hold a database transaction open while
- * they call aqua-grow-api over HTTP.
+ * Looks up a batch's earlier samples for the sampling tools (same-day duplicates and the
+ * previous average weight).
  */
 @Component
 @RequiredArgsConstructor
@@ -28,13 +25,10 @@ public class SampleLogLookup {
     public record Context(List<Existing> sameDay, Existing previous) {
     }
 
-    private final SampleLogRepository sampleLogRepository;
-    private final TenantFilterActivator tenantFilterActivator;
+    private final FarmDataClient farmData;
 
-    @Transactional(readOnly = true)
     public Context context(String batchId, String fishTypeId, LocalDate date) {
-        String tenantId = tenantFilterActivator.activate();
-        List<SampleLog> sameType = sampleLogRepository.findByTenantIdAndBatchId(tenantId, batchId).stream()
+        List<SampleLog> sameType = farmData.sampleLogsByBatch(batchId).stream()
                 .filter(s -> s.getDate() != null && Objects.equals(fishTypeId, s.getFishTypeId()))
                 .toList();
 

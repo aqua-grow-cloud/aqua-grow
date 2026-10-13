@@ -1,16 +1,12 @@
 package com.aquagrow.mcp.service;
 
-import com.aquagrow.mcp.client.AquaGrowApiClient;
-import com.aquagrow.mcp.client.FeedStockView;
+import com.aquagrow.mcp.client.FarmDataClient;
 import com.aquagrow.mcp.client.ToolUserException;
-import com.aquagrow.mcp.config.TenantFilterActivator;
 import com.aquagrow.mcp.model.Batch;
+import com.aquagrow.mcp.model.FeedStock;
 import com.aquagrow.mcp.model.FishSeed;
 import com.aquagrow.mcp.model.FishType;
 import com.aquagrow.mcp.model.Pond;
-import com.aquagrow.mcp.repository.BatchRepository;
-import com.aquagrow.mcp.repository.FishTypeRepository;
-import com.aquagrow.mcp.repository.PondRepository;
 import com.aquagrow.mcp.service.ResolverService.AmbiguousReferenceException;
 import com.aquagrow.mcp.service.ResolverService.ResolvedBatch;
 import com.aquagrow.mcp.service.ResolverService.ResolvedFishType;
@@ -22,7 +18,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -36,18 +31,13 @@ class ResolverServiceTest {
 
     private static final String TENANT = "t1";
 
-    @Mock BatchRepository batchRepository;
-    @Mock PondRepository pondRepository;
-    @Mock FishTypeRepository fishTypeRepository;
-    @Mock TenantFilterActivator tenantFilterActivator;
-    @Mock AquaGrowApiClient apiClient;
+    @Mock FarmDataClient farmData;
 
     private ResolverService resolver;
 
     @BeforeEach
     void setUp() {
-        resolver = new ResolverService(batchRepository, pondRepository, fishTypeRepository,
-                tenantFilterActivator, apiClient);
+        resolver = new ResolverService(farmData);
     }
 
     private static Pond pond(String id, String name) {
@@ -65,10 +55,9 @@ class ResolverServiceTest {
     }
 
     private void givenFarm(List<Batch> batches, List<Pond> ponds) {
-        when(tenantFilterActivator.activate()).thenReturn(TENANT);
-        when(batchRepository.findByTenantId(TENANT)).thenReturn(batches);
-        when(pondRepository.findByTenantId(TENANT)).thenReturn(ponds);
-        lenient().when(fishTypeRepository.findByTenantId(TENANT))
+        when(farmData.batches()).thenReturn(batches);
+        when(farmData.ponds()).thenReturn(ponds);
+        lenient().when(farmData.fishTypes())
                 .thenReturn(List.of(FishType.builder().id("ft-1").name("Tilapia").tenantId(TENANT).build()));
     }
 
@@ -194,15 +183,14 @@ class ResolverServiceTest {
     }
 
     @Test
-    void resolveBatch_readsOnlyTheCallersTenant() {
+    void resolveBatch_readsEachListOnce_andNothingElse() {
         givenFarm(List.of(batch("b-1", "Sept Tilapia", "p-1", "Active")), List.of(pond("p-1", "Pond 1")));
 
         resolver.resolveBatch("b-1");
 
-        verify(tenantFilterActivator).activate();
-        verify(batchRepository).findByTenantId(TENANT);
-        verify(pondRepository).findByTenantId(TENANT);
-        verifyNoMoreInteractions(batchRepository, pondRepository);
+        verify(farmData).batches();
+        verify(farmData).ponds();
+        verifyNoMoreInteractions(farmData);
     }
 
     // ---- any status (for reading and analysis) ----
@@ -242,10 +230,9 @@ class ResolverServiceTest {
     // ---- fish type within a batch ----
 
     private void givenBatchWithFishTypes(Batch batch, List<FishType> types, List<Pond> ponds) {
-        when(tenantFilterActivator.activate()).thenReturn(TENANT);
-        when(batchRepository.findById(batch.getId())).thenReturn(Optional.of(batch));
-        when(fishTypeRepository.findByTenantId(TENANT)).thenReturn(types);
-        lenient().when(pondRepository.findByTenantId(TENANT)).thenReturn(ponds);
+        when(farmData.batch(batch.getId())).thenReturn(batch);
+        when(farmData.fishTypes()).thenReturn(types);
+        lenient().when(farmData.ponds()).thenReturn(ponds);
     }
 
     private static FishType fishType(String id, String name) {
@@ -322,10 +309,8 @@ class ResolverServiceTest {
     }
 
     @Test
-    void resolveFishType_batchFromAnotherTenantIsNotFound() {
-        Batch foreign = Batch.builder().id("b-x").name("Foreign").tenantId("other").fishSeeds(List.of()).build();
-        when(tenantFilterActivator.activate()).thenReturn(TENANT);
-        when(batchRepository.findById("b-x")).thenReturn(Optional.of(foreign));
+    void resolveFishType_unknownOrForeignBatch_passesTheClientsNotFoundThrough() {
+        when(farmData.batch("b-x")).thenThrow(new ToolUserException("Batch not found: b-x"));
 
         assertThatThrownBy(() -> resolver.resolveFishType("b-x", null))
                 .isInstanceOf(ToolUserException.class).hasMessageContaining("Batch not found");
@@ -333,27 +318,28 @@ class ResolverServiceTest {
 
     // ---- feed types ----
 
-    private static FeedStockView stock(String feedType) {
-        return new FeedStockView("id-" + feedType, feedType, 100.0, 10.0, "kg");
+    private static FeedStock stock(String feedType) {
+        return FeedStock.builder().id("id-" + feedType).feedType(feedType).currentStock(100.0).threshold(10.0).unit("kg")
+                .tenantId(TENANT).build();
     }
 
     @Test
     void resolveFeedType_exactIgnoringCase_returnsStoredSpelling() {
-        when(apiClient.getFeedStock()).thenReturn(List.of(stock("King Fish Feed"), stock("Starter Crumble")));
+        when(farmData.feedStock()).thenReturn(List.of(stock("King Fish Feed"), stock("Starter Crumble")));
 
         assertThat(resolver.resolveFeedType(" king fish   feed ")).isEqualTo("King Fish Feed");
     }
 
     @Test
     void resolveFeedType_uniquePartialMatch() {
-        when(apiClient.getFeedStock()).thenReturn(List.of(stock("King Fish Feed"), stock("Starter Crumble")));
+        when(farmData.feedStock()).thenReturn(List.of(stock("King Fish Feed"), stock("Starter Crumble")));
 
         assertThat(resolver.resolveFeedType("starter")).isEqualTo("Starter Crumble");
     }
 
     @Test
     void resolveFeedType_ambiguous() {
-        when(apiClient.getFeedStock()).thenReturn(List.of(stock("Floating Feed 2mm"), stock("Floating Feed 4mm")));
+        when(farmData.feedStock()).thenReturn(List.of(stock("Floating Feed 2mm"), stock("Floating Feed 4mm")));
 
         assertThatThrownBy(() -> resolver.resolveFeedType("floating"))
                 .isInstanceOf(AmbiguousReferenceException.class)
@@ -362,7 +348,7 @@ class ResolverServiceTest {
 
     @Test
     void resolveFeedType_unknown_listsValidTypes() {
-        when(apiClient.getFeedStock()).thenReturn(List.of(stock("King Fish Feed"), stock("Starter Crumble")));
+        when(farmData.feedStock()).thenReturn(List.of(stock("King Fish Feed"), stock("Starter Crumble")));
 
         assertThatThrownBy(() -> resolver.resolveFeedType("mystery"))
                 .isInstanceOf(ToolUserException.class)
@@ -372,7 +358,7 @@ class ResolverServiceTest {
 
     @Test
     void resolveFeedType_noStockAtAll() {
-        when(apiClient.getFeedStock()).thenReturn(List.of());
+        when(farmData.feedStock()).thenReturn(List.of());
 
         assertThatThrownBy(() -> resolver.resolveFeedType("anything"))
                 .isInstanceOf(ToolUserException.class).hasMessageContaining("no feed stock");

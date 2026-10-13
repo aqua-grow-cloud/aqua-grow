@@ -14,6 +14,7 @@ import com.aquagrow.mcp.model.Pond;
 import com.aquagrow.mcp.model.SalaryPayment;
 import com.aquagrow.mcp.model.SampleLog;
 import com.aquagrow.mcp.model.Supplier;
+import com.aquagrow.mcp.security.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,11 +62,13 @@ class FarmDataClientTest {
         Jwt jwt = Jwt.withTokenValue("the-token").header("alg", "none").subject("user-1")
                 .claim("tenant_id", "t1").issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(60)).build();
         SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt));
+        TenantContext.setTenantId("farm-1");   // the fixtures were captured from farm-1
     }
 
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
+        TenantContext.clear();
     }
 
     private static String fixture(String name) {
@@ -228,6 +231,46 @@ class FarmDataClientTest {
 
         assertThat(stock).isNotEmpty();
         assertThat(stock.get(0).getTenantId()).isEqualTo("farm-1");
+    }
+
+    // ---- lookups by id must not leak another farm's records ----
+    // The API looks batches and ponds up by primary key, which bypasses Hibernate's tenant filter (verified
+    // with scripts/mcp-smoke/run.sh --capture). The client therefore checks the owner itself.
+
+    @Test
+    void batchByIdBelongingToAnotherFarm_isHiddenAsNotFound() {
+        expectGet("/api/batches/b-1", "batch");
+        TenantContext.setTenantId("farm-2");
+
+        assertThatThrownBy(() -> client.batch("b-1"))
+                .isInstanceOf(ToolUserException.class).hasMessage("Batch not found: b-1");
+    }
+
+    @Test
+    void pondByIdBelongingToAnotherFarm_isHiddenAsNotFound() {
+        expectGet("/api/ponds/p-1", "pond");
+        TenantContext.setTenantId("farm-2");
+
+        assertThatThrownBy(() -> client.pond("p-1"))
+                .isInstanceOf(ToolUserException.class).hasMessage("Pond not found: p-1");
+    }
+
+    @Test
+    void byIdLookupWithoutABoundTenant_failsClosed() {
+        expectGet("/api/ponds/p-1", "pond");
+        TenantContext.clear();
+
+        assertThatThrownBy(() -> client.pond("p-1"))
+                .isInstanceOf(ToolUserException.class).hasMessageContaining("No tenant");
+    }
+
+    @Test
+    void byIdLookupOfARecordWithoutAnOwner_failsClosed() {
+        server.expect(requestTo(BASE + "/api/ponds/p-1"))
+                .andRespond(withSuccess("{\"id\":\"p-1\",\"name\":\"Pond\"}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.pond("p-1"))
+                .isInstanceOf(ToolUserException.class).hasMessage("Pond not found: p-1");
     }
 
     // ---- paged lists ----

@@ -3,10 +3,11 @@ package com.aquagrow.mcp.service;
 import com.aquagrow.mcp.client.AquaGrowApiClient;
 import com.aquagrow.mcp.client.BulkFeedLogRequest;
 import com.aquagrow.mcp.client.BulkFeedLogResponse;
-import com.aquagrow.mcp.client.FeedStockView;
+import com.aquagrow.mcp.client.FarmDataClient;
 import com.aquagrow.mcp.client.ToolUserException;
 import com.aquagrow.mcp.config.FeedingProperties;
 import com.aquagrow.mcp.confirm.PreviewTokenService;
+import com.aquagrow.mcp.model.FeedStock;
 import com.aquagrow.mcp.security.TenantContext;
 import com.aquagrow.mcp.service.FeedingWriteMcpService.FeedingPreview;
 import com.aquagrow.mcp.service.FeedingWriteMcpService.FeedingResult;
@@ -47,6 +48,7 @@ class FeedingWriteMcpServiceTest {
 
     @Mock ResolverService resolver;
     @Mock AquaGrowApiClient apiClient;
+    @Mock FarmDataClient farmData;
     @Mock FeedLogLookup feedLogLookup;
 
     private PreviewTokenService tokens;
@@ -56,7 +58,7 @@ class FeedingWriteMcpServiceTest {
     void setUp() {
         tokens = new PreviewTokenService(Duration.ofMinutes(10));
         Clock clock = Clock.fixed(Instant.parse("2026-10-13T10:00:00Z"), ZoneOffset.UTC);
-        service = new FeedingWriteMcpService(resolver, apiClient, feedLogLookup,
+        service = new FeedingWriteMcpService(resolver, apiClient, farmData, feedLogLookup,
                 tokens, clock, new FeedingProperties(40.0, 5000.0, 62));
         TenantContext.setTenantId(TENANT);
         loginAs("user-1");
@@ -78,7 +80,7 @@ class FeedingWriteMcpServiceTest {
         when(resolver.resolveBatch("pond 3"))
                 .thenReturn(new ResolvedBatch("b-3", "Oct Catfish", List.of("Pond 3"), LocalDate.of(2026, 9, 1)));
         when(resolver.resolveFeedType("king fish")).thenReturn(FEED);
-        when(apiClient.getFeedStock()).thenReturn(List.of(new FeedStockView("s1", FEED, stockKg, 100.0, "kg")));
+        when(farmData.feedStock()).thenReturn(List.of(FeedStock.builder().id("s1").feedType(FEED).currentStock(stockKg).threshold(100.0).unit("kg").tenantId(TENANT).build()));
         givenExistingLogs();
     }
 

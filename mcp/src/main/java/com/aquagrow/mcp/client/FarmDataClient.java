@@ -14,6 +14,8 @@ import com.aquagrow.mcp.model.Pond;
 import com.aquagrow.mcp.model.SalaryPayment;
 import com.aquagrow.mcp.model.SampleLog;
 import com.aquagrow.mcp.model.Supplier;
+import com.aquagrow.mcp.security.TenantContext;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.ResolvableType;
@@ -22,6 +24,7 @@ import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * Reads farm data from aqua-grow-api as the current caller. The API applies the tenant (and, for
@@ -29,8 +32,14 @@ import java.util.List;
  *
  * One method per endpoint; lists that the API pages (monitoring logs, sample logs) are read page by
  * page until the last one.
+ *
+ * Lookups by id are checked against the caller's tenant here, because the API fetches by primary key,
+ * which bypasses its Hibernate tenant filter (verified with scripts/mcp-smoke/run.sh --capture: another
+ * farm's token could read a batch, pond, employee or fish type by id). Any new by-id read must go
+ * through {@link #one}.
  */
 @Component
+@Slf4j
 public class FarmDataClient {
 
     static final int DEFAULT_PAGE_SIZE = 500;
@@ -62,7 +71,7 @@ public class FarmDataClient {
     }
 
     public Pond pond(String id) {
-        return one(Pond.class, "Pond", id, "/api/ponds/{id}");
+        return one(Pond.class, "Pond", id, Pond::getTenantId, "/api/ponds/{id}");
     }
 
     public List<Batch> batches() {
@@ -70,7 +79,7 @@ public class FarmDataClient {
     }
 
     public Batch batch(String id) {
-        return one(Batch.class, "Batch", id, "/api/batches/{id}");
+        return one(Batch.class, "Batch", id, Batch::getTenantId, "/api/batches/{id}");
     }
 
     // ---- feed ----
@@ -169,12 +178,22 @@ public class FarmDataClient {
         return result == null ? List.of() : result;
     }
 
-    private <T> T one(Class<T> type, String what, String id, String uriTemplate) {
+    private <T> T one(Class<T> type, String what, String id, Function<T, String> tenantOf, String uriTemplate) {
+        T found;
         try {
-            return http.get(type, uriTemplate, id);
+            found = http.get(type, uriTemplate, id);
         } catch (ApiNotFoundException e) {
             throw new ToolUserException(what + " not found: " + id);
         }
+        String caller = TenantContext.getTenantId();
+        if (caller == null || caller.isBlank()) {
+            throw new ToolUserException("No tenant is bound to this request.");
+        }
+        if (!caller.equals(tenantOf.apply(found))) {
+            log.warn("AUDIT the API returned a {} that belongs to another tenant (id {}); hiding it", what, id);
+            throw new ToolUserException(what + " not found: " + id);
+        }
+        return found;
     }
 
     private <T> List<T> allPages(Class<T> type, String uriTemplate) {

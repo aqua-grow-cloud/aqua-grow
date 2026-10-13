@@ -92,21 +92,6 @@ class AquaGrowApiClientTest {
     }
 
     @Test
-    void getFeedStock_parsesList() {
-        server.expect(requestTo(BASE + "/api/feed-stock"))
-                .andExpect(method(HttpMethod.GET))
-                .andExpect(header("Authorization", "Bearer the-token"))
-                .andRespond(withSuccess("[{\"id\":\"1\",\"feedType\":\"King Fish Feed\",\"currentStock\":5000.0,"
-                        + "\"threshold\":100.0,\"unit\":\"kg\",\"tenantId\":\"root\"}]", MediaType.APPLICATION_JSON));
-
-        List<FeedStockView> stock = client.getFeedStock();
-
-        assertThat(stock).hasSize(1);
-        assertThat(stock.get(0).feedType()).isEqualTo("King Fish Feed");
-        assertThat(stock.get(0).currentStock()).isEqualTo(5000.0);
-    }
-
-    @Test
     void businessError400_surfacesApiMessage() {
         server.expect(requestTo(BASE + "/api/feed-logs/bulk"))
                 .andRespond(withStatus(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON)

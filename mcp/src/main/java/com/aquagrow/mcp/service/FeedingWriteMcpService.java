@@ -3,10 +3,11 @@ package com.aquagrow.mcp.service;
 import com.aquagrow.mcp.client.AquaGrowApiClient;
 import com.aquagrow.mcp.client.BulkFeedLogRequest;
 import com.aquagrow.mcp.client.BulkFeedLogResponse;
-import com.aquagrow.mcp.client.FeedStockView;
+import com.aquagrow.mcp.client.FarmDataClient;
 import com.aquagrow.mcp.client.ToolUserException;
 import com.aquagrow.mcp.config.FeedingProperties;
 import com.aquagrow.mcp.confirm.PreviewTokenService;
+import com.aquagrow.mcp.model.FeedStock;
 import com.aquagrow.mcp.security.CurrentUser;
 import com.aquagrow.mcp.security.TenantContext;
 import com.aquagrow.mcp.service.ResolverService.ResolvedBatch;
@@ -95,15 +96,17 @@ public class FeedingWriteMcpService {
 
     private final ResolverService resolver;
     private final AquaGrowApiClient apiClient;
+    private final FarmDataClient farmData;
     private final FeedLogLookup feedLogLookup;
     private final PreviewTokenService previewTokens;
     private final Clock clock;
     private final FeedingProperties properties;
 
-    public FeedingWriteMcpService(ResolverService resolver, AquaGrowApiClient apiClient,
+    public FeedingWriteMcpService(ResolverService resolver, AquaGrowApiClient apiClient, FarmDataClient farmData,
                                   FeedLogLookup feedLogLookup, PreviewTokenService previewTokens, Clock clock, FeedingProperties properties) {
         this.resolver = resolver;
         this.apiClient = apiClient;
+        this.farmData = farmData;
         this.feedLogLookup = feedLogLookup;
         this.previewTokens = previewTokens;
         this.clock = clock;
@@ -174,13 +177,13 @@ public class FeedingWriteMcpService {
         ResolvedBatch resolvedBatch = resolver.resolveBatch(batch);
         String resolvedFeed = resolver.resolveFeedType(feedType);
 
-        FeedStockView stock = apiClient.getFeedStock().stream()
-                .filter(s -> resolvedFeed.equals(s.feedType())).findFirst()
+        FeedStock stock = farmData.feedStock().stream()
+                .filter(s -> resolvedFeed.equals(s.getFeedType())).findFirst()
                 .orElseThrow(() -> new ToolUserException("Feed type '" + resolvedFeed + "' is not in stock."));
 
         BigDecimal total = perDay.multiply(BigDecimal.valueOf(dayCount));
         double totalKg = total.doubleValue();
-        double before = stock.currentStock() == null ? 0.0 : stock.currentStock();
+        double before = stock.getCurrentStock() == null ? 0.0 : stock.getCurrentStock();
         double after = round2(before - totalKg);
         boolean enoughStock = before >= totalKg;
 
@@ -199,9 +202,9 @@ public class FeedingWriteMcpService {
         if (!enoughStock) {
             problems.add("Insufficient stock of " + resolvedFeed + ": " + fmt(before) + " kg available, "
                     + fmt(totalKg) + " kg needed (short by " + fmt(totalKg - before) + " kg).");
-        } else if (stock.threshold() != null && after < stock.threshold()) {
+        } else if (stock.getThreshold() != null && after < stock.getThreshold()) {
             warnings.add("Stock of " + resolvedFeed + " will be low afterwards: " + fmt(after)
-                    + " kg left (reorder threshold " + fmt(stock.threshold()) + " kg).");
+                    + " kg left (reorder threshold " + fmt(stock.getThreshold()) + " kg).");
         }
         if (!conflicts.isEmpty()) {
             String dates = String.join(", ", conflicts.stream().map(Conflict::date).distinct().toList());
