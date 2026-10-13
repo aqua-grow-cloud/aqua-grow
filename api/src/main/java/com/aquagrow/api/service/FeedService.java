@@ -1,5 +1,7 @@
 package com.aquagrow.api.service;
 
+import com.aquagrow.api.dto.BulkFeedLogRequest;
+import com.aquagrow.api.dto.BulkFeedLogResponse;
 import com.aquagrow.api.exception.BusinessException;
 import com.aquagrow.api.model.FeedLog;
 import com.aquagrow.api.model.FeedStock;
@@ -12,8 +14,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -27,6 +32,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Slf4j
 public class FeedService {
+
+    private static final int MAX_BULK_ENTRIES = 366;
+    private static final java.util.regex.Pattern TIME_PATTERN =
+            java.util.regex.Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
 
     private final FeedLogRepository feedLogRepository;
     private final FeedStockRepository feedStockRepository;
@@ -62,6 +71,97 @@ public class FeedService {
                 tenantId, TenantContext.getEffectiveFeedTenantId());
 
         return saved;
+    }
+
+    /**
+     * Creates several feed logs for one batch and feed type atomically.
+     * Total stock is checked and deducted once, from the effective feed tenant
+     * (the parent tenant for sub-tenants); if any step fails the whole
+     * transaction rolls back, so no partial logs or partial deductions remain.
+     *
+     * @param request batch, feed type and the individual feedings (kg)
+     * @return created ids, total kg deducted and the stock remaining
+     * @throws BusinessException if the request is invalid, the feed type is unknown
+     *                           or stock is insufficient
+     */
+    @Transactional
+    public BulkFeedLogResponse createFeedLogsBulk(BulkFeedLogRequest request) {
+        String tenantId = TenantContext.getTenantId();
+        if (tenantId == null) {
+            throw new BusinessException("Tenant context is required");
+        }
+        validateBulkRequest(request);
+
+        BigDecimal total = BigDecimal.ZERO;
+        for (BulkFeedLogRequest.Entry entry : request.entries()) {
+            total = total.add(BigDecimal.valueOf(entry.amount()));
+        }
+        double totalKg = total.doubleValue();
+
+        String stockTenantId = TenantContext.getEffectiveFeedTenantId();
+        deductFromInventory(stockTenantId, request.feedType(), totalKg);
+
+        List<FeedLog> logs = new ArrayList<>();
+        for (BulkFeedLogRequest.Entry entry : request.entries()) {
+            logs.add(FeedLog.builder()
+                    .batchId(request.batchId())
+                    .feedType(request.feedType())
+                    .date(entry.date())
+                    .time(entry.time())
+                    .amount(entry.amount())
+                    .tenantId(tenantId)
+                    .build());
+        }
+        List<String> ids = feedLogRepository.saveAll(logs).stream().map(FeedLog::getId).toList();
+
+        log.info("Created {} feed logs (batch: {}, type: {}, total: {} kg, tenant: {}, stock tenant: {})",
+                ids.size(), request.batchId(), request.feedType(), totalKg, tenantId, stockTenantId);
+
+        return new BulkFeedLogResponse(ids, totalKg, remainingStock(stockTenantId, request.feedType()));
+    }
+
+    private void validateBulkRequest(BulkFeedLogRequest request) {
+        if (request == null || request.batchId() == null || request.batchId().isBlank()) {
+            throw new BusinessException("batchId is required");
+        }
+        if (request.feedType() == null || request.feedType().isBlank()) {
+            throw new BusinessException("feedType is required");
+        }
+        List<BulkFeedLogRequest.Entry> entries = request.entries();
+        if (entries == null || entries.isEmpty()) {
+            throw new BusinessException("At least one feeding entry is required");
+        }
+        if (entries.size() > MAX_BULK_ENTRIES) {
+            throw new BusinessException("Too many entries: at most " + MAX_BULK_ENTRIES + " per request");
+        }
+        HashSet<String> seen = new HashSet<>();
+        for (BulkFeedLogRequest.Entry entry : entries) {
+            if (entry == null || entry.date() == null) {
+                throw new BusinessException("Every entry needs a date");
+            }
+            if (entry.amount() == null || !(entry.amount() > 0) || Double.isInfinite(entry.amount())) {
+                throw new BusinessException("Every entry needs an amount greater than 0 (date: " + entry.date() + ")");
+            }
+            String time = entry.time();
+            if (time != null && !time.isBlank() && !TIME_PATTERN.matcher(time).matches()) {
+                throw new BusinessException("Invalid time '" + time + "' (expected HH:mm)");
+            }
+            if (!seen.add(entry.date() + "|" + (time == null ? "" : time))) {
+                throw new BusinessException("Duplicate entry for " + entry.date()
+                        + (time == null || time.isBlank() ? "" : " at " + time));
+            }
+        }
+    }
+
+    private double remainingStock(String stockTenantId, String feedType) {
+        scopeTenantFilterTo(stockTenantId);
+        try {
+            return feedStockRepository.findByTenantIdAndFeedType(stockTenantId, feedType)
+                    .map(FeedStock::getCurrentStock)
+                    .orElse(0.0);
+        } finally {
+            scopeTenantFilterTo(TenantContext.getTenantId());
+        }
     }
 
     /**

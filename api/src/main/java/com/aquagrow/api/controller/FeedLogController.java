@@ -1,5 +1,7 @@
 package com.aquagrow.api.controller;
 
+import com.aquagrow.api.dto.BulkFeedLogRequest;
+import com.aquagrow.api.dto.BulkFeedLogResponse;
 import com.aquagrow.api.model.FeedLog;
 import com.aquagrow.api.model.FeedStock;
 import com.aquagrow.api.service.FeedService;
@@ -34,6 +36,12 @@ public class FeedLogController {
     @PostMapping
     public FeedLog logFeed(@RequestBody FeedLog feedLog) {
         return feedService.createFeedLog(feedLog);
+    }
+
+    /** Logs several feedings atomically with a single stock deduction. */
+    @PostMapping("/bulk")
+    public BulkFeedLogResponse logFeedBulk(@RequestBody BulkFeedLogRequest request) {
+        return feedService.createFeedLogsBulk(request);
     }
 
     @PutMapping("/{id}")

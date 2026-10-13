@@ -1,5 +1,8 @@
 package com.aquagrow.api.controller;
 
+import com.aquagrow.api.dto.BulkFeedLogRequest;
+import com.aquagrow.api.dto.BulkFeedLogResponse;
+import com.aquagrow.api.exception.BusinessException;
 import com.aquagrow.api.model.FeedLog;
 import com.aquagrow.api.model.FeedStock;
 import com.aquagrow.api.service.FeedService;
@@ -121,6 +124,50 @@ class FeedLogControllerTest {
         mockMvc.perform(post("/api/feed-logs")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(newLog)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser
+    void logFeedBulk_shouldReturnCreatedIdsAndTotals() throws Exception {
+        BulkFeedLogRequest request = new BulkFeedLogRequest(BATCH_ID, FEED_TYPE, List.of(
+                new BulkFeedLogRequest.Entry(LocalDate.of(2026, 10, 1), null, 440.0),
+                new BulkFeedLogRequest.Entry(LocalDate.of(2026, 10, 2), null, 440.0)));
+        when(feedService.createFeedLogsBulk(any(BulkFeedLogRequest.class)))
+                .thenReturn(new BulkFeedLogResponse(List.of("a", "b"), 880.0, 4120.0));
+
+        mockMvc.perform(post("/api/feed-logs/bulk")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.createdIds", hasSize(2)))
+                .andExpect(jsonPath("$.totalKg", is(880.0)))
+                .andExpect(jsonPath("$.remainingStockKg", is(4120.0)));
+
+        verify(feedService).createFeedLogsBulk(any(BulkFeedLogRequest.class));
+    }
+
+    @Test
+    @WithMockUser
+    void logFeedBulk_insufficientStock_shouldReturnBadRequest() throws Exception {
+        BulkFeedLogRequest request = new BulkFeedLogRequest(BATCH_ID, FEED_TYPE, List.of(
+                new BulkFeedLogRequest.Entry(LocalDate.of(2026, 10, 1), null, 440.0)));
+        when(feedService.createFeedLogsBulk(any(BulkFeedLogRequest.class)))
+                .thenThrow(new BusinessException("Insufficient global feed stock"));
+
+        mockMvc.perform(post("/api/feed-logs/bulk")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void logFeedBulk_shouldRequireAuthentication() throws Exception {
+        mockMvc.perform(post("/api/feed-logs/bulk")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
                 .andExpect(status().isForbidden());
     }
 
