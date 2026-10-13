@@ -13,6 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * MCP Tools for water quality monitoring and growth sampling.
+ * Tenant scoping is derived from the authenticated caller's JWT
+ * (see TenantFilter/TenantContext) — never from an LLM-supplied parameter.
+ */
 @Service
 @RequiredArgsConstructor
 public class MonitoringMcpService {
@@ -24,27 +29,28 @@ public class MonitoringMcpService {
     // ---- Monitoring Logs (water quality) ----
 
     @Tool(name = "list_monitoring_logs",
-          description = "List all water quality monitoring logs for a tenant. Includes DO, pH, temperature, ammonia, salinity, turbidity.")
+          description = "List all water quality monitoring logs for the current tenant. Includes DO, pH, temperature, ammonia, salinity, turbidity.")
     @Transactional(readOnly = true)
-    public List<MonitoringLog> listMonitoringLogs(String tenantId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<MonitoringLog> listMonitoringLogs() {
+        String tenantId = tenantFilterActivator.activate();
         return monitoringLogRepository.findByTenantId(tenantId);
     }
 
     @Tool(name = "list_monitoring_logs_by_batch",
           description = "List water quality monitoring logs for a specific batch.")
     @Transactional(readOnly = true)
-    public List<MonitoringLog> listMonitoringLogsByBatch(String tenantId, String batchId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<MonitoringLog> listMonitoringLogsByBatch(String batchId) {
+        String tenantId = tenantFilterActivator.activate();
         return monitoringLogRepository.findByTenantIdAndBatchId(tenantId, batchId);
     }
 
     @Tool(name = "create_monitoring_log",
           description = "Record water quality parameters. Provide batchId, date (YYYY-MM-DD), and any combination of: doLevel (mg/L), ph, temperature (°C), ammonia (mg/L), salinity (ppt), turbidity (NTU).")
     @Transactional
-    public MonitoringLog createMonitoringLog(String tenantId, String batchId, String date,
+    public MonitoringLog createMonitoringLog(String batchId, String date,
                                               Double doLevel, Double ph, Double temperature,
                                               Double ammonia, Double salinity, Double turbidity) {
+        String tenantId = tenantFilterActivator.activate();
         MonitoringLog log = MonitoringLog.builder()
             .tenantId(tenantId)
             .batchId(batchId)
@@ -62,27 +68,28 @@ public class MonitoringMcpService {
     // ---- Sample Logs (fish growth sampling) ----
 
     @Tool(name = "list_sample_logs",
-          description = "List all fish growth sample logs for a tenant. Samples measure average weight and survival rate.")
+          description = "List all fish growth sample logs for the current tenant. Samples measure average weight and survival rate.")
     @Transactional(readOnly = true)
-    public List<SampleLog> listSampleLogs(String tenantId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<SampleLog> listSampleLogs() {
+        String tenantId = tenantFilterActivator.activate();
         return sampleLogRepository.findByTenantId(tenantId);
     }
 
     @Tool(name = "list_sample_logs_by_batch",
           description = "List growth sample logs for a specific batch.")
     @Transactional(readOnly = true)
-    public List<SampleLog> listSampleLogsByBatch(String tenantId, String batchId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<SampleLog> listSampleLogsByBatch(String batchId) {
+        String tenantId = tenantFilterActivator.activate();
         return sampleLogRepository.findByTenantIdAndBatchId(tenantId, batchId);
     }
 
     @Tool(name = "create_sample_log",
           description = "Record a fish growth sampling event. Provide batchId, date (YYYY-MM-DD), sampleCount, totalSampleWeight (g), averageLength (cm), and optional survivalEstimate (%).")
     @Transactional
-    public SampleLog createSampleLog(String tenantId, String batchId, String fishTypeId,
+    public SampleLog createSampleLog(String batchId, String fishTypeId,
                                       String date, Integer sampleCount, Double totalSampleWeight,
                                       Double averageLength, Double survivalEstimate) {
+        String tenantId = tenantFilterActivator.activate();
         double avgWeight = sampleCount != null && sampleCount > 0
             ? totalSampleWeight / sampleCount : 0;
         SampleLog log = SampleLog.builder()

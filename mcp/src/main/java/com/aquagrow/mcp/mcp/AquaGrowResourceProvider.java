@@ -14,7 +14,8 @@ import java.util.List;
  * URI scheme: aquagrow://{entity}
  *
  * AI clients can enumerate available data sources via these resources.
- * Actual data retrieval is done via the corresponding MCP tools (which require tenantId).
+ * Actual data retrieval is done via the corresponding MCP tools, which are
+ * automatically scoped to the caller's authenticated tenant.
  */
 @Configuration
 public class AquaGrowResourceProvider {
@@ -64,15 +65,16 @@ public class AquaGrowResourceProvider {
                                                      McpSchema.ReadResourceRequest request) {
         String uri = request.uri();
         String content = """
-            Use the corresponding MCP tool with your tenantId to retrieve live data.
+            Use the corresponding MCP tool to retrieve live data — it is automatically
+            scoped to your authenticated tenant.
             Resource URI: %s
-            
+
             Example tools for this resource:
-            - list_ponds(tenantId)
-            - list_batches(tenantId)
-            - list_feed_logs(tenantId)
-            - list_monitoring_logs(tenantId)
-            - list_employees(tenantId)
+            - list_ponds()
+            - list_batches()
+            - list_feed_logs()
+            - list_monitoring_logs()
+            - list_employees()
             - (and more - see the full tool list)
             """.formatted(uri);
         return new McpSchema.ReadResourceResult(

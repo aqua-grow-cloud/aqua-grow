@@ -42,6 +42,11 @@ dependencies {
     // AOP for tenant filter activation
     implementation 'org.springframework.boot:spring-boot-starter-aop'
 
+    // Security: OAuth2 Resource Server (validates Keycloak-issued JWTs for
+    // Claude's remote MCP connector and any other MCP client)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

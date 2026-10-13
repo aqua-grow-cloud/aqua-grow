@@ -15,6 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * MCP Tools for catalog data: fish types, fish seeds, suppliers.
+ * Tenant scoping is derived from the authenticated caller's JWT
+ * (see TenantFilter/TenantContext) — never from an LLM-supplied parameter.
+ */
 @Service
 @RequiredArgsConstructor
 public class CatalogMcpService {
@@ -27,18 +32,19 @@ public class CatalogMcpService {
     // ---- Fish Types ----
 
     @Tool(name = "list_fish_types",
-          description = "List all fish types configured for a tenant (e.g. Tilapia, Shrimp, Catfish).")
+          description = "List all fish types configured for the current tenant (e.g. Tilapia, Shrimp, Catfish).")
     @Transactional(readOnly = true)
-    public List<FishType> listFishTypes(String tenantId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<FishType> listFishTypes() {
+        String tenantId = tenantFilterActivator.activate();
         return fishTypeRepository.findByTenantId(tenantId);
     }
 
     @Tool(name = "create_fish_type",
           description = "Register a new fish type. Provide name, optional scientificName, and cultivationType (FISH, SHRIMP, OTHER).")
     @Transactional
-    public FishType createFishType(String tenantId, String name, String scientificName,
+    public FishType createFishType(String name, String scientificName,
                                     String cultivationType) {
+        String tenantId = tenantFilterActivator.activate();
         FishType fishType = FishType.builder()
             .tenantId(tenantId)
             .name(name)
@@ -53,27 +59,28 @@ public class CatalogMcpService {
     // ---- Fish Seeds ----
 
     @Tool(name = "list_fish_seeds",
-          description = "List all fish seed records for a tenant.")
+          description = "List all fish seed records for the current tenant.")
     @Transactional(readOnly = true)
-    public List<FishSeed> listFishSeeds(String tenantId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<FishSeed> listFishSeeds() {
+        String tenantId = tenantFilterActivator.activate();
         return fishSeedRepository.findByTenantId(tenantId);
     }
 
     @Tool(name = "list_fish_seeds_by_pond",
           description = "List fish seeds stocked in a specific pond.")
     @Transactional(readOnly = true)
-    public List<FishSeed> listFishSeedsByPond(String tenantId, String pondId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<FishSeed> listFishSeedsByPond(String pondId) {
+        String tenantId = tenantFilterActivator.activate();
         return fishSeedRepository.findByTenantIdAndPondId(tenantId, pondId);
     }
 
     @Tool(name = "create_fish_seed",
           description = "Record fish seed stocking in a pond. Provide pondId, fishTypeId, date (YYYY-MM-DD), quantity, sizeInches or sizeGrams, unitPrice, and vendor.")
     @Transactional
-    public FishSeed createFishSeed(String tenantId, String pondId, String fishTypeId,
+    public FishSeed createFishSeed(String pondId, String fishTypeId,
                                     String date, Integer quantity, Double sizeInches,
                                     Double sizeGrams, Double unitPrice, String vendor) {
+        String tenantId = tenantFilterActivator.activate();
         FishSeed seed = FishSeed.builder()
             .tenantId(tenantId)
             .pondId(pondId)
@@ -92,18 +99,19 @@ public class CatalogMcpService {
     // ---- Suppliers ----
 
     @Tool(name = "list_suppliers",
-          description = "List all suppliers for a tenant.")
+          description = "List all suppliers for the current tenant.")
     @Transactional(readOnly = true)
-    public List<Supplier> listSuppliers(String tenantId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<Supplier> listSuppliers() {
+        String tenantId = tenantFilterActivator.activate();
         return supplierRepository.findByTenantId(tenantId);
     }
 
     @Tool(name = "create_supplier",
           description = "Create a new supplier. Provide name and optional phone, email, address, whatsappNumber.")
     @Transactional
-    public Supplier createSupplier(String tenantId, String name, String phone,
+    public Supplier createSupplier(String name, String phone,
                                     String email, String address, String whatsappNumber) {
+        String tenantId = tenantFilterActivator.activate();
         Supplier supplier = Supplier.builder()
             .tenantId(tenantId)
             .name(name)

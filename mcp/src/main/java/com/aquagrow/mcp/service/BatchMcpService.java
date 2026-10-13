@@ -11,6 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * MCP Tools for Batch management.
+ * Tenant scoping is derived from the authenticated caller's JWT
+ * (see TenantFilter/TenantContext) — never from an LLM-supplied parameter.
+ */
 @Service
 @RequiredArgsConstructor
 public class BatchMcpService {
@@ -19,18 +24,18 @@ public class BatchMcpService {
     private final TenantFilterActivator tenantFilterActivator;
 
     @Tool(name = "list_batches",
-          description = "List all batches for a given tenant. A batch represents a cultivation cycle with fish seeds stocked in ponds.")
+          description = "List all batches for the current tenant. A batch represents a cultivation cycle with fish seeds stocked in ponds.")
     @Transactional(readOnly = true)
-    public List<Batch> listBatches(String tenantId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<Batch> listBatches() {
+        String tenantId = tenantFilterActivator.activate();
         return batchRepository.findByTenantId(tenantId);
     }
 
     @Tool(name = "get_batch",
           description = "Get a specific batch by ID including its fish seeds.")
     @Transactional(readOnly = true)
-    public Batch getBatch(String tenantId, String batchId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public Batch getBatch(String batchId) {
+        String tenantId = tenantFilterActivator.activate();
         return batchRepository.findById(batchId)
             .filter(b -> tenantId.equals(b.getTenantId()))
             .orElseThrow(() -> new IllegalArgumentException("Batch not found: " + batchId));
@@ -39,7 +44,8 @@ public class BatchMcpService {
     @Tool(name = "create_batch",
           description = "Create a new cultivation batch. Provide name, stockingDate (YYYY-MM-DD), and optional estimatedHarvestDate (YYYY-MM-DD).")
     @Transactional
-    public Batch createBatch(String tenantId, String name, String stockingDate, String estimatedHarvestDate) {
+    public Batch createBatch(String name, String stockingDate, String estimatedHarvestDate) {
+        String tenantId = tenantFilterActivator.activate();
         Batch batch = Batch.builder()
             .tenantId(tenantId)
             .name(name)
@@ -52,8 +58,8 @@ public class BatchMcpService {
     @Tool(name = "delete_batch",
           description = "Delete a batch and all its associated fish seeds. Use with caution.")
     @Transactional
-    public String deleteBatch(String tenantId, String batchId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public String deleteBatch(String batchId) {
+        String tenantId = tenantFilterActivator.activate();
         Batch batch = batchRepository.findById(batchId)
             .filter(b -> tenantId.equals(b.getTenantId()))
             .orElseThrow(() -> new IllegalArgumentException("Batch not found: " + batchId));

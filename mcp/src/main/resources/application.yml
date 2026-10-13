@@ -28,6 +28,13 @@ spring:
   liquibase:
     enabled: false
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:https://sso.aqua-grow.cloud/realms/aqua-grow}
+          jwk-set-uri: ${JWT_JWK_SET_URI:https://sso.aqua-grow.cloud/realms/aqua-grow/protocol/openid-connect/certs}
+
   # MCP Server configuration
   ai:
     mcp:
@@ -38,6 +45,12 @@ spring:
         # Change to SSE for HTTP-based transport (Claude Desktop, web clients)
         # Change to STDIO for stdin/stdout transport (direct LLM integration)
         transport: SSE
+
+aquagrow:
+  mcp:
+    # Canonical resource identifier used in the OAuth protected-resource
+    # metadata document (RFC 9728) that remote MCP clients discover.
+    resource-uri: ${MCP_RESOURCE_URI:https://mcp.aqua-grow.cloud}
 
 server:
   port: ${SERVER_PORT:8090}

@@ -16,6 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * MCP Tools for Feed management (logs, stock, orders).
+ * Tenant scoping is derived from the authenticated caller's JWT
+ * (see TenantFilter/TenantContext) — never from an LLM-supplied parameter.
+ */
 @Service
 @RequiredArgsConstructor
 public class FeedMcpService {
@@ -28,26 +33,27 @@ public class FeedMcpService {
     // ---- Feed Logs ----
 
     @Tool(name = "list_feed_logs",
-          description = "List all feed logs for a tenant. Feed logs track daily feeding amounts per batch.")
+          description = "List all feed logs for the current tenant. Feed logs track daily feeding amounts per batch.")
     @Transactional(readOnly = true)
-    public List<FeedLog> listFeedLogs(String tenantId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<FeedLog> listFeedLogs() {
+        String tenantId = tenantFilterActivator.activate();
         return feedLogRepository.findByTenantId(tenantId);
     }
 
     @Tool(name = "list_feed_logs_by_batch",
           description = "List feed logs for a specific batch.")
     @Transactional(readOnly = true)
-    public List<FeedLog> listFeedLogsByBatch(String tenantId, String batchId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<FeedLog> listFeedLogsByBatch(String batchId) {
+        String tenantId = tenantFilterActivator.activate();
         return feedLogRepository.findByTenantIdAndBatchId(tenantId, batchId);
     }
 
     @Tool(name = "create_feed_log",
           description = "Log a feeding event. Provide batchId, date (YYYY-MM-DD), feedType, amount (kg), and optional time (HH:mm).")
     @Transactional
-    public FeedLog createFeedLog(String tenantId, String batchId, String date,
+    public FeedLog createFeedLog(String batchId, String date,
                                   String feedType, Double amount, String time) {
+        String tenantId = tenantFilterActivator.activate();
         FeedLog log = FeedLog.builder()
             .tenantId(tenantId)
             .batchId(batchId)
@@ -62,18 +68,18 @@ public class FeedMcpService {
     // ---- Feed Stock ----
 
     @Tool(name = "list_feed_stock",
-          description = "List current feed stock levels for a tenant. Includes low-stock and critical-stock indicators.")
+          description = "List current feed stock levels for the current tenant. Includes low-stock and critical-stock indicators.")
     @Transactional(readOnly = true)
-    public List<FeedStock> listFeedStock(String tenantId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<FeedStock> listFeedStock() {
+        String tenantId = tenantFilterActivator.activate();
         return feedStockRepository.findByTenantId(tenantId);
     }
 
     @Tool(name = "get_low_stock_alerts",
-          description = "Get all feed stocks that are below threshold for a tenant.")
+          description = "Get all feed stocks that are below threshold for the current tenant.")
     @Transactional(readOnly = true)
-    public List<FeedStock> getLowStockAlerts(String tenantId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<FeedStock> getLowStockAlerts() {
+        String tenantId = tenantFilterActivator.activate();
         return feedStockRepository.findByTenantId(tenantId).stream()
             .filter(FeedStock::isLowStock)
             .toList();
@@ -82,8 +88,8 @@ public class FeedMcpService {
     @Tool(name = "update_feed_stock",
           description = "Update the current stock quantity for a feed type (by stock ID).")
     @Transactional
-    public FeedStock updateFeedStock(String tenantId, String stockId, Double newQuantity) {
-        tenantFilterActivator.activateFor(tenantId);
+    public FeedStock updateFeedStock(String stockId, Double newQuantity) {
+        String tenantId = tenantFilterActivator.activate();
         FeedStock stock = feedStockRepository.findById(stockId)
             .filter(s -> tenantId.equals(s.getTenantId()))
             .orElseThrow(() -> new IllegalArgumentException("FeedStock not found: " + stockId));
@@ -94,26 +100,27 @@ public class FeedMcpService {
     // ---- Feed Orders ----
 
     @Tool(name = "list_feed_orders",
-          description = "List all feed orders for a tenant.")
+          description = "List all feed orders for the current tenant.")
     @Transactional(readOnly = true)
-    public List<FeedOrder> listFeedOrders(String tenantId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<FeedOrder> listFeedOrders() {
+        String tenantId = tenantFilterActivator.activate();
         return feedOrderRepository.findByTenantId(tenantId);
     }
 
     @Tool(name = "list_pending_feed_orders",
-          description = "List all pending feed orders for a tenant.")
+          description = "List all pending feed orders for the current tenant.")
     @Transactional(readOnly = true)
-    public List<FeedOrder> listPendingFeedOrders(String tenantId) {
-        tenantFilterActivator.activateFor(tenantId);
+    public List<FeedOrder> listPendingFeedOrders() {
+        String tenantId = tenantFilterActivator.activate();
         return feedOrderRepository.findByTenantIdAndStatus(tenantId, OrderStatus.PENDING);
     }
 
     @Tool(name = "create_feed_order",
           description = "Create a new feed order. Provide supplierId, feedType, and quantity (kg).")
     @Transactional
-    public FeedOrder createFeedOrder(String tenantId, String supplierId,
+    public FeedOrder createFeedOrder(String supplierId,
                                       String feedType, Double quantity, String notes) {
+        String tenantId = tenantFilterActivator.activate();
         FeedOrder order = FeedOrder.builder()
             .tenantId(tenantId)
             .supplierId(supplierId)
@@ -127,8 +134,8 @@ public class FeedMcpService {
     @Tool(name = "update_feed_order_status",
           description = "Update the status of a feed order. Valid statuses: PENDING, CONFIRMED, RECEIVED, CANCELLED.")
     @Transactional
-    public FeedOrder updateFeedOrderStatus(String tenantId, String orderId, String status) {
-        tenantFilterActivator.activateFor(tenantId);
+    public FeedOrder updateFeedOrderStatus(String orderId, String status) {
+        String tenantId = tenantFilterActivator.activate();
         FeedOrder order = feedOrderRepository.findById(orderId)
             .filter(o -> tenantId.equals(o.getTenantId()))
             .orElseThrow(() -> new IllegalArgumentException("FeedOrder not found: " + orderId));
