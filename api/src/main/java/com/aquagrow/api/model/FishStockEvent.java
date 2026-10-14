@@ -8,13 +8,14 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 
 @Entity
+@EntityListeners(com.aquagrow.api.security.TenantGuardListener.class)
 @Table(name = "fish_stock_events")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @org.hibernate.annotations.Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class FishStockEvent {
+public class FishStockEvent implements com.aquagrow.api.security.TenantOwned {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
