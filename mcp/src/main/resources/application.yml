@@ -16,9 +16,10 @@ spring:
         name: aqua-grow-mcp
         version: 1.0.0
         type: SYNC
-        # Change to SSE for HTTP-based transport (Claude Desktop, web clients)
-        # Change to STDIO for stdin/stdout transport (direct LLM integration)
-        transport: SSE
+        # Streamable HTTP: one endpoint (POST/GET/DELETE /mcp). The older SSE transport is deprecated.
+        protocol: STREAMABLE
+        streamable-http:
+          mcp-endpoint: /mcp
 
 aquagrow:
   mcp:
