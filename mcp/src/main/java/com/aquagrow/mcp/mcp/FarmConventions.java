@@ -61,6 +61,7 @@ public class FarmConventions {
                 - A feeding quantity is PER DAY for every date in an inclusive date range.
                   Example: "%d bags per day from 2026-10-01 to 2026-10-12" = %d bags x %s kg = %s kg per day for %d days = %s kg in total.
                 - If the user gives a quantity for a whole period and it is unclear whether it is per day or a total, ask. Totals over a range are not supported: get the per-day amount confirmed.
+                - A feeding entry is saved without a time unless you pass time (24-hour HH:mm, for example 09:00). Pass it only when the user gives a time; do not assume one.
                 - At most %d days and %s kg per day can be logged in one request.
 
                 ## Saving data is always two steps

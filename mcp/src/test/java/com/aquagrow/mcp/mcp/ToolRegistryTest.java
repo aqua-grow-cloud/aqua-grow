@@ -81,7 +81,9 @@ class ToolRegistryTest {
         feeding.get("required").forEach(n -> required.add(n.asText()));
         assertThat(required).containsExactlyInAnyOrder("batch", "feedType", "startDate", "endDate");
         assertThat(feeding.get("properties").fieldNames()).toIterable()
-                .contains("bagsPerDay", "kgPerDay", "bagSizeKg", "overlap");
+                .contains("bagsPerDay", "kgPerDay", "bagSizeKg", "overlap", "time");
+        assertThat(required).doesNotContain("time");
+        assertThat(feeding.get("properties").get("time").get("description").asText()).contains("HH:mm");
         assertThat(feeding.get("properties").get("bagsPerDay").get("description").asText()).contains("PER DAY");
 
         var confirm = mapper.readTree(byName.get("confirm_feeding").inputSchema());

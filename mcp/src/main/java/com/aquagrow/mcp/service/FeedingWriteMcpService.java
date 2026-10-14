@@ -39,6 +39,7 @@ import java.util.Locale;
 public class FeedingWriteMcpService {
 
     static final String CONFIRM_TOOL = "confirm_feeding";
+    private static final java.util.regex.Pattern TIME_PATTERN = java.util.regex.Pattern.compile("^([01]\\d|2[0-3]):[0-5]\\d$");
     private static final String READY = "READY_TO_CONFIRM";
     private static final String BLOCKED = "BLOCKED";
 
@@ -57,6 +58,7 @@ public class FeedingWriteMcpService {
             String feedType,
             String startDate,
             String endDate,
+            String time,
             int days,
             Double bagsPerDay,
             double bagSizeKg,
@@ -117,7 +119,8 @@ public class FeedingWriteMcpService {
           description = "Step 1 of 2 for logging feed. Works out a feeding plan and shows what would change, but "
                   + "DOES NOT SAVE ANYTHING. The quantity is PER DAY and is applied to every date from startDate to "
                   + "endDate inclusive (e.g. '11 bags per day from 2026-10-01 to 2026-10-12' = 12 daily entries). "
-                  + "Give either bagsPerDay or kgPerDay, not both. Never guess the batch, feed type or quantity: ask "
+                  + "Give either bagsPerDay or kgPerDay, not both. If the user names a feeding time, pass it as time "
+                  + "(HH:mm, 24-hour); otherwise leave it out and the entries are saved without a time. Never guess the batch, feed type or quantity: ask "
                   + "the user if anything is missing or ambiguous. Show the returned plan to the user and wait for "
                   + "their explicit approval before calling confirm_feeding.")
     public FeedingPreview previewFeeding(
@@ -129,7 +132,9 @@ public class FeedingWriteMcpService {
             @ToolParam(description = "Kilograms fed PER DAY. Use this or bagsPerDay.", required = false) Double kgPerDay,
             @ToolParam(description = "Weight of one bag in kg. Defaults to the farm's standard bag size.", required = false) Double bagSizeKg,
             @ToolParam(description = "What to do if feed logs already exist in the range: 'block' (default) or 'add' "
-                    + "(only if the user explicitly wants extra entries on top).", required = false) String overlap) {
+                    + "(only if the user explicitly wants extra entries on top).", required = false) String overlap,
+            @ToolParam(description = "Feeding time as HH:mm in 24-hour format, e.g. '09:00', applied to every day in the range. "
+                    + "Leave out unless the user gives a time.", required = false) String time) {
 
         // ---- pure input validation first: nothing is looked up for a bad request ----
         LocalDate from = parseDate(startDate, "startDate");
@@ -148,6 +153,7 @@ public class FeedingWriteMcpService {
                     + " days can be logged at once. Split it into smaller ranges.");
         }
         boolean allowOverlap = parseOverlap(overlap);
+        String feedingTime = parseTime(time);
         if (bagsPerDay == null && kgPerDay == null) {
             throw new ToolUserException("Provide the daily quantity: either bagsPerDay or kgPerDay.");
         }
@@ -194,7 +200,7 @@ public class FeedingWriteMcpService {
         List<BulkFeedLogRequest.Entry> entries = new ArrayList<>();
         for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
             rows.add(new Row(d.toString(), perDay.doubleValue()));
-            entries.add(new BulkFeedLogRequest.Entry(d, null, perDay.doubleValue()));
+            entries.add(new BulkFeedLogRequest.Entry(d, feedingTime, perDay.doubleValue()));
         }
 
         List<String> warnings = new ArrayList<>();
@@ -235,7 +241,7 @@ public class FeedingWriteMcpService {
         return new FeedingPreview(
                 ready ? READY : BLOCKED, message,
                 resolvedBatch.id(), resolvedBatch.name(), resolvedBatch.pondNames(), resolvedFeed,
-                from.toString(), to.toString(), (int) dayCount,
+                from.toString(), to.toString(), feedingTime, (int) dayCount,
                 bagsPerDay, bagSize, perDay.doubleValue(), totalKg, round2(totalKg / bagSize),
                 before, enoughStock ? after : null,
                 rows, warnings, conflicts, token, ready ? 10 : null);
@@ -280,7 +286,8 @@ public class FeedingWriteMcpService {
 
         return new FeedingResult("SAVED",
                 "Saved " + created + " feed logs for " + (plan.batchName() == null ? plan.batchId() : plan.batchName())
-                        + " (" + plan.feedType() + ", " + from + " to " + to + "): " + fmt(response.totalKg())
+                        + " (" + plan.feedType() + ", " + from + " to " + to
+                        + (plan.entries().get(0).time() == null ? "" : ", at " + plan.entries().get(0).time()) + "): " + fmt(response.totalKg())
                         + " kg deducted from stock, " + fmt(response.remainingStockKg()) + " kg left.",
                 plan.batchName(), plan.feedType(), from.toString(), to.toString(), created,
                 response.totalKg(), response.remainingStockKg());
@@ -303,6 +310,18 @@ public class FeedingWriteMcpService {
         } catch (DateTimeParseException e) {
             throw new ToolUserException("'" + value + "' is not a valid " + field + ". Use the format YYYY-MM-DD.");
         }
+    }
+
+    /** @return the time as HH:mm, or null when none was given. */
+    private static String parseTime(String time) {
+        if (time == null || time.isBlank()) {
+            return null;
+        }
+        String trimmed = time.trim();
+        if (!TIME_PATTERN.matcher(trimmed).matches()) {
+            throw new ToolUserException("'" + time + "' is not a valid feeding time. Use 24-hour HH:mm, for example 09:00.");
+        }
+        return trimmed;
     }
 
     /** @return true if existing logs may be overlapped ("add"), false to block (default). */

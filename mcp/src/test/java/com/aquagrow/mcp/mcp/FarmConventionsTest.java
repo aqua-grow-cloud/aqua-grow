@@ -35,6 +35,7 @@ class FarmConventionsTest {
                 .contains("GRAMS")
                 .contains("INR")
                 .contains("62 days")
+                .contains("HH:mm")
                 .contains("5000 kg per day")
                 .contains("10 minutes");
     }
