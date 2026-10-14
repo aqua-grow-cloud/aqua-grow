@@ -11,7 +11,9 @@ public class Batch {
     private String id;
     private String name;
     private String tenantId;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private LocalDate stockingDate;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private LocalDate estimatedHarvestDate;
 
     @Builder.Default

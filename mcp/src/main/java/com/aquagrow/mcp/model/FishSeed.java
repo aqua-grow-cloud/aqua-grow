@@ -8,6 +8,7 @@ import java.time.LocalDate;
 public class FishSeed {
     private String id;
     private String pondId;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private LocalDate date;
     private String fishTypeId;
     private Integer quantity;
@@ -16,5 +17,5 @@ public class FishSeed {
     private Double unitPrice;
     private String vendor;
     private String tenantId;
-    @Builder.Default private String status = "Active";
+    private String status;
 }

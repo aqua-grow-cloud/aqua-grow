@@ -233,6 +233,42 @@ class FarmDataClientTest {
         assertThat(stock.get(0).getTenantId()).isEqualTo("farm-1");
     }
 
+    // ---- a value the API adds later must not break the tools ----
+
+    @Test
+    void anEnumValueTheApiAddsLater_readsAsEmptyInsteadOfFailingTheWholeList() {
+        server.expect(requestTo(BASE + "/api/feed-orders")).andRespond(withSuccess(
+                "[{\"id\":\"o-1\",\"feedType\":\"King\",\"quantity\":10.0,\"status\":\"PARTIALLY_RECEIVED\","
+                        + "\"paymentStatus\":\"REFUNDED\",\"orderDate\":\"2026-10-01T09:00:00\"},"
+                        + "{\"id\":\"o-2\",\"feedType\":\"King\",\"quantity\":5.0,\"status\":\"PENDING\","
+                        + "\"paymentStatus\":\"PAID\",\"orderDate\":\"2026-10-02T09:00:00\"}]", MediaType.APPLICATION_JSON));
+
+        List<FeedOrder> orders = client.feedOrders();
+
+        assertThat(orders).hasSize(2);
+        assertThat(orders.get(0).getId()).isEqualTo("o-1");
+        assertThat(orders.get(0).getStatus()).isNull();
+        assertThat(orders.get(0).getPaymentStatus()).isNull();
+        assertThat(orders.get(1).getStatus()).isEqualTo(com.aquagrow.mcp.model.OrderStatus.PENDING);
+        assertThat(orders.get(1).getPaymentStatus()).isEqualTo(com.aquagrow.mcp.model.PaymentStatus.PAID);
+    }
+
+    @Test
+    void unknownCultivationTypeAndStockEventType_readAsEmpty() {
+        server.expect(requestTo(BASE + "/api/fish-types")).andRespond(withSuccess(
+                "[{\"id\":\"ft-1\",\"name\":\"Axolotl\",\"cultivationType\":\"AQUARIUM\"}]", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(BASE + "/api/fish-stock-events")).andRespond(withSuccess(
+                "[{\"id\":\"e-1\",\"batchId\":\"b-1\",\"type\":\"RELOCATION\",\"date\":\"2026-10-01\"}]", MediaType.APPLICATION_JSON));
+
+        FishType fishType = client.fishTypes().get(0);
+        FishStockEvent event = client.fishStockEvents().get(0);
+
+        assertThat(fishType.getCultivationType()).isNull();
+        assertThat(fishType.getName()).isEqualTo("Axolotl");
+        assertThat(event.getType()).isNull();
+        assertThat(event.getBatchId()).isEqualTo("b-1");
+    }
+
     // ---- lookups by id must not leak another farm's records ----
     // The API looks batches and ponds up by primary key, which bypasses Hibernate's tenant filter (verified
     // with scripts/mcp-smoke/run.sh --capture). The client therefore checks the owner itself.

@@ -10,6 +10,7 @@ public class HarvestLog {
     private String batchId;
     private String pondId;
     private String fishTypeId;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private LocalDate date;
     private Double biomassWeight;
     private Integer count;

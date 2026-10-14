@@ -9,6 +9,7 @@ public class SampleLog {
     private String id;
     private String batchId;
     private String fishTypeId;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private LocalDate date;
     private Integer sampleCount;
     private Double totalSampleWeight;

@@ -4,11 +4,11 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/** A supplier as aqua-grow-api reports it. Fields the API does not send stay empty. */
 @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
-@Data @AllArgsConstructor @Builder
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Supplier {
-    @Builder.Default
-    private String id = java.util.UUID.randomUUID().toString();
+    private String id;
     private String name;
     private String phone;
     private String whatsappNumber;
@@ -18,13 +18,8 @@ public class Supplier {
     private List<String> feedTypes;
     private String orderTemplate;
     private String tenantId;
-    @Builder.Default private LocalDateTime createdAt = LocalDateTime.now();
-    @Builder.Default private LocalDateTime updatedAt = LocalDateTime.now();
-
-    public Supplier() {
-        this.id = java.util.UUID.randomUUID().toString();
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
+    private LocalDateTime createdAt;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
+    private LocalDateTime updatedAt;
 }

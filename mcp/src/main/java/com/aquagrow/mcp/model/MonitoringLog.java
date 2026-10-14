@@ -8,6 +8,7 @@ import java.time.LocalDate;
 public class MonitoringLog {
     private String id;
     private String batchId;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private LocalDate date;
     private Double doLevel;
     private Double ph;

@@ -8,6 +8,7 @@ import java.time.LocalDate;
 public class SalaryPayment {
     private String id;
     private String employeeId;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private LocalDate date;
     private Double baseSalary;
     private Double advanceDeduction;

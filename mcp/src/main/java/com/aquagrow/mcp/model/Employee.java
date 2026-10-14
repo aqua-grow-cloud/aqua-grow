@@ -13,6 +13,7 @@ public class Employee {
     private Double salary;
     private Double advanceTaken;
     private String status;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private LocalDate joinedDate;
     private String whatsappNumber;
 }

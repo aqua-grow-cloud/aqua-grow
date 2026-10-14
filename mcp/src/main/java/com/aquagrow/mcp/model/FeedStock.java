@@ -4,25 +4,21 @@ import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/** Feed stock of one feed type as aqua-grow-api reports it (a sub-account sees its parent farm's stock). */
 @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
-@Data @AllArgsConstructor @Builder
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class FeedStock {
-    @Builder.Default
-    private String id = java.util.UUID.randomUUID().toString();
+    private String id;
     private String feedType;
     private Double currentStock;
     private Double threshold;
-    @Builder.Default private String unit = "kg";
+    private String unit;
     private String supplierId;
-    @Builder.Default private LocalDateTime lastUpdated = LocalDateTime.now();
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
+    private LocalDateTime lastUpdated;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private LocalDate lastStockingDate;
     private String tenantId;
-
-    public FeedStock() {
-        this.id = java.util.UUID.randomUUID().toString();
-        this.lastUpdated = LocalDateTime.now();
-        this.unit = "kg";
-    }
 
     public boolean isLowStock() {
         return currentStock != null && threshold != null && currentStock < threshold;

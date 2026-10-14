@@ -3,29 +3,24 @@ package com.aquagrow.mcp.model;
 import lombok.*;
 import java.time.LocalDateTime;
 
+/** A feed order as aqua-grow-api reports it. Fields the API does not send stay empty. */
 @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
-@Data @AllArgsConstructor @Builder
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class FeedOrder {
-    @Builder.Default
-    private String id = java.util.UUID.randomUUID().toString();
+    private String id;
     private String feedType;
     private Double quantity;
-    @Builder.Default
-    private OrderStatus status = OrderStatus.PENDING;
+    @com.fasterxml.jackson.annotation.JsonFormat(with = com.fasterxml.jackson.annotation.JsonFormat.Feature.READ_UNKNOWN_ENUM_VALUES_AS_NULL)
+    private OrderStatus status;
     private String supplierId;
-    @Builder.Default
-    private LocalDateTime orderDate = LocalDateTime.now();
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
+    private LocalDateTime orderDate;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private LocalDateTime confirmationDate;
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private LocalDateTime receivedDate;
-    @Builder.Default
-    private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
+    @com.fasterxml.jackson.annotation.JsonFormat(with = com.fasterxml.jackson.annotation.JsonFormat.Feature.READ_UNKNOWN_ENUM_VALUES_AS_NULL)
+    private PaymentStatus paymentStatus;
     private String notes;
     private String tenantId;
-
-    public FeedOrder() {
-        this.id = java.util.UUID.randomUUID().toString();
-        this.orderDate = LocalDateTime.now();
-        this.status = OrderStatus.PENDING;
-        this.paymentStatus = PaymentStatus.UNPAID;
-    }
 }
