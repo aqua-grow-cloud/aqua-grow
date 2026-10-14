@@ -1,6 +1,8 @@
 package com.aquagrow.api.exception;
 
 import com.aquagrow.api.security.SubTenantAccessDeniedException;
+import com.aquagrow.api.security.TenantIsolationException;
+import org.springframework.orm.jpa.JpaSystemException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,5 +27,42 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getMessage()).isEqualTo("Only root tenant allowed");
+    }
+
+    private final WebRequest request = new ServletWebRequest(new MockHttpServletRequest());
+
+    @Test
+    void anAccessToAnotherFarmsRecordIsAnsweredAsNotFound_withoutRevealingAnything() {
+        ResponseEntity<com.aquagrow.api.dto.ErrorResponse> response =
+                handler.handleTenantIsolation(new TenantIsolationException(TenantIsolationException.Kind.NOT_FOUND), request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().getMessage()).isEqualTo("Not found");
+    }
+
+    @Test
+    void aWriteToAnotherFarmIsForbidden() {
+        ResponseEntity<com.aquagrow.api.dto.ErrorResponse> response =
+                handler.handleTenantIsolation(new TenantIsolationException(TenantIsolationException.Kind.FORBIDDEN), request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void anIsolationErrorWrappedByHibernateOrSpringIsStillRecognised() {
+        Exception wrapped = new JpaSystemException(new RuntimeException("callback failed",
+                new TenantIsolationException(TenantIsolationException.Kind.NOT_FOUND)));
+
+        ResponseEntity<com.aquagrow.api.dto.ErrorResponse> response = handler.handleGlobalException(wrapped, request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void otherUnexpectedErrorsAreStillA500() {
+        ResponseEntity<com.aquagrow.api.dto.ErrorResponse> response =
+                handler.handleGlobalException(new RuntimeException("boom"), request);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

@@ -8,12 +8,13 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
+@EntityListeners(com.aquagrow.api.security.TenantGuardListener.class)
 @Table(name = "feed_orders")
 @Data
 @AllArgsConstructor
 @Builder
 @org.hibernate.annotations.Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class FeedOrder {
+public class FeedOrder implements com.aquagrow.api.security.TenantOwned {
 
     @Id
     @Builder.Default

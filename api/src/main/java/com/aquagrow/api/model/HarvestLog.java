@@ -8,13 +8,14 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 
 @Entity
+@EntityListeners(com.aquagrow.api.security.TenantGuardListener.class)
 @Table(name = "harvest_logs")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @org.hibernate.annotations.Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class HarvestLog {
+public class HarvestLog implements com.aquagrow.api.security.TenantOwned {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;

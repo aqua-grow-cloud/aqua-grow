@@ -9,12 +9,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
+@EntityListeners(com.aquagrow.api.security.TenantGuardListener.class)
 @Table(name = "suppliers")
 @Data
 @AllArgsConstructor
 @Builder
 @org.hibernate.annotations.Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Supplier {
+public class Supplier implements com.aquagrow.api.security.TenantOwned {
 
     @Id
     @Builder.Default
