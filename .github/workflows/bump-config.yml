@@ -1,0 +1,57 @@
+# Opens a PR on aqua-grow-config that points the cloudpe manifests at new image tags.
+# Merging that PR is the deploy: ArgoCD syncs the config repo.
+name: Bump config
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      services:
+        description: 'JSON array, e.g. ["api","mcp"]'
+        required: true
+        type: string
+      source_sha:
+        required: true
+        type: string
+    secrets:
+      CONFIG_REPO_TOKEN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: aqua-grow-cloud/aqua-grow-config
+          token: ${{ secrets.CONFIG_REPO_TOKEN }}
+          path: config
+      - name: Update image tags and validate overlays
+        env:
+          TAG: ${{ inputs.tag }}
+          SERVICES: ${{ inputs.services }}
+        run: |
+          if ! [[ "$TAG" =~ ^[0-9A-Za-z._-]+$ ]]; then echo "bad tag" >&2; exit 1; fi
+          mapfile -t services < <(echo "$SERVICES" | jq -r '.[]')
+          scripts/bump-config.sh config "$TAG" "${services[@]}"
+      - name: Open pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          path: config
+          token: ${{ secrets.CONFIG_REPO_TOKEN }}
+          branch: bump/cloudpe-${{ inputs.tag }}
+          base: main
+          commit-message: 'Deploy ${{ inputs.tag }} to cloudpe'
+          title: 'Deploy ${{ inputs.tag }} to cloudpe'
+          body: |
+            Image tag `${{ inputs.tag }}` for: `${{ inputs.services }}`.
+
+            Source: https://github.com/${{ github.repository }}/commit/${{ inputs.source_sha }}
+
+            Merging this PR deploys to cloudpe (ArgoCD syncs `main`).

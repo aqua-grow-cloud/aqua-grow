@@ -1,0 +1,28 @@
+# Manual: point cloudpe at an image tag that was already published (rollbacks, or re-deploying one service).
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag already in GHCR, e.g. 20261126-6d2d5db'
+        required: true
+        type: string
+      services:
+        description: 'JSON array of services'
+        required: true
+        default: '["api","mcp","resource-monitor","frontend"]'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  bump:
+    uses: ./.github/workflows/bump-config.yml
+    with:
+      tag: ${{ inputs.tag }}
+      services: ${{ inputs.services }}
+      source_sha: ${{ github.sha }}
+    secrets:
+      CONFIG_REPO_TOKEN: ${{ secrets.CONFIG_REPO_TOKEN }}
