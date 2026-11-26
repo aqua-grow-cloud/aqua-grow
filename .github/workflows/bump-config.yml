@@ -16,8 +16,10 @@ on:
         required: true
         type: string
     secrets:
-      CONFIG_REPO_TOKEN:
+      CONFIG_APP_PRIVATE_KEY:
         required: true
+      CONFIG_APP_ID:
+        required: false   # may be a repository variable instead
 
 permissions:
   contents: read
@@ -27,10 +29,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Short-lived token for the GitHub App, limited to aqua-grow-config
+      - id: app
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.CONFIG_APP_ID || secrets.CONFIG_APP_ID }}
+          private-key: ${{ secrets.CONFIG_APP_PRIVATE_KEY }}
+          owner: aqua-grow-cloud
+          repositories: aqua-grow-config
       - uses: actions/checkout@v4
         with:
           repository: aqua-grow-cloud/aqua-grow-config
-          token: ${{ secrets.CONFIG_REPO_TOKEN }}
+          token: ${{ steps.app.outputs.token }}
           path: config
       - name: Update image tags and validate overlays
         env:
@@ -44,7 +54,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           path: config
-          token: ${{ secrets.CONFIG_REPO_TOKEN }}
+          token: ${{ steps.app.outputs.token }}
           branch: bump/cloudpe-${{ inputs.tag }}
           base: main
           commit-message: 'Deploy ${{ inputs.tag }} to cloudpe'
