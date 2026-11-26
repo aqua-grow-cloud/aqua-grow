@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: aqua-grow-mcp
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:https://sso.aqua-grow.cloud/realms/aqua-grow}
+          jwk-set-uri: ${JWT_JWK_SET_URI:https://sso.aqua-grow.cloud/realms/aqua-grow/protocol/openid-connect/certs}
+
+  # MCP Server configuration
+  ai:
+    mcp:
+      server:
+        name: aqua-grow-mcp
+        version: 1.0.0
+        type: SYNC
+        # Streamable HTTP: one endpoint (POST/GET/DELETE /mcp). The older SSE transport is deprecated.
+        protocol: STREAMABLE
+        streamable-http:
+          mcp-endpoint: /mcp
+
+aquagrow:
+  mcp:
+    # Canonical resource identifier used in the OAuth protected-resource
+    # metadata document (RFC 9728) that remote MCP clients discover.
+    resource-uri: ${MCP_RESOURCE_URI:https://mcp.aqua-grow.cloud}
+    api:
+      # aqua-grow-api, called with the caller's own bearer token for all writes
+      base-url: ${AQUAGROW_API_URL:http://aqua-grow-api.aqua-grow.svc.cluster.local}
+      connect-timeout: PT3S
+      read-timeout: PT15S
+    # How long a write preview stays confirmable
+    preview-ttl: PT10M
+    # Farm conventions served to the model (resource aquagrow://conventions, prompt farm_conventions)
+    conventions:
+      default-bag-size-kg: 40
+      timezone: ${FARM_TIMEZONE:Asia/Kolkata}
+      currency: ${FARM_CURRENCY:INR}
+    feeding:
+      max-kg-per-day: 5000
+      max-days: 62
+
+server:
+  port: ${SERVER_PORT:8090}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    com.aquagrow.mcp: DEBUG

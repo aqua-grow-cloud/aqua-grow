@@ -1,0 +1,15 @@
+[
+  {
+    "criticalStock": true,
+    "currentStock": 5.0,
+    "feedType": "Starter Crumble",
+    "id": "3e5cd908-90c7-4d34-8cb2-1bc9611862e3",
+    "lastStockingDate": null,
+    "lastUpdated": "2026-10-13T21:33:38.098969",
+    "lowStock": true,
+    "supplierId": null,
+    "tenantId": "farm-1",
+    "threshold": 100.0,
+    "unit": "kg"
+  }
+]

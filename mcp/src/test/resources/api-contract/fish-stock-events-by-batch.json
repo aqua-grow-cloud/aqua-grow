@@ -1,0 +1,62 @@
+[
+  {
+    "avgWeightGram": 50.0,
+    "batchId": "08f31c2b-82f0-43be-922f-7a8898163eff",
+    "date": "2026-09-01",
+    "fishTypeId": "04f80f4b-8153-4dca-a677-7c9c5683fc5f",
+    "id": "d5956e72-0577-491f-be85-85836cbcedbb",
+    "pondId": "3fb1686a-61f2-41a7-a2f8-f90ab3d87ccf",
+    "quantityDelta": 1000,
+    "referenceId": "b9e320da-2982-4e1e-930e-0798c8307deb",
+    "tenantId": "farm-1",
+    "type": "SEED"
+  },
+  {
+    "avgWeightGram": 250.0,
+    "batchId": "08f31c2b-82f0-43be-922f-7a8898163eff",
+    "date": "2026-10-05",
+    "fishTypeId": "04f80f4b-8153-4dca-a677-7c9c5683fc5f",
+    "id": "1afc6421-4eb9-4a3d-a543-4546549dfc5a",
+    "pondId": "3fb1686a-61f2-41a7-a2f8-f90ab3d87ccf",
+    "quantityDelta": -400,
+    "referenceId": "b4c18ff5-a71a-45bf-9ff0-b3c645956216",
+    "tenantId": "farm-1",
+    "type": "HARVEST"
+  },
+  {
+    "avgWeightGram": 50.0,
+    "batchId": "08f31c2b-82f0-43be-922f-7a8898163eff",
+    "date": "2026-10-01",
+    "fishTypeId": "04f80f4b-8153-4dca-a677-7c9c5683fc5f",
+    "id": "6d7f1e13-7837-4fd9-8594-bdd27a1c565f",
+    "pondId": "3fb1686a-61f2-41a7-a2f8-f90ab3d87ccf",
+    "quantityDelta": 0,
+    "referenceId": "a596003c-e306-4a4a-8dca-a1fb8479a9bf",
+    "tenantId": "farm-1",
+    "type": "SAMPLING"
+  },
+  {
+    "avgWeightGram": 52.5,
+    "batchId": "08f31c2b-82f0-43be-922f-7a8898163eff",
+    "date": "2026-10-02",
+    "fishTypeId": "04f80f4b-8153-4dca-a677-7c9c5683fc5f",
+    "id": "9fead853-b42b-4394-a62f-bbd36259ce28",
+    "pondId": "3fb1686a-61f2-41a7-a2f8-f90ab3d87ccf",
+    "quantityDelta": 0,
+    "referenceId": "f7519435-5355-426f-98c3-f9b8527c3352",
+    "tenantId": "farm-1",
+    "type": "SAMPLING"
+  },
+  {
+    "avgWeightGram": 55.0,
+    "batchId": "08f31c2b-82f0-43be-922f-7a8898163eff",
+    "date": "2026-10-03",
+    "fishTypeId": "04f80f4b-8153-4dca-a677-7c9c5683fc5f",
+    "id": "c68dd608-25ea-4b5f-b161-9dcbc74bbe0e",
+    "pondId": "3fb1686a-61f2-41a7-a2f8-f90ab3d87ccf",
+    "quantityDelta": 0,
+    "referenceId": "deb736ca-c532-45f4-8796-c089656480b5",
+    "tenantId": "farm-1",
+    "type": "SAMPLING"
+  }
+]

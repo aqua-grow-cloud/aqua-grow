@@ -1,0 +1,13 @@
+[
+  {
+    "advanceTaken": 0.0,
+    "id": "30885eba-8ac6-49e1-b418-60a175e071ce",
+    "joinedDate": "2025-01-01",
+    "name": "Ravi",
+    "role": "Worker",
+    "salary": 20000.0,
+    "status": "Active",
+    "tenantId": "farm-1",
+    "whatsappNumber": null
+  }
+]

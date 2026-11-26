@@ -1,0 +1,22 @@
+[
+  {
+    "actualWeight": 95.0,
+    "avgWeightGrams": 250.0,
+    "basicRate": 200.0,
+    "batchId": "08f31c2b-82f0-43be-922f-7a8898163eff",
+    "biomassWeight": 100.0,
+    "buyer": "Trader",
+    "commission": 878.75,
+    "commissionRate": 5.0,
+    "count": 400,
+    "date": "2026-10-05",
+    "discountWeight": 5.0,
+    "finalRate": 185.0,
+    "fishTypeId": "04f80f4b-8153-4dca-a677-7c9c5683fc5f",
+    "id": "b4c18ff5-a71a-45bf-9ff0-b3c645956216",
+    "isFinal": false,
+    "pondId": "3fb1686a-61f2-41a7-a2f8-f90ab3d87ccf",
+    "revenue": 16696.25,
+    "tenantId": "farm-1"
+  }
+]
