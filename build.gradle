@@ -1,0 +1,2 @@
+// Intentionally empty: shared configuration lives in build-logic (aquagrow.spring-service),
+// dependency versions in gradle/libs.versions.toml, and each service in its own build.gradle.

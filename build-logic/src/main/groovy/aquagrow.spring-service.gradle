@@ -1,0 +1,49 @@
+// Convention plugin shared by every Spring Boot service in the monorepo.
+plugins {
+    id 'java'
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+}
+
+group = 'com.aquagrow'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+// Keep the artifact names the old per-repo builds produced (aqua-grow-api-0.0.1-SNAPSHOT.jar, ...)
+base {
+    archivesName = "aqua-grow-${project.name}"
+}
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+dependencies {
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// Only the executable boot jar is published; skip the "-plain" jar so Docker can copy build/libs/*.jar
+tasks.named('jar') {
+    enabled = false
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}

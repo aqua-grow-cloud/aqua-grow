@@ -1,0 +1,20 @@
+[versions]
+springBoot = "4.2.0"
+springDependencyManagement = "1.1.7"
+springAi = "2.1.0"
+springdoc = "3.2.1"
+opencsv = "5.9"
+fabric8 = "7.4.0"
+
+[libraries]
+# Build-logic classpath (the convention plugin applies these plugins)
+spring-boot-gradle-plugin = { module = "org.springframework.boot:spring-boot-gradle-plugin", version.ref = "springBoot" }
+spring-dependency-management-plugin = { module = "io.spring.gradle:dependency-management-plugin", version.ref = "springDependencyManagement" }
+
+# Application dependencies not managed by the Spring Boot BOM
+spring-ai-bom = { module = "org.springframework.ai:spring-ai-bom", version.ref = "springAi" }
+springdoc-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+opencsv = { module = "com.opencsv:opencsv", version.ref = "opencsv" }
+fabric8-client = { module = "io.fabric8:kubernetes-client", version.ref = "fabric8" }
+fabric8-server-mock = { module = "io.fabric8:kubernetes-server-mock", version.ref = "fabric8" }
+fabric8-junit = { module = "io.fabric8:kubernetes-junit-jupiter", version.ref = "fabric8" }

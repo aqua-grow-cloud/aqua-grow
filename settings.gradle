@@ -1,0 +1,7 @@
+pluginManagement {
+    includeBuild('build-logic')
+}
+
+rootProject.name = 'aqua-grow'
+
+include 'api', 'mcp', 'resource-monitor'
