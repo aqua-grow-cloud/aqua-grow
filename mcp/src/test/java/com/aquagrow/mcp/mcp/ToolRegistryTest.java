@@ -74,13 +74,13 @@ class ToolRegistryTest {
         ToolCallbackProvider provider = TestToolRegistry.provider();
         var byName = Arrays.stream(provider.getToolCallbacks())
                 .collect(Collectors.toMap(c -> c.getToolDefinition().name(), c -> c.getToolDefinition()));
-        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        var mapper = new tools.jackson.databind.ObjectMapper();
 
         var feeding = mapper.readTree(byName.get("preview_feeding").inputSchema());
         var required = new java.util.HashSet<String>();
         feeding.get("required").forEach(n -> required.add(n.asText()));
         assertThat(required).containsExactlyInAnyOrder("batch", "feedType", "startDate", "endDate");
-        assertThat(feeding.get("properties").fieldNames()).toIterable()
+        assertThat(feeding.get("properties").propertyNames())
                 .contains("bagsPerDay", "kgPerDay", "bagSizeKg", "overlap", "time");
         assertThat(required).doesNotContain("time");
         assertThat(feeding.get("properties").get("time").get("description").asText()).contains("HH:mm");

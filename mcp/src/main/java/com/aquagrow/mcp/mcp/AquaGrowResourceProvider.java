@@ -60,17 +60,22 @@ public class AquaGrowResourceProvider {
     /** The farm's working conventions (units, bag size, confirmation rules), generated fresh on each read. */
     private McpServerFeatures.SyncResourceSpecification conventionsSpec(FarmConventions conventions) {
         String uri = "aquagrow://conventions";
-        McpSchema.Resource resource = new McpSchema.Resource(uri, "Farm conventions",
-            "How this farm measures things (kg, 40 kg bags, grams for samples), how quantities are read (per day), "
-                + "today's date, and the preview-then-confirm rule for saving data. Read this before logging feed or samples.",
-            "text/markdown", null);
+        McpSchema.Resource resource = McpSchema.Resource.builder()
+            .uri(uri)
+            .name("Farm conventions")
+            .description("How this farm measures things (kg, 40 kg bags, grams for samples), how quantities are read "
+                + "(per day), today's date, and the preview-then-confirm rule for saving data. "
+                + "Read this before logging feed or samples.")
+            .mimeType("text/markdown")
+            .build();
         return new McpServerFeatures.SyncResourceSpecification(resource, (exchange, request) ->
             new McpSchema.ReadResourceResult(List.of(
                 new McpSchema.TextResourceContents(uri, "text/markdown", conventions.text()))));
     }
 
     private McpServerFeatures.SyncResourceSpecification spec(String uri, String name, String description) {
-        McpSchema.Resource resource = new McpSchema.Resource(uri, name, description, "text/plain", null);
+        McpSchema.Resource resource = McpSchema.Resource.builder()
+            .uri(uri).name(name).description(description).mimeType("text/plain").build();
         return new McpServerFeatures.SyncResourceSpecification(resource, this::handleRead);
     }
 

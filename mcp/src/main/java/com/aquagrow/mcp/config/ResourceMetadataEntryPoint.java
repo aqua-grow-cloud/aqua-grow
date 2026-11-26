@@ -28,11 +28,22 @@ public class ResourceMetadataEntryPoint implements AuthenticationEntryPoint {
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException authException) throws IOException {
         delegate.commence(request, response, authException);
-        String challenge = response.getHeader(HttpHeaders.WWW_AUTHENTICATE);
+        // Spring Security 7 adds its own resource_metadata derived from the request URL, which behind the
+        // ingress is an internal address. Drop it so the only pointer is the public one configured here.
+        String challenge = stripResourceMetadata(response.getHeader(HttpHeaders.WWW_AUTHENTICATE));
         String param = "resource_metadata=\"" + metadataUrl + "\"";
         response.setHeader(HttpHeaders.WWW_AUTHENTICATE,
                 challenge == null || challenge.isBlank() || "Bearer".equals(challenge.trim())
                         ? "Bearer " + param
                         : challenge + ", " + param);
+    }
+
+    private static String stripResourceMetadata(String challenge) {
+        if (challenge == null) {
+            return null;
+        }
+        return challenge.replaceAll(",?\\s*resource_metadata=\"[^\"]*\"", "")
+                .replaceAll("^(Bearer)\\s*,\\s*", "$1 ")
+                .trim();
     }
 }

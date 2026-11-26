@@ -1,8 +1,8 @@
 package com.aquagrow.mcp.client;
 
 import com.aquagrow.mcp.security.CurrentUser;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
@@ -108,7 +108,7 @@ class ApiHttp {
             if (node != null && node.hasNonNull("message")) {
                 message = node.get("message").asText();
             }
-        } catch (IOException ignored) {
+        } catch (IOException | tools.jackson.core.JacksonException ignored) {
             // fall through to the generic message
         }
         return new ToolUserException(message != null && !message.isBlank()

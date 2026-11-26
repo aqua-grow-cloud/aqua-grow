@@ -1,11 +1,10 @@
 package com.aquagrow.mcp.model;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.tool.execution.DefaultToolCallResultConverter;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -25,7 +24,7 @@ class ToolOutputTest {
     private static final Pattern ISO_DATE = Pattern.compile("\"\\d{4}-\\d{2}-\\d{2}\"");
     private static final Pattern ISO_DATE_TIME = Pattern.compile("\"\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}");
 
-    private final ObjectMapper mapper = Jackson2ObjectMapperBuilder.json().build();
+    private final ObjectMapper mapper = tools.jackson.databind.json.JsonMapper.builder().build();
     private final DefaultToolCallResultConverter converter = new DefaultToolCallResultConverter();
 
     private <T> String toolOutput(String fixture, Class<T> type) throws IOException {
