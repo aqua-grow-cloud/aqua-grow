@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Orval output, generated from openapi.json (npm run api:generate)
+src/api/generated/
