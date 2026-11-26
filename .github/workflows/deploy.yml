@@ -24,4 +24,5 @@ jobs:
       tag: ${{ inputs.tag }}
       services: ${{ inputs.services }}
       source_sha: ${{ github.sha }}
-    secrets: inherit
+    secrets:
+      CONFIG_REPO_TOKEN: ${{ secrets.CONFIG_REPO_TOKEN }}

@@ -125,7 +125,8 @@ jobs:
       tag: ${{ needs.prepare.outputs.tag }}
       services: ${{ needs.prepare.outputs.services }}
       source_sha: ${{ github.sha }}
-    secrets: inherit
+    secrets:
+      CONFIG_REPO_TOKEN: ${{ secrets.CONFIG_REPO_TOKEN }}
 
   release:
     needs: [prepare, bump]
