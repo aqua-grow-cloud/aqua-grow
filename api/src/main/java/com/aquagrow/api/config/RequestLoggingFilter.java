@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.web.util.ContentCachingRequestWrapper;
 import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import java.io.IOException;
@@ -24,15 +23,14 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 
         long startTime = System.currentTimeMillis();
 
-        ContentCachingRequestWrapper requestWrapper = new ContentCachingRequestWrapper(request);
         ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
 
         try {
-            filterChain.doFilter(requestWrapper, responseWrapper);
+            filterChain.doFilter(request, responseWrapper);
         } finally {
             long duration = System.currentTimeMillis() - startTime;
 
-            logRequest(requestWrapper, responseWrapper, duration);
+            logRequest(request, responseWrapper, duration);
 
             responseWrapper.copyBodyToResponse();
         }

@@ -12,8 +12,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -30,9 +30,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class FeedStockControllerTest {
 
     @Autowired private MockMvc mockMvc;
-    @MockBean private FeedStockRepository feedStockRepository;
-    @MockBean private TenantAuthorizationService tenantAuthorizationService;
-    @MockBean private EntityManager entityManager;
+    @MockitoBean private FeedStockRepository feedStockRepository;
+    @MockitoBean private TenantAuthorizationService tenantAuthorizationService;
+    @MockitoBean private EntityManager entityManager;
 
     @BeforeEach
     void setUpTenantFilterStubs() {
