@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { usePonds } from './usePonds'
 import { setActivePinia, createPinia } from 'pinia'
-import { VueQueryPlugin } from '@tanstack/vue-query'
-import { createApp } from 'vue'
+
+// usePonds calls useQueryClient(), which needs a component injection context. Composables are called
+// directly in these tests, so stub it.
+vi.mock('@tanstack/vue-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}))
 
 // Mock the pond service
 vi.mock('../api/pondService', () => ({
@@ -39,10 +43,6 @@ describe('usePonds', () => {
     // Setup Pinia
     const pinia = createPinia()
     setActivePinia(pinia)
-    
-    // Setup Vue Query
-    const app = createApp({})
-    app.use(VueQueryPlugin)
   })
 
   it('should return ponds data', () => {

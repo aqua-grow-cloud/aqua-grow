@@ -80,7 +80,7 @@ describe('useApiAction', () => {
     const { execute, error, fieldErrors } = useApiAction(mockAction)
     await execute()
 
-    expect(error.value).toBe(mockError)
+    expect(error.value).toStrictEqual(mockError)
     expect(fieldErrors.value).toEqual({
       name: 'Name is required',
       email: 'Invalid email format',
@@ -190,7 +190,7 @@ describe('useApiAction', () => {
 
     // First execution - fails
     await execute()
-    expect(error.value).toBe(mockError)
+    expect(error.value).toStrictEqual(mockError)
     expect(fieldErrors.value).toEqual({ name: 'Required' })
 
     // Second execution - succeeds

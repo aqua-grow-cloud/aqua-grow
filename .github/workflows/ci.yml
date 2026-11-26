@@ -107,10 +107,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run api:generate
-      # 9 tests (useApiAction, usePonds) already fail on main of the old frontend repo; advisory until fixed.
-      - name: Unit tests
-        continue-on-error: true
-        run: npm test -- --run
+      - run: npm test -- --run
       - run: npm run build
       - name: Build image (not pushed)
         working-directory: .
