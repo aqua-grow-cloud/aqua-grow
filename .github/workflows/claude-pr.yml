@@ -21,18 +21,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  mention:
-    # Only trusted users, only "@claude" mentions, only on PRs (issues are handled by the factory workflow).
+  gate:
+    # Cheap pre-check: is this a "@claude" mention on a PR, and is the commenter trusted?
     if: >-
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request
-        && contains(github.event.comment.body, '@claude')
-        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
-      || (github.event_name == 'pull_request_review_comment'
-        && contains(github.event.comment.body, '@claude')
-        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
-      || (github.event_name == 'pull_request_review'
-        && contains(github.event.review.body, '@claude')
-        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association))
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude'))
+      || (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude'))
+      || (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ok: ${{ steps.perm.outputs.ok }}
+    steps:
+      - id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.FACTORY_APP_ID }}
+          private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
+          repositories: aqua-grow
+      - id: perm
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          ACTOR: ${{ github.event.sender.login }}
+        run: |
+          perm=$(gh api "repos/${{ github.repository }}/collaborators/${ACTOR}/permission" --jq .permission)
+          echo "${ACTOR}: ${perm}"
+          case "$perm" in admin|write|maintain) echo "ok=true" >> "$GITHUB_OUTPUT" ;; *) echo "ok=false" >> "$GITHUB_OUTPUT" ;; esac
+
+  mention:
+    needs: gate
+    if: needs.gate.outputs.ok == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

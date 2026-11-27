@@ -16,9 +16,7 @@ concurrency:
 
 jobs:
   implement:
-    if: >-
-      github.event.label.name == 'ai-factory'
-      && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+    if: github.event.label.name == 'ai-factory'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -31,15 +29,19 @@ jobs:
           private-key: ${{ secrets.FACTORY_APP_PRIVATE_KEY }}
           repositories: aqua-grow
 
-      # The person who applied the label must be able to write to the repo.
-      - name: Check labeler permission
+      # Both the person who applied the label and the issue author must have write access.
+      # (author_association is unreliable: private org members show up as CONTRIBUTOR.)
+      - name: Check trust
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
-          ACTOR: ${{ github.event.sender.login }}
+          LABELER: ${{ github.event.sender.login }}
+          AUTHOR: ${{ github.event.issue.user.login }}
         run: |
-          perm=$(gh api "repos/${{ github.repository }}/collaborators/${ACTOR}/permission" --jq .permission)
-          echo "labeler=${ACTOR} permission=${perm}"
-          case "$perm" in admin|write|maintain) ;; *) echo "::error::${ACTOR} may not trigger the factory"; exit 1 ;; esac
+          for u in "$LABELER" "$AUTHOR"; do
+            perm=$(gh api "repos/${{ github.repository }}/collaborators/${u}/permission" --jq .permission)
+            echo "${u}: ${perm}"
+            case "$perm" in admin|write|maintain) ;; *) echo "::error::${u} is not trusted to drive the factory"; exit 1 ;; esac
+          done
 
       - uses: actions/checkout@v4
         with:
