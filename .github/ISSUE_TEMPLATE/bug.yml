@@ -1,0 +1,21 @@
+name: Bug
+description: Something is broken (can be picked up by the AI factory)
+labels: [bug]
+body:
+  - type: dropdown
+    id: service
+    attributes:
+      label: Affected service
+      multiple: true
+      options: [api, frontend, mcp, resource-monitor]
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual behaviour
+    validations: { required: true }

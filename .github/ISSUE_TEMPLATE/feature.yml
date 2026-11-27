@@ -1,0 +1,23 @@
+name: Feature
+description: A change to build (can be picked up by the AI factory)
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: service
+    attributes:
+      label: Affected service
+      multiple: true
+      options: [api, frontend, mcp, resource-monitor]
+    validations: { required: true }
+  - type: textarea
+    id: description
+    attributes:
+      label: What should change and why
+    validations: { required: true }
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: A checklist the PR can be judged against.
+      placeholder: "- [ ] ..."
+    validations: { required: true }
