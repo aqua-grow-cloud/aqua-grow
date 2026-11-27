@@ -19,7 +19,7 @@ jobs:
 
   prepare:
     needs: ci
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.SELF_HOSTED == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","aqua-grow-mac"]') || 'ubuntu-latest' }}
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
       services: ${{ steps.filter.outputs.changes }}
@@ -58,7 +58,7 @@ jobs:
   images:
     needs: prepare
     if: needs.prepare.outputs.services != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.SELF_HOSTED == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","aqua-grow-mac"]') || 'ubuntu-latest' }}
     permissions:
       contents: read
       packages: write
@@ -97,6 +97,7 @@ jobs:
           file: docker/jvm.Dockerfile
           build-args: PORT=${{ matrix.service == 'api' && '8080' || matrix.service == 'mcp' && '8090' || '8091' }}
           push: true
+          platforms: linux/amd64
           tags: ${{ env.IMAGE }}:${{ env.TAG }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
@@ -107,6 +108,7 @@ jobs:
         with:
           context: frontend
           push: true
+          platforms: linux/amd64
           tags: ${{ env.IMAGE }}:${{ env.TAG }}
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
@@ -114,6 +116,7 @@ jobs:
       - name: Scan image (Trivy)
         uses: aquasecurity/trivy-action@v0.36.0
         env:
+          TRIVY_PLATFORM: linux/amd64
           TRIVY_USERNAME: ${{ github.actor }}
           TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -134,7 +137,7 @@ jobs:
 
   release:
     needs: [prepare, bump]
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.SELF_HOSTED == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","aqua-grow-mac"]') || 'ubuntu-latest' }}
     permissions:
       contents: write
     steps:
