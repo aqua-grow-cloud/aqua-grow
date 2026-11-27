@@ -1,44 +1,55 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { keycloak } from '@/plugins/keycloak'
 
-interface JwtPayload {
+/** Tenant claims added to the Keycloak access token. */
+interface TenantClaims {
   tenant_id?: string
+  tenant_name?: string
   parent_tenant_id?: string
+  parent_tenant_name?: string
 }
 
-function decodeJwtPayload(token: string): JwtPayload {
-  try {
-    const base64Payload = token.split('.')[1]
-    if (!base64Payload) return {}
-    return JSON.parse(atob(base64Payload)) as JwtPayload
-  } catch {
-    return {}
-  }
-}
-
-const AUTH_TOKEN_KEY = 'auth_token'
-
-function readPayload(): JwtPayload {
-  const token = localStorage.getItem(AUTH_TOKEN_KEY)
-  if (!token) return {}
-  return decodeJwtPayload(token)
+function readClaims(): TenantClaims {
+  return (keycloak.tokenParsed ?? {}) as TenantClaims
 }
 
 export const useTenantStore = defineStore('tenant', () => {
   // Use a ref (not computed) so Vue tracks it as reactive state.
-  // Call refresh() after login to update mid-session if needed.
-  const payload = ref<JwtPayload>(readPayload())
+  // Call refresh() after a token update to pick up new claims mid-session.
+  const claims = ref<TenantClaims>(readClaims())
 
   function refresh() {
-    payload.value = readPayload()
+    claims.value = readClaims()
   }
 
   const parentTenantId = computed<string | null>(
-    () => payload.value.parent_tenant_id ?? null
+    () => claims.value.parent_tenant_id ?? null
   )
 
   const isSubTenant = computed(() => parentTenantId.value !== null)
   const isRootTenant = computed(() => parentTenantId.value === null)
 
-  return { isSubTenant, isRootTenant, parentTenantId, refresh }
+  const tenantName = computed<string | null>(() => claims.value.tenant_name?.trim() || null)
+  const parentTenantName = computed<string | null>(
+    () => claims.value.parent_tenant_name?.trim() || null
+  )
+
+  /** Header text: "Parent / Tenant" for sub-tenants, the tenant name otherwise. Null when the token has no name. */
+  const tenantLabel = computed<string | null>(() => {
+    if (!tenantName.value) return null
+    return isSubTenant.value && parentTenantName.value
+      ? `${parentTenantName.value} / ${tenantName.value}`
+      : tenantName.value
+  })
+
+  return {
+    isSubTenant,
+    isRootTenant,
+    parentTenantId,
+    tenantName,
+    parentTenantName,
+    tenantLabel,
+    refresh,
+  }
 })

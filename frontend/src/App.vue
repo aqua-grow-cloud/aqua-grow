@@ -65,6 +65,7 @@
 
     <v-app-bar color="surface" elevation="0" class="border-b">
       <v-app-bar-nav-icon @click="drawer = !drawer" color="grey-darken-1"></v-app-bar-nav-icon>
+      <TenantBadge class="ml-2" />
       <v-spacer></v-spacer>
     </v-app-bar>
 
@@ -117,6 +118,7 @@
 <script setup lang="ts">
 import {inject, ref} from 'vue'
 import {useAquaStore} from './stores/useAquaStore'
+import TenantBadge from './components/TenantBadge.vue'
 
 const store = useAquaStore()
 // import Keycloak from 'keycloak-js' // Type only
