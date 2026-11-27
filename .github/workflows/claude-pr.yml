@@ -109,6 +109,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app.outputs.token }}
+          allowed_bots: 'aqua-grow-factory'
           prompt: |
             Review pull request #${{ github.event.pull_request.number }} in ${{ github.repository }}.
             Read AGENTS.md first. Check the diff for: broken multi-tenancy (missing tenantId / @Filter),
