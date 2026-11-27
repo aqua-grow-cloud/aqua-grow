@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   bump:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.SELF_HOSTED == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted","aqua-grow-mac"]') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -38,7 +38,8 @@ jobs:
           SERVICES: ${{ inputs.services }}
         run: |
           if ! [[ "$TAG" =~ ^[0-9A-Za-z._-]+$ ]]; then echo "bad tag" >&2; exit 1; fi
-          mapfile -t services < <(echo "$SERVICES" | jq -r '.[]')
+          services=()
+          while IFS= read -r svc; do services+=("$svc"); done < <(jq -r '.[]' <<<"$SERVICES")
           scripts/bump-config.sh config "$TAG" "${services[@]}"
       - name: Open pull request
         uses: peter-evans/create-pull-request@v7
